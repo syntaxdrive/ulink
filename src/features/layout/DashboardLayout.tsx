@@ -1,0 +1,445 @@
+import { useState, useEffect, useRef } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search } from 'lucide-react';
+
+import { supabase } from '../../lib/supabase';
+import type { Profile } from '../../types';
+import NotificationToast from '../../components/ui/NotificationToast';
+
+export default function DashboardLayout() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
+    const [unreadNotifications, setUnreadNotifications] = useState(0);
+    const [userProfile, setUserProfile] = useState<Profile | null>(null);
+    const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
+    const [toast, setToast] = useState<{ title: string; message: string; isVisible: boolean; onClick?: () => void }>({
+        title: '', message: '', isVisible: false
+    });
+
+    const requestNotificationPermission = async () => {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+    };
+
+    const handleNotification = (title: string, body: string, onClick?: () => void) => {
+        // Prefer Service Worker for mobile support
+        if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, {
+                    body,
+                    icon: '/logo.svg',
+                    vibrate: [200, 100, 200], // Vibration
+                    tag: 'ulink-notification',
+                    renotify: true,
+                    data: { url: window.location.origin + (onClick ? '' : '/app/notifications') } // fallback url
+                } as any);
+            });
+        } else if (Notification.permission === 'granted') {
+            const n = new Notification(title, {
+                body,
+                icon: '/logo.svg',
+            });
+            if (onClick) {
+                n.onclick = (e) => {
+                    e.preventDefault();
+                    window.focus();
+                    onClick();
+                    n.close();
+                };
+            }
+        }
+
+        // Mobile Vibration Fallback (for older browsers)
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try { navigator.vibrate([200, 100, 200]); } catch (e) { /* ignore */ }
+        }
+
+        setToast({ title, message: body, isVisible: true, onClick });
+        playNotificationSound();
+    };
+
+    // Reset unread counts when visiting relevant pages
+    useEffect(() => {
+        if (location.pathname.startsWith('/app/messages')) {
+            setUnreadMessages(0);
+        }
+        if (location.pathname.startsWith('/app/notifications')) {
+            setUnreadNotifications(0);
+        }
+    }, [location.pathname]);
+
+    const playNotificationSound = () => {
+        try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch (A5)
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.4);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.4);
+        } catch (e) {
+            console.error('Audio play failed', e);
+        }
+    };
+
+    const locationRef = useRef(location.pathname);
+    useEffect(() => { locationRef.current = location.pathname; }, [location.pathname]);
+
+    // Initialize Audio Context on first interaction to bypass autoplay policy
+    useEffect(() => {
+        const initAudio = () => {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContext) {
+                const ctx = new AudioContext();
+                if (ctx.state === 'suspended') ctx.resume();
+            }
+            window.removeEventListener('click', initAudio);
+        };
+        window.addEventListener('click', initAudio);
+        return () => window.removeEventListener('click', initAudio);
+    }, []);
+
+    useEffect(() => {
+        let channel: any;
+
+        const setupRealtime = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Fetch User Profile
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (profile) setUserProfile(profile);
+
+            // Session-only tracking: Initial counts start at 0 (skipping DB fetch of unread items)
+
+            // Subscribe
+            channel = supabase.channel('dashboard-alerts')
+                .on(
+                    'postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+                    async (payload) => {
+                        // Check if user is currently viewing messages
+                        if (locationRef.current.startsWith('/app/messages')) {
+                            // User is watching. Do not alert.
+                            return;
+                        }
+
+                        const newMsg = payload.new;
+                        let senderName = 'Someone';
+
+                        // Fetch sender name
+                        if (newMsg.sender_id) {
+                            const { data: sender } = await supabase
+                                .from('profiles')
+                                .select('name')
+                                .eq('id', newMsg.sender_id)
+                                .single();
+                            if (sender) senderName = sender.name;
+                        }
+
+                        setUnreadMessages(prev => prev + 1);
+                        handleNotification(
+                            `New message from ${senderName}`,
+                            newMsg.content || 'Sent an attachment',
+                            () => navigate(`/app/messages?chat=${newMsg.sender_id}`)
+                        );
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+                    (_payload) => {
+                        // Check if user is currently viewing notifications
+                        if (locationRef.current.startsWith('/app/notifications')) {
+                            return;
+                        }
+                        setUnreadNotifications(prev => prev + 1);
+                        handleNotification(
+                            'New Notification',
+                            'You have a new notification',
+                            () => navigate('/app/notifications')
+                        );
+                    }
+                )
+                .subscribe();
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (channel) supabase.removeChannel(channel);
+        };
+    }, []); // Empty dependency array ensures one subscription setup
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        navigate('/');
+    };
+
+    const navItems = [
+        { icon: LayoutGrid, label: 'Home', path: '/app' },
+        { icon: Users, label: 'Network', path: '/app/network' },
+        ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
+        { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+        { icon: Briefcase, label: 'Career', path: '/app/jobs' },
+        { icon: Bell, label: 'Notifications', path: '/app/notifications' },
+        { icon: User, label: 'Profile', path: '/app/profile' },
+    ];
+
+    const getBadgeCount = (label: string) => {
+        if (label === 'Messages') return unreadMessages;
+        if (label === 'Notifications') return unreadNotifications;
+        return 0;
+    };
+
+    // Filter items for bottom nav (Home, Network, Messages, Profile) & Career/Notifications go to menu
+    const bottomNavItems = navItems.filter(item =>
+        ['/app', '/app/network', '/app/messages', '/app/profile'].includes(item.path)
+    );
+
+    return (
+        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative">
+
+            {/* Subtle Background Pattern */}
+            <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
+
+            {/* Mobile Top Bar */}
+            <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 z-40">
+                <div className="flex items-center gap-2">
+                    <img src="/logo.svg" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                    <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
+                </div>
+                <button
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative"
+                >
+                    <Menu className="w-6 h-6" />
+                    {/* Show dot if any unread in hidden menu items */}
+                    {(unreadNotifications > 0) && (
+                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+                    )}
+                </button>
+            </header>
+
+            {/* Mobile Menu Drawer */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    <div
+                        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    ></div>
+                    <div className="absolute top-0 right-0 bottom-0 w-[280px] bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-right duration-300">
+                        <div className="flex justify-between items-center mb-8">
+                            <span className="font-display font-bold text-xl text-slate-900">Menu</span>
+                            <button
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <nav className="flex-1 space-y-2">
+                            {navItems.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    end={item.path === '/app'}
+                                    className={({ isActive }) =>
+                                        `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
+                                            ? 'bg-slate-900 text-white shadow-md'
+                                            : 'text-slate-600 hover:bg-slate-50'
+                                        }`
+                                    }
+                                >
+                                    <div className="relative">
+                                        <item.icon className="w-5 h-5" />
+                                        {getBadgeCount(item.label) > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                                {getBadgeCount(item.label)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="font-medium">{item.label}</span>
+                                </NavLink>
+                            ))}
+                        </nav>
+
+                        <div className="pt-6 border-t border-slate-100">
+                            <div className="flex items-center gap-3 mb-4 px-2">
+                                <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
+                                    <img
+                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                        alt={userProfile?.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
+                                    <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
+                                        {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center gap-3 px-4 py-3 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            >
+                                <LogOut className="w-5 h-5" />
+                                <span className="font-medium">Log Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sidebar - Desktop */}
+            <aside className="w-[280px] fixed h-full hidden md:flex flex-col z-40 border-r border-slate-200 bg-white/80 backdrop-blur-xl">
+                {/* Brand Header */}
+                <div className="p-8 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.svg" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
+                        <div>
+                            <h1 className="text-xl font-display font-bold tracking-tight text-slate-900">
+                                UniLink
+                            </h1>
+                            <div className="text-xs font-medium text-slate-500 tracking-wide">
+                                Student Network
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 px-4 py-8 space-y-2">
+                    <div className="px-4 mb-4">
+                        <span className="text-xs font-semibold text-slate-400 tracking-wider">MENU</span>
+                    </div>
+
+                    {navItems.map((item) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.path === '/app'}
+                            className={({ isActive }) =>
+                                `relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
+                                    ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 ring-1 ring-slate-900'
+                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                }`
+                            }
+                        >
+                            <div className="relative">
+                                <item.icon className="w-5 h-5" strokeWidth={1.5} />
+                                {getBadgeCount(item.label) > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                        {getBadgeCount(item.label)}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="font-sans text-sm font-medium">{item.label}</span>
+                        </NavLink>
+                    ))}
+                </nav>
+
+                {/* Footer / Logout */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center gap-3 mb-4 px-2">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
+                            <img
+                                src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                alt={userProfile?.name}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
+                            <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
+                                {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
+                            </p>
+                        </div>
+                    </div>
+                    {notificationPermission === 'default' && (
+                        <button
+                            onClick={requestNotificationPermission}
+                            className="w-full mb-3 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Bell className="w-3 h-3" /> Enable Notifications
+                        </button>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent rounded-xl transition-all duration-300 group"
+                    >
+                        <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
+                        <span className="font-sans text-xs font-semibold">Log Out</span>
+                    </button>
+
+                    {/* Legal Footer */}
+                    <div className="mt-6 px-2 text-[10px] text-slate-400 font-medium space-y-2 border-t border-slate-100 pt-4">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            <a href="#" className="hover:text-slate-600 hover:underline">Privacy Policy</a>
+                            <a href="#" className="hover:text-slate-600 hover:underline">Terms of Service</a>
+                            <a href="#" className="hover:text-slate-600 hover:underline">Cookie Policy</a>
+                            <a href="#" className="hover:text-slate-600 hover:underline">Copyright Policy</a>
+                        </div>
+                        <p className="opacity-70">&copy; {new Date().getFullYear()} UniLink Nigeria. All rights reserved.</p>
+                    </div>
+                </div>
+            </aside>
+
+
+            {/* Main Content */}
+            <main className="flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 pt-16 md:pt-0">
+                <div className="max-w-7xl mx-auto p-6 md:p-10 pb-32">
+                    <Outlet />
+                </div>
+            </main>
+
+            {/* Mobile Bottom Nav */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+                {bottomNavItems.map((item) => (
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === '/app'}
+                        className={({ isActive }) =>
+                            `relative flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${isActive
+                                ? 'text-indigo-600'
+                                : 'text-slate-400 hover:text-slate-600'
+                            }`
+                        }
+                    >
+                        <div className="relative">
+                            <item.icon className="w-6 h-6" strokeWidth={1.5} />
+                            {getBadgeCount(item.label) > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                                    {getBadgeCount(item.label)}
+                                </span>
+                            )}
+                        </div>
+                    </NavLink>
+                ))}
+            </nav>
+
+            <NotificationToast
+                title={toast.title}
+                message={toast.message}
+                isVisible={toast.isVisible}
+                onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+                onClick={toast.onClick}
+            />
+        </div>
+    );
+}

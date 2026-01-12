@@ -1,0 +1,557 @@
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
+import { type Profile, type Project, type Post } from '../../types';
+import { Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin, Globe, MapPin, Briefcase, BadgeCheck, MessageCircle, Heart } from 'lucide-react';
+
+function formatTimeAgo(dateString: string) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+}
+
+export default function ProfilePage() {
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    // Form state
+    const [name, setName] = useState('');
+    const [headline, setHeadline] = useState('');
+    const [location, setLocation] = useState('');
+    const [university, setUniversity] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const [about, setAbout] = useState('');
+
+    // Arrays
+    const [skills, setSkills] = useState<string[]>([]);
+    const [newSkill, setNewSkill] = useState('');
+
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [userPosts, setUserPosts] = useState<Post[]>([]);
+    const [newProject, setNewProject] = useState<Project>({ title: '', description: '', link: '' });
+    const [showProjectForm, setShowProjectForm] = useState(false);
+
+    // Socials
+    const [website, setWebsite] = useState('');
+    const [github, setGithub] = useState('');
+    const [linkedin, setLinkedin] = useState('');
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setAvatarUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Fetch Profile
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error && error.code === 'PGRST116') {
+                // Auto-create fallback
+                const { data: newProfile } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: user.id,
+                        email: user.email!,
+                        name: user.user_metadata.name || user.email?.split('@')[0] || 'User',
+                        role: 'student',
+                        avatar_url: `https://ui-avatars.com/api/?name=${user.email}&background=random`
+                    })
+                    .select()
+                    .single();
+
+                if (newProfile) loadProfileData(newProfile);
+            } else if (data) {
+                loadProfileData(data);
+            }
+
+            // Fetch User Posts
+            const { data: postsData } = await supabase
+                .from('posts')
+                .select(`
+                    *,
+                    likes (user_id),
+                    comments (id)
+                `)
+                .eq('author_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (postsData) {
+                const formattedPosts = postsData.map((post: any) => ({
+                    ...post,
+                    likes_count: post.likes ? post.likes.length : 0,
+                    comments_count: post.comments ? post.comments.length : 0,
+                    user_has_liked: false // User viewing their own posts
+                }));
+                setUserPosts(formattedPosts);
+            }
+
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadProfileData = (data: Profile) => {
+        setProfile(data);
+        setName(data.name || '');
+        setHeadline(data.headline || '');
+        setLocation(data.location || '');
+        setUniversity(data.university || '');
+        setAvatarUrl(data.avatar_url || '');
+        setAbout(data.about || '');
+        setSkills(data.skills || []);
+        setProjects(data.projects || []);
+        setWebsite(data.website || '');
+        setGithub(data.github_url || '');
+        setLinkedin(data.linkedin_url || '');
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+
+        // Optimistic delete
+        setUserPosts(prev => prev.filter(p => p.id !== postId));
+
+        const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', postId);
+
+        if (error) {
+            console.error('Error deleting post:', error);
+            alert('Failed to delete post.');
+            fetchProfile(); // Revert
+        }
+    };
+
+    const handleSave = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!profile) return;
+
+        setSaving(true);
+        try {
+            const updates: any = {
+                name,
+                headline,
+                location,
+                avatar_url: avatarUrl,
+                about,
+                skills,
+                projects,
+                website,
+                github_url: github,
+                linkedin_url: linkedin,
+                updated_at: new Date().toISOString(),
+            };
+
+            if (profile.role === 'student') {
+                updates.university = university;
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', profile.id);
+
+            if (error) throw error;
+
+            setProfile({ ...profile, ...updates });
+            // Optional: nice toast here
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Failed to update profile.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addSkill = () => {
+        if (newSkill.trim() && !skills.includes(newSkill.trim())) {
+            setSkills([...skills, newSkill.trim()]);
+            setNewSkill('');
+        }
+    };
+
+    const removeSkill = (skillToRemove: string) => {
+        setSkills(skills.filter(s => s !== skillToRemove));
+    };
+
+    const addProject = () => {
+        if (newProject.title && newProject.description) {
+            setProjects([...projects, newProject]);
+            setNewProject({ title: '', description: '', link: '' });
+            setShowProjectForm(false);
+        }
+    };
+
+    const removeProject = (index: number) => {
+        setProjects(projects.filter((_, i) => i !== index));
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            </div>
+        );
+    }
+
+    if (!profile) return null;
+    const isStudent = profile.role === 'student';
+
+    return (
+        <div className="max-w-5xl mx-auto pb-20">
+            <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Edit Profile</h1>
+                <button
+                    onClick={(e) => handleSave(e)}
+                    disabled={saving}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-70 flex items-center gap-2"
+                >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Changes
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LEFT COLUMN: Personal Info & Skills */}
+                <div className="lg:col-span-1 space-y-6">
+
+                    {/* Identity Card */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-32 h-32 rounded-full border-4 border-slate-50 overflow-hidden mb-4 relative group shadow-inner">
+                                <img
+                                    src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`}
+                                    alt="Profile"
+                                    className="w-full h-full object-cover"
+                                />
+                                <div onClick={handleAvatarClick} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <Camera className="w-8 h-8 text-white" />
+                                </div>
+                            </div>
+
+                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+
+                            <input
+                                type="url"
+                                placeholder="Avatar URL"
+                                value={avatarUrl}
+                                onChange={(e) => setAvatarUrl(e.target.value)}
+                                className="w-full text-xs text-center text-slate-500 bg-transparent border-none focus:ring-0 mb-4 placeholder:text-slate-300"
+                            />
+
+                            <div className="w-full space-y-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                        {isStudent ? 'Full Name' : 'Company Name'}
+                                        {profile?.is_verified && <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-100" />}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value.replace(/\p{Extended_Pictographic}/gu, ''))}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
+                                        placeholder={isStudent ? "Your Name" : "Company Name"}
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{isStudent ? 'Headline' : 'Industry / Tagline'}</label>
+                                    <input
+                                        type="text"
+                                        value={headline}
+                                        onChange={(e) => setHeadline(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                        placeholder={isStudent ? "Software Engineer | Designer" : "FinTech | EdTech | Recruiting"}
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Location</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            value={location}
+                                            onChange={(e) => setLocation(e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                            placeholder="Lagos, Nigeria"
+                                        />
+                                    </div>
+                                </div>
+
+                                {isStudent && (
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">University</label>
+                                        <div className="relative">
+                                            <School className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                value={university}
+                                                onChange={(e) => setUniversity(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                                placeholder="University Name"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Contact / Socials */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-indigo-500" />
+                            Connect
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="email"
+                                    value={profile.email}
+                                    disabled
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-400 cursor-not-allowed"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Github className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="url"
+                                    value={github}
+                                    onChange={(e) => setGithub(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    placeholder="GitHub URL"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Linkedin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="url"
+                                    value={linkedin}
+                                    onChange={(e) => setLinkedin(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    placeholder="LinkedIn URL"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Globe className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="url"
+                                    value={website}
+                                    onChange={(e) => setWebsite(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    placeholder="Portfolio Website"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Skills */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                            <Briefcase className="w-5 h-5 text-indigo-500" />
+                            {isStudent ? 'Skills' : 'Specialties'}
+                        </h3>
+
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {skills.map(skill => (
+                                <span key={skill} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium flex items-center gap-1 group">
+                                    {skill}
+                                    <button onClick={() => removeSkill(skill)} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                                </span>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newSkill}
+                                onChange={(e) => setNewSkill(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 placeholder:text-slate-400"
+                                placeholder={isStudent ? "Add skill..." : "Add specialty..."}
+                            />
+                            <button
+                                onClick={addSkill}
+                                className="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* RIGHT COLUMN: About & Experience */}
+                <div className="lg:col-span-2 space-y-6">
+
+                    {/* About Section */}
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-xl font-bold text-slate-900 mb-4">{isStudent ? 'About Me' : 'About Us'}</h3>
+                        <textarea
+                            value={about}
+                            onChange={(e) => setAbout(e.target.value)}
+                            className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
+                            placeholder={isStudent ? "Tell your story..." : "Describe your company mission..."}
+                        />
+                    </div>
+
+                    {/* Projects Section */}
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-900">{isStudent ? 'Projects & Experience' : 'Company Highlights'}</h3>
+                            <button
+                                onClick={() => setShowProjectForm(true)}
+                                className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> {isStudent ? "Add Project" : "Add Highlight"}
+                            </button>
+                        </div>
+
+                        {showProjectForm && (
+                            <div className="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                                <input
+                                    type="text"
+                                    placeholder={isStudent ? "Project Title" : "Highlight Title"}
+                                    value={newProject.title}
+                                    onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                />
+                                <textarea
+                                    placeholder="Description"
+                                    value={newProject.description}
+                                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                                    className="w-full h-20 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 resize-none"
+                                />
+                                <input
+                                    type="url"
+                                    placeholder={isStudent ? "Project Link (Optional)" : "Highlight Link (Optional)"}
+                                    value={newProject.link}
+                                    onChange={(e) => setNewProject({ ...newProject, link: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setShowProjectForm(false)}
+                                        className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={addProject}
+                                        className="px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800"
+                                    >
+                                        {isStudent ? 'Add Project' : 'Add Highlight'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {projects.map((project, idx) => (
+                                <div key={idx} className="group relative p-5 border border-slate-100 rounded-xl hover:border-indigo-100 hover:bg-indigo-50/30 transition-all">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-lg">{project.title}</h4>
+                                            <p className="text-slate-600 text-sm mt-1">{project.description}</p>
+                                            {project.link && (
+                                                <a href={project.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 mt-3 hover:underline">
+                                                    View {isStudent ? 'Project' : 'Details'} <Globe className="w-3 h-3" />
+                                                </a>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => removeProject(idx)}
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 transition-all"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {projects.length === 0 && !showProjectForm && (
+                                <div className="text-center py-10 text-slate-400 text-sm">
+                                    {isStudent ? 'No projects added yet. Share your work!' : 'No highlights added yet.'}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* My Activity / Posts */}
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 className="text-xl font-bold text-slate-900 mb-6">My Activity</h3>
+                        <div className="space-y-6">
+                            {userPosts.length === 0 ? (
+                                <p className="text-slate-500 text-sm">You haven't posted anything yet.</p>
+                            ) : (
+                                userPosts.map(post => (
+                                    <div key={post.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 group">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <p className="text-xs text-slate-400 font-medium">{formatTimeAgo(post.created_at)}</p>
+                                            <button
+                                                onClick={() => handleDeletePost(post.id)}
+                                                className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                                                title="Delete Post"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <p className="text-slate-800 text-sm mb-3 whitespace-pre-wrap">{post.content}</p>
+                                        <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+                                            <div className="flex items-center gap-1">
+                                                <Heart className="w-3.5 h-3.5" />
+                                                {post.likes_count}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <MessageCircle className="w-3.5 h-3.5" />
+                                                {post.comments_count}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    );
+}
