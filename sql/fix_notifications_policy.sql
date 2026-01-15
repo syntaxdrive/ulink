@@ -15,12 +15,12 @@ DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.notif
 -- Create Policies
 CREATE POLICY "Users can see their own notifications"
 ON public.notifications FOR SELECT
-USING (auth.uid() = recipient_id);
+USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own notifications"
 ON public.notifications FOR UPDATE
-USING (auth.uid() = recipient_id);
+USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own notifications"
 ON public.notifications FOR DELETE
-USING (auth.uid() = recipient_id);
+USING (auth.uid() = user_id);
