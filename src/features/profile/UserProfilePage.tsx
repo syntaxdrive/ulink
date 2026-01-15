@@ -66,7 +66,11 @@ export default function UserProfilePage() {
                     status: 'pending'
                 }, { onConflict: 'requester_id,recipient_id' });
 
-            if (!error) setConnectionStatus('pending');
+            if (error) {
+                alert(error.message);
+            } else {
+                setConnectionStatus('pending');
+            }
         } else if (connectionStatus === 'received') {
             // Accept request logic
             const { error } = await supabase
