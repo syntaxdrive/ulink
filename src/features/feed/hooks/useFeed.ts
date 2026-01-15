@@ -49,6 +49,10 @@ export function useFeed() {
                 const postId = payload.new?.post_id || payload.old?.post_id;
                 if (postId) fetchSinglePost(postId);
             })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload: any) => {
+                const postId = payload.new?.post_id || payload.old?.post_id;
+                if (postId) fetchSinglePost(postId);
+            })
             .subscribe();
 
         return () => {

@@ -185,7 +185,7 @@ export default function PostItem({
                     <div className={`p-2 rounded-xl group-hover:bg-red-50 transition-colors ${post.user_has_liked ? 'bg-red-50' : ''}`}>
                         <Heart className={`w-5 h-5 transition-transform group-active:scale-75 ${post.user_has_liked ? 'fill-current' : ''}`} />
                     </div>
-                    <span className={`text-sm font-semibold ${post.user_has_liked ? 'text-red-600' : 'hidden group-hover:block transition-all'}`}>
+                    <span className={`text-sm font-semibold transition-all ${post.user_has_liked ? 'text-red-600' : 'text-stone-500'}`}>
                         {post.likes_count || 0}
                     </span>
                 </button>
@@ -197,7 +197,7 @@ export default function PostItem({
                     <div className="p-2 rounded-xl group-hover:bg-blue-50 transition-colors">
                         <MessageCircle className="w-5 h-5" />
                     </div>
-                    <span className="text-sm font-semibold hidden group-hover:block transition-all">
+                    <span className="text-sm font-semibold text-stone-500 transition-all">
                         {post.comments_count || 0}
                     </span>
                 </button>

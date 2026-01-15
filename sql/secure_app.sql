@@ -99,18 +99,18 @@ USING (true);
 CREATE POLICY "Orgs can insert jobs" 
 ON public.jobs FOR INSERT 
 WITH CHECK (
-  auth.uid() = employer_id 
+  auth.uid() = creator_id 
   AND 
   EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'org')
 );
 
 CREATE POLICY "Employers can update own jobs" 
 ON public.jobs FOR UPDATE 
-USING (auth.uid() = employer_id);
+USING (auth.uid() = creator_id);
 
 CREATE POLICY "Employers can delete own jobs" 
 ON public.jobs FOR DELETE 
-USING (auth.uid() = employer_id OR (SELECT is_admin FROM public.profiles WHERE id = auth.uid()) = true);
+USING (auth.uid() = creator_id OR (SELECT is_admin FROM public.profiles WHERE id = auth.uid()) = true);
 
 
 -- 5. MESSAGES SECURITY (Private)
