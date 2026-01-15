@@ -5,6 +5,7 @@ import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import NotificationToast from '../../components/ui/NotificationToast';
+import UsernameSetupModal from '../auth/components/UsernameSetupModal';
 
 import { useNotifications } from '../notifications/hooks/useNotifications';
 
@@ -463,6 +464,13 @@ export default function DashboardLayout() {
                     </NavLink>
                 ))}
             </nav>
+
+            {userProfile && !userProfile.username && (
+                <UsernameSetupModal
+                    user={userProfile}
+                    onComplete={(newUsername) => setUserProfile({ ...userProfile, username: newUsername })}
+                />
+            )}
 
             <NotificationToast
                 title={toast.title}
