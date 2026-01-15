@@ -278,6 +278,27 @@ export function useFeed() {
         }
     };
 
+    const deleteComment = async (postId: string, commentId: string) => {
+        // Optimistic UI Update
+        setComments(prev => ({
+            ...prev,
+            [postId]: prev[postId].filter(c => c.id !== commentId)
+        }));
+
+        // Update post comment count
+        const post = posts.find(p => p.id === postId);
+        if (post) {
+            updatePost({ ...post, comments_count: Math.max((post.comments_count || 0) - 1, 0) });
+        }
+
+        const { error } = await supabase.from('comments').delete().eq('id', commentId);
+        if (error) {
+            console.error('Error deleting comment:', error);
+            // Ideally we would revert state here
+            alert('Failed to delete comment');
+        }
+    };
+
     return {
         posts,
         loading,
@@ -290,6 +311,7 @@ export function useFeed() {
         comments,
         loadingComments,
         postComment,
+        deleteComment,
         reportPost
     };
 }

@@ -32,6 +32,7 @@ interface PostItemProps {
     onPostComment: (id: string, content: string) => Promise<void>;
     onSearchTag: (tag: string) => void;
     onReport: (id: string) => void;
+    onDeleteComment: (postId: string, commentId: string) => void;
 }
 
 export default function PostItem({
@@ -47,7 +48,8 @@ export default function PostItem({
     onToggleMenu,
     onPostComment,
     onSearchTag,
-    onReport
+    onReport,
+    onDeleteComment
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
 
@@ -253,11 +255,25 @@ export default function PostItem({
                                 <p className="text-center text-xs text-stone-400 py-2">No comments yet. Be the first!</p>
                             ) : (
                                 comments.map(comment => (
-                                    <div key={comment.id} className="flex gap-3 text-sm">
-                                        <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-8 h-8 rounded-full bg-stone-100" />
-                                        <div className="bg-stone-50 rounded-2xl rounded-tl-sm p-3 px-4 flex-1">
-                                            <p className="font-bold text-stone-900 text-xs mb-0.5">{comment.profiles?.name}</p>
-                                            <p className="text-stone-600">{comment.content}</p>
+                                    <div key={comment.id} className="flex gap-3 text-sm group">
+                                        <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-8 h-8 rounded-full bg-stone-100 mt-1" />
+                                        <div className="bg-stone-50 rounded-2xl rounded-tl-sm p-3 px-4 flex-1 relative group-hover:bg-stone-100 transition-colors">
+                                            <div className="flex justify-between items-start">
+                                                <Link to={`/app/profile/${comment.author_id}`} className="font-bold text-stone-900 text-xs mb-1 hover:underline">
+                                                    {comment.profiles?.name}
+                                                </Link>
+                                                {currentUserId === comment.author_id && (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id);
+                                                        }}
+                                                        className="text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-stone-600 leading-relaxed">{comment.content}</p>
                                         </div>
                                     </div>
                                 ))

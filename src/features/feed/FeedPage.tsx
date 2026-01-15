@@ -17,6 +17,7 @@ export default function FeedPage() {
         comments,
         loadingComments,
         postComment,
+        deleteComment,
         reportPost
     } = useFeed();
 
@@ -120,6 +121,7 @@ export default function FeedPage() {
                                 onPostComment={postComment}
                                 onSearchTag={setSearchQuery}
                                 onReport={reportPost}
+                                onDeleteComment={deleteComment}
                             />
                         ))}
                     </div>
