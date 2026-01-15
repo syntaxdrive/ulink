@@ -257,6 +257,27 @@ export function useFeed() {
         }
     };
 
+    const reportPost = async (postId: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        try {
+            const { error } = await supabase.from('reports').insert({
+                reporter_id: user.id,
+                target_id: postId,
+                type: 'post',
+                reason: 'Inappropriate Content',
+                status: 'pending'
+            });
+
+            if (error) throw error;
+            alert('Post reported. Thank you for helping keep UniLink safe.');
+        } catch (error) {
+            console.error('Error reporting post:', error);
+            alert('Failed to report post. Please try again.');
+        }
+    };
+
     return {
         posts,
         loading,
@@ -268,6 +289,7 @@ export function useFeed() {
         activeCommentPostId,
         comments,
         loadingComments,
-        postComment
+        postComment,
+        reportPost
     };
 }

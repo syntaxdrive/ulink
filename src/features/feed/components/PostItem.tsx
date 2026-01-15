@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2 } from 'lucide-react';
+import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
 
 function formatTimeAgo(dateString: string) {
@@ -31,6 +31,7 @@ interface PostItemProps {
     onToggleMenu: (id: string) => void;
     onPostComment: (id: string, content: string) => Promise<void>;
     onSearchTag: (tag: string) => void;
+    onReport: (id: string) => void;
 }
 
 export default function PostItem({
@@ -45,7 +46,8 @@ export default function PostItem({
     onToggleComments,
     onToggleMenu,
     onPostComment,
-    onSearchTag
+    onSearchTag,
+    onReport
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
 
@@ -139,17 +141,45 @@ export default function PostItem({
                     {isActiveMenu && (
                         <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-stone-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
                             {currentUserId === post.author_id ? (
-                                <button
-                                    onClick={handleDelete}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete Post
-                                </button>
+                                <>
+                                    <button
+                                        onClick={handleDelete}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete Post
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                        Copy Link
+                                    </button>
+                                </>
                             ) : (
-                                <div className="px-4 py-2.5 text-xs text-stone-400 italic text-center">
-                                    No actions available
-                                </div>
+                                <>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                        Copy Link
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm('Report this post for inappropriate content?')) {
+                                                onReport(post.id);
+                                            }
+                                            onToggleMenu(post.id);
+                                        }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Flag className="w-4 h-4" />
+                                        Report Post
+                                    </button>
+                                </>
                             )}
                         </div>
                     )}

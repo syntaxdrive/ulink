@@ -16,7 +16,8 @@ export default function FeedPage() {
         activeCommentPostId,
         comments,
         loadingComments,
-        postComment
+        postComment,
+        reportPost
     } = useFeed();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +105,7 @@ export default function FeedPage() {
                                 onToggleMenu={toggleMenu}
                                 onPostComment={postComment}
                                 onSearchTag={setSearchQuery}
+                                onReport={reportPost}
                             />
                         ))}
                     </div>
