@@ -57,6 +57,13 @@ export default function SettingsPage() {
             ]
         },
         {
+            title: "Support",
+            items: [
+                { icon: FileText, label: "Contact Support", path: "mailto:unilinkrep@gmail.com", description: "Get help with your account" },
+                { icon: Shield, label: "Report a Problem", path: "mailto:unilinkrep@gmail.com?subject=Report%20Problem", description: "Found a bug? Let us know." },
+            ]
+        },
+        {
             title: "Legal & Policies",
             items: [
                 { icon: Shield, label: "Privacy Policy", path: "/app/legal/privacy", description: "How we handle your data" },
@@ -78,22 +85,43 @@ export default function SettingsPage() {
                             <h2 className="font-semibold text-stone-900">{section.title}</h2>
                         </div>
                         <div className="divide-y divide-stone-100">
-                            {section.items.map((item, i) => (
-                                <Link
-                                    key={i}
-                                    to={item.path}
-                                    className="flex items-center gap-4 p-4 hover:bg-stone-50 transition-colors group"
-                                >
-                                    <div className="p-2 bg-stone-100 rounded-xl text-stone-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                                        <item.icon className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-medium text-stone-900">{item.label}</h3>
-                                        <p className="text-xs text-stone-500">{item.description}</p>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
-                                </Link>
-                            ))}
+                            {section.items.map((item, i) => {
+                                const isExternal = item.path.startsWith('http') || item.path.startsWith('mailto:');
+                                const content = (
+                                    <>
+                                        <div className="p-2 bg-stone-100 rounded-xl text-stone-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                                            <item.icon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-medium text-stone-900">{item.label}</h3>
+                                            <p className="text-xs text-stone-500">{item.description}</p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                                    </>
+                                );
+
+                                if (isExternal) {
+                                    return (
+                                        <a
+                                            key={i}
+                                            href={item.path}
+                                            className="flex items-center gap-4 p-4 hover:bg-stone-50 transition-colors group"
+                                        >
+                                            {content}
+                                        </a>
+                                    );
+                                }
+
+                                return (
+                                    <Link
+                                        key={i}
+                                        to={item.path}
+                                        className="flex items-center gap-4 p-4 hover:bg-stone-50 transition-colors group"
+                                    >
+                                        {content}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
                 ))}

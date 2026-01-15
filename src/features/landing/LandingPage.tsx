@@ -206,7 +206,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex gap-8 text-sm text-slate-500">
                         <a href="#" className="hover:text-slate-900">About</a>
-                        <a href="#" className="hover:text-slate-900">Contact</a>
+                        <a href="mailto:unilinkrep@gmail.com" className="hover:text-slate-900">Contact</a>
                         <a href="#" className="hover:text-slate-900">Terms</a>
                     </div>
                     <p className="text-slate-400 text-sm">

@@ -94,7 +94,7 @@ Last Updated: January 12, 2026
 We respect the intellectual property rights of others. It is our policy to respond to any claim that Content posted on the Service infringes the copyright or other intellectual property infringement ("Infringement") of any person.
 
 2. DMCA Notice
-If you are a copyright owner, or authorized on behalf of one, and you believe that the copyrighted work has been copied in a way that constitutes copyright infringement that is taking place through the Service, you must submit your notice in writing to the attention of "Copyright Manager" of UniLink and include in your notice a detailed description of the alleged Infringement.
+If you are a copyright owner, or authorized on behalf of one, and you believe that the copyrighted work has been copied in a way that constitutes copyright infringement that is taking place through the Service, you must submit your notice in writing to the attention of "Copyright Manager" of UniLink at unilinkrep@gmail.com and include in your notice a detailed description of the alleged Infringement.
 
 3. Intellectual Property Rights
 Proprietary Rights. As between you and us, we (or our licensors) own all right, title, and interest in and to the Service, including all related intellectual property rights. The Service is protected by copyright, trade mark, and other laws of both the Nigeria and foreign countries. Our trade marks and trade dress may not be used in connection with any product or service without the prior written consent of us.
