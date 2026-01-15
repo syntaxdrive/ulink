@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
 import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban } from 'lucide-react';
@@ -8,7 +8,7 @@ export default function UserProfilePage() {
     const { userId } = useParams();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
+
     const [posts, setPosts] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isAddingCert, setIsAddingCert] = useState(false);

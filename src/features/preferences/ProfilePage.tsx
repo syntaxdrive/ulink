@@ -315,8 +315,8 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => {
-                            // Assuming '/u/:id' is the public profile route
-                            const publicUrl = `${window.location.origin}/u/${profile?.id}`;
+                            // Assuming '/app/user/:id' is the public profile route
+                            const publicUrl = `${window.location.origin}/app/user/${profile?.id}`;
                             navigator.clipboard.writeText(publicUrl);
                             alert('Profile link copied to clipboard!');
                         }}

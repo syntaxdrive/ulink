@@ -176,7 +176,7 @@ export default function NotificationsPage() {
                                             <Link
                                                 to={link}
                                                 className="flex-1 block bg-white p-4 rounded-2xl border border-stone-100 shadow-sm hover:border-stone-200 transition-all font-sans"
-                                                onClick={(e) => {
+                                                onClick={() => {
                                                     // Prevent navigation if clicking specific controls, though checkbox is outside link
                                                 }}
                                             >

@@ -18,7 +18,29 @@ export default function AuthPage() {
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Reset Password State
+    const [showReset, setShowReset] = useState(false);
+    const [resetSent, setResetSent] = useState(false);
+
     const navigate = useNavigate();
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
+            setResetSent(true);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,6 +113,79 @@ export default function AuthPage() {
                     >
                         Back to Sign In
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (showReset) {
+        return (
+            <div className="relative min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 overflow-hidden font-sans">
+                <div className="absolute inset-0 z-0"><ThreeBackground /></div>
+                <div className="relative z-10 w-full max-w-[420px] bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] p-8 text-center animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+                        <Lock className="w-8 h-8" />
+                    </div>
+
+                    {resetSent ? (
+                        <>
+                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Check your inbox</h2>
+                            <p className="text-slate-500 mb-8">
+                                We've sent password reset instructions to <span className="font-medium text-slate-700">{email}</span>.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    setShowReset(false);
+                                    setResetSent(false);
+                                }}
+                                className="w-full bg-white border border-slate-200 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+                            >
+                                Back to Sign In
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Reset Password</h2>
+                            <p className="text-slate-500 mb-8">
+                                Enter your email address and we'll send you a link to reset your password.
+                            </p>
+
+                            {error && (
+                                <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-3 text-left">
+                                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"></div>
+                                    {error}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleResetPassword} className="space-y-4">
+                                <div className="relative group text-left">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-indigo-600" />
+                                    <input
+                                        type="email"
+                                        placeholder="Email Address"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-50"
+                                >
+                                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Send Reset Link'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowReset(false)}
+                                    className="w-full text-sm text-slate-500 hover:text-slate-800 font-medium py-2"
+                                >
+                                    Cancel
+                                </button>
+                            </form>
+                        </>
+                    )}
                 </div>
             </div>
         );
@@ -265,6 +360,19 @@ export default function AuthPage() {
                                 required
                             />
                         </div>
+
+                        {isLogin && (
+                            <div className="flex justify-end px-1">
+                                <button
+                                    type="button"
+                                    // Let's create a separate state 'showReset'
+                                    onClick={() => setShowReset(true)}
+                                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                                >
+                                    Forgot password?
+                                </button>
+                            </div>
+                        )}
 
                         {!isLogin && (
                             <div className="flex items-start gap-3 px-1">
