@@ -14,12 +14,15 @@ export default function JobsPage() {
     const handleDeleteJob = async (jobId: string) => {
         if (!confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) return;
 
+        // Optimistic update
+        setJobs(prev => prev.filter(j => j.id !== jobId));
+
         const { error } = await supabase.from('jobs').delete().eq('id', jobId);
         if (error) {
             console.error('Error deleting job:', error);
-            alert('Failed to delete job.');
-        } else {
-            setJobs(prev => prev.filter(j => j.id !== jobId));
+            alert('Failed to delete job. You might not have permission.');
+            // Rollback
+            fetchJobs();
         }
     };
 
