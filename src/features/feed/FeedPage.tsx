@@ -35,10 +35,24 @@ export default function FeedPage() {
     };
 
     // Filter posts
-    const filteredPosts = posts.filter(post =>
-        post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.profiles?.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const isHashtagSearch = searchQuery.startsWith('#');
+    const filteredPosts = posts.filter(post => {
+        if (isHashtagSearch) {
+            // Strict hashtag match
+            const regex = new RegExp(`${searchQuery}\\b`, 'i');
+            return regex.test(post.content);
+        }
+        return (
+            post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            post.profiles?.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }).sort((a, b) => {
+        if (isHashtagSearch) {
+            // Engagement First Sorting for Hashtags
+            return (b.likes_count || 0) - (a.likes_count || 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+        return 0; // Default order (chronological, handled by hook)
+    });
 
     // Hashtag Logic
     const trendingTags = posts.reduce((acc, post) => {
