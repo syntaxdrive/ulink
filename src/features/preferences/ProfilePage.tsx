@@ -77,11 +77,104 @@ export default function ProfilePage() {
         }
     };
 
-    // ... (keep handleCertFileChange)
+    const handleCertFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert('File size must be less than 5MB');
+                if (certFileInputRef.current) certFileInputRef.current.value = '';
+                return;
+            }
+            setCertFile(file);
+            setNewCertificate(prev => ({ ...prev, credential_url: '(File attached: ' + file.name + ')' }));
+        }
+    };
 
-    // ... (fetchProfile)
+    const loadProfileData = (data: Profile) => {
+        setProfile(data);
+        setName(data.name || '');
+        setHeadline(data.headline || '');
+        setLocation(data.location || '');
+        setUniversity(data.university || '');
+        setAvatarUrl(data.avatar_url || '');
+        setAbout(data.about || '');
+        setSkills(data.skills || []);
+        setProjects(data.projects || []);
+        setCertificates(data.certificates || []);
+        setWebsite(data.website || '');
+        setGithub(data.github_url || '');
+        setLinkedin(data.linkedin_url || '');
+    };
 
-    // ... (handleDeletePost)
+    const fetchProfile = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Fetch Profile
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error && error.code === 'PGRST116') {
+                // Fallback: Create profile if missing
+                const { data: newProfile } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: user.id,
+                        email: user.email!,
+                        name: user.user_metadata.name || user.email?.split('@')[0] || 'User',
+                        role: 'student',
+                        avatar_url: `https://ui-avatars.com/api/?name=${user.email}&background=random`
+                    })
+                    .select()
+                    .single();
+
+                if (newProfile) loadProfileData(newProfile);
+            } else if (data) {
+                loadProfileData(data);
+            }
+
+            // Fetch User Posts
+            const { data: postsData } = await supabase
+                .from('posts')
+                .select(`
+                    *,
+                    likes (user_id),
+                    comments (id)
+                `)
+                .eq('author_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (postsData) {
+                const formattedPosts = postsData.map((post: any) => ({
+                    ...post,
+                    likes_count: post.likes ? post.likes.length : 0,
+                    comments_count: post.comments ? post.comments.length : 0,
+                    user_has_liked: false
+                }));
+                setUserPosts(formattedPosts);
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+        setUserPosts(prev => prev.filter(p => p.id !== postId));
+        const { error } = await supabase.from('posts').delete().eq('id', postId);
+        if (error) {
+            console.error('Error deleting post:', error);
+            alert('Failed to delete post.');
+            fetchProfile();
+        }
+    };
+
 
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -94,7 +187,8 @@ export default function ProfilePage() {
             // 1. Upload Avatar if Changed
             if (avatarFile) {
                 const fileExt = avatarFile.name.split('.').pop();
-                const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+                // RLS requires folder structure: user_id/filename
+                const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('avatars')

@@ -144,9 +144,9 @@ export function useFeed() {
             const fileExt = imageFile.name.split('.').pop();
             const fileName = `${Math.random()}.${fileExt}`;
             const filePath = `posts/${fileName}`;
-            const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, imageFile);
+            const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, imageFile);
             if (uploadError) throw uploadError;
-            const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
+            const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
             imageUrl = publicUrl;
         }
 
