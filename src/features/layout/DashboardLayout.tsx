@@ -107,7 +107,14 @@ export default function DashboardLayout() {
 
         const setupRealtime = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+
+            // CRITICAL GUARD: If session is structurally valid but user is logically missing (e.g. deleted on server),
+            // we must boot them out to prevent crashes in child components.
+            if (!user) {
+                await supabase.auth.signOut();
+                navigate('/');
+                return;
+            }
 
             // Fetch User Profile
             const { data: profile } = await supabase
@@ -129,6 +136,7 @@ export default function DashboardLayout() {
 
             // 1. Fetch Initial Unread Message Count
             const fetchMessageCount = async () => {
+                if (!user?.id) return; // double check
                 const { count } = await supabase
                     .from('messages')
                     .select('id', { count: 'exact', head: true })
