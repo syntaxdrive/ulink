@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { type Profile, type Project, type Post } from '../../types';
-import { Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin, Globe, MapPin, Briefcase, BadgeCheck, MessageCircle, Heart } from 'lucide-react';
+import { type Profile, type Project, type Post, type Certificate } from '../../types';
+import { Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin, Globe, MapPin, Briefcase, BadgeCheck, MessageCircle, Heart, Award, Upload, Share } from 'lucide-react';
+
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -36,9 +37,12 @@ export default function ProfilePage() {
     const [newSkill, setNewSkill] = useState('');
 
     const [projects, setProjects] = useState<Project[]>([]);
+    const [certificates, setCertificates] = useState<Certificate[]>([]);
     const [userPosts, setUserPosts] = useState<Post[]>([]);
     const [newProject, setNewProject] = useState<Project>({ title: '', description: '', link: '' });
+    const [newCertificate, setNewCertificate] = useState<Partial<Certificate>>({ title: '', issuing_org: '', issue_date: '' });
     const [showProjectForm, setShowProjectForm] = useState(false);
+    const [showCertificateForm, setShowCertificateForm] = useState(false);
 
     // Socials
     const [website, setWebsite] = useState('');
@@ -46,6 +50,9 @@ export default function ProfilePage() {
     const [linkedin, setLinkedin] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const certFileInputRef = useRef<HTMLInputElement>(null);
+    const [certFile, setCertFile] = useState<File | null>(null);
+
 
     const handleAvatarClick = () => {
         fileInputRef.current?.click();
@@ -61,6 +68,21 @@ export default function ProfilePage() {
             reader.readAsDataURL(file);
         }
     };
+
+    const handleCertFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert('File size must be less than 5MB');
+                if (certFileInputRef.current) certFileInputRef.current.value = '';
+                return;
+            }
+            setCertFile(file);
+            // Auto-fill credential URL with filename as placeholder user knows something is attached
+            setNewCertificate(prev => ({ ...prev, credential_url: '(File attached: ' + file.name + ')' }));
+        }
+    };
+
 
     useEffect(() => {
         fetchProfile();
@@ -135,6 +157,7 @@ export default function ProfilePage() {
         setAbout(data.about || '');
         setSkills(data.skills || []);
         setProjects(data.projects || []);
+        setCertificates(data.certificates || []);
         setWebsite(data.website || '');
         setGithub(data.github_url || '');
         setLinkedin(data.linkedin_url || '');
@@ -172,6 +195,7 @@ export default function ProfilePage() {
                 about,
                 skills,
                 projects,
+                certificates,
                 website,
                 github_url: github,
                 linkedin_url: linkedin,
@@ -222,6 +246,57 @@ export default function ProfilePage() {
         setProjects(projects.filter((_, i) => i !== index));
     };
 
+    const addCertificate = async () => {
+        if (newCertificate.title && newCertificate.issuing_org) {
+            setSaving(true);
+            let finalUrl = newCertificate.credential_url;
+
+            if (certFile) {
+                try {
+                    const fileExt = certFile.name.split('.').pop();
+                    const fileName = `certificates/${profile!.id}_${Date.now()}.${fileExt}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('uploads')
+                        .upload(fileName, certFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('uploads')
+                        .getPublicUrl(fileName);
+
+                    finalUrl = publicUrl;
+                } catch (err) {
+                    console.error('Error uploading certificate:', err);
+                    alert('Failed to upload certificate file');
+                    setSaving(false);
+                    return;
+                }
+            }
+
+            const cert: Certificate = {
+                id: `cert-${Date.now()}`,
+                user_id: profile!.id,
+                title: newCertificate.title,
+                issuing_org: newCertificate.issuing_org,
+                issue_date: newCertificate.issue_date,
+                credential_url: finalUrl,
+                credential_id: newCertificate.credential_id
+            };
+            setCertificates([...certificates, cert]);
+            setNewCertificate({ title: '', issuing_org: '', issue_date: '', credential_url: '' });
+            setCertFile(null);
+            setShowCertificateForm(false);
+            setSaving(false);
+        }
+    };
+
+
+    const removeCertificate = (id: string) => {
+        setCertificates(certificates.filter(c => c.id !== id));
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center py-12">
@@ -237,14 +312,28 @@ export default function ProfilePage() {
         <div className="max-w-5xl mx-auto pb-20">
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Edit Profile</h1>
-                <button
-                    onClick={(e) => handleSave(e)}
-                    disabled={saving}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-70 flex items-center gap-2"
-                >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Changes
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            // Assuming '/u/:id' is the public profile route
+                            const publicUrl = `${window.location.origin}/u/${profile?.id}`;
+                            navigator.clipboard.writeText(publicUrl);
+                            alert('Profile link copied to clipboard!');
+                        }}
+                        className="px-4 py-2.5 bg-white text-slate-600 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                        <Share className="w-4 h-4" />
+                        Share
+                    </button>
+                    <button
+                        onClick={(e) => handleSave(e)}
+                        disabled={saving}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-70 flex items-center gap-2"
+                    >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Save Changes
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -509,6 +598,136 @@ export default function ProfilePage() {
                             {projects.length === 0 && !showProjectForm && (
                                 <div className="text-center py-10 text-slate-400 text-sm">
                                     {isStudent ? 'No projects added yet. Share your work!' : 'No highlights added yet.'}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Certificates Section */}
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-900">Certifications</h3>
+                            <button
+                                onClick={() => setShowCertificateForm(true)}
+                                className="text-sm text-indigo-600 font-medium hover:text-indigo-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-4 h-4" /> Add Certificate
+                            </button>
+                        </div>
+
+                        {showCertificateForm && (
+                            <div className="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                                <input
+                                    type="text"
+                                    placeholder="Certificate Title (e.g. AWS Certified)"
+                                    value={newCertificate.title}
+                                    onChange={(e) => setNewCertificate({ ...newCertificate, title: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Issuing Organization (e.g. Amazon)"
+                                    value={newCertificate.issuing_org}
+                                    onChange={(e) => setNewCertificate({ ...newCertificate, issuing_org: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        type="date"
+                                        placeholder="Issue Date"
+                                        value={newCertificate.issue_date}
+                                        onChange={(e) => setNewCertificate({ ...newCertificate, issue_date: e.target.value })}
+                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Credential ID (Optional)"
+                                        value={newCertificate.credential_id}
+                                        onChange={(e) => setNewCertificate({ ...newCertificate, credential_id: e.target.value })}
+                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                    />
+                                </div>
+                                <input
+                                    type="url"
+                                    placeholder="Credential URL (Optional)"
+                                    value={newCertificate.credential_url}
+                                    onChange={(e) => setNewCertificate({ ...newCertificate, credential_url: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                                />
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="file"
+                                        ref={certFileInputRef}
+                                        className="hidden"
+                                        accept="image/*,application/pdf"
+                                        onChange={handleCertFileChange}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => certFileInputRef.current?.click()}
+                                        className={`px-4 py-2 border rounded-lg text-sm flex items-center gap-2 transition-colors ${certFile ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        {certFile ? 'File Attached' : 'Upload Certificate (PDF/Image)'}
+                                    </button>
+                                    {certFile && (
+                                        <button
+                                            onClick={() => { setCertFile(null); setNewCertificate(prev => ({ ...prev, credential_url: '' })); if (certFileInputRef.current) certFileInputRef.current.value = ''; }}
+                                            className="text-xs text-red-500 hover:underline"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setShowCertificateForm(false)}
+                                        className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={addCertificate}
+                                        className="px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800"
+                                    >
+                                        Add Certificate
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            {certificates.map((cert) => (
+                                <div key={cert.id} className="group relative p-4 border border-slate-100 rounded-xl hover:border-indigo-100 hover:bg-indigo-50/30 transition-all flex items-start gap-4">
+                                    <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                                        <Award className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-slate-900">{cert.title}</h4>
+                                        <p className="text-sm text-slate-600">{cert.issuing_org}</p>
+                                        <div className="text-xs text-slate-400 mt-1 flex gap-2">
+                                            {cert.issue_date && <span>Issued {new Date(cert.issue_date).toLocaleDateString()}</span>}
+                                            {cert.credential_id && <span>• ID: {cert.credential_id}</span>}
+                                        </div>
+                                        {cert.credential_url && (
+                                            <a href={cert.credential_url} target="_blank" rel="noreferrer" className="inline-block mt-2 text-xs font-medium text-indigo-600 hover:underline">
+                                                Show Credential
+                                            </a>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => removeCertificate(cert.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 transition-all"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {certificates.length === 0 && !showCertificateForm && (
+                                <div className="text-center py-6 text-slate-400 text-sm">
+                                    No certificates added yet.
                                 </div>
                             )}
                         </div>

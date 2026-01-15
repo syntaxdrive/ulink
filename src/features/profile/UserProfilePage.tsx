@@ -1,17 +1,127 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2 } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban } from 'lucide-react';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
     const [posts, setPosts] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isAddingCert, setIsAddingCert] = useState(false);
     const [newCert, setNewCert] = useState({ title: '', issuing_org: '', issue_date: '', credential_url: '' });
+
+    // Connection Logic
+    const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
+    const [actionLoading, setActionLoading] = useState(false);
+
+    const fetchConnectionStatus = async (targetId: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+            .from('connections')
+            .select('*')
+            .or(`and(requester_id.eq.${user.id},recipient_id.eq.${targetId}),and(requester_id.eq.${targetId},recipient_id.eq.${user.id})`)
+            .maybeSingle();
+
+        if (data) {
+            if (data.status === 'blocked') {
+                if (data.requester_id === user.id) {
+                    setConnectionStatus('blocked'); // I blocked them
+                } else {
+                    setConnectionStatus('none'); // They blocked me (appear as none)
+                }
+            } else if (data.status === 'accepted') {
+                setConnectionStatus('connected');
+            } else if (data.status === 'rejected') {
+                setConnectionStatus('rejected');
+            } else if (data.requester_id === user.id) {
+                setConnectionStatus('pending');
+            } else {
+                setConnectionStatus('received');
+            }
+        } else {
+            setConnectionStatus('none');
+        }
+    };
+
+    const handleConnect = async () => {
+        setActionLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !profile) return;
+
+        if (connectionStatus === 'none' || connectionStatus === 'rejected') {
+            // Treat rejected as "can try again" or new request
+            const { error } = await supabase
+                .from('connections')
+                .upsert({
+                    requester_id: user.id,
+                    recipient_id: profile.id,
+                    status: 'pending'
+                }, { onConflict: 'requester_id,recipient_id' });
+
+            if (!error) setConnectionStatus('pending');
+        } else if (connectionStatus === 'received') {
+            // Accept request logic
+            const { error } = await supabase
+                .from('connections')
+                .update({ status: 'accepted' })
+                .eq('recipient_id', user.id)
+                .eq('requester_id', profile.id);
+            if (!error) setConnectionStatus('connected');
+        } else if (connectionStatus === 'blocked') {
+            // Unblock logic (delete the block record)
+            const { error } = await supabase
+                .from('connections')
+                .delete()
+                // We know we are the requester if status is 'blocked' (from fetch logic)
+                .match({ requester_id: user.id, recipient_id: profile.id });
+
+            if (!error) setConnectionStatus('none');
+        }
+
+        setActionLoading(false);
+    };
+
+    const handleDisconnect = async () => {
+        if (!confirm('Are you sure you want to disconnect?')) return;
+        setActionLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !profile) return;
+
+        // Delete the connection record regardless of who started it
+        const { error } = await supabase
+            .from('connections')
+            .delete()
+            .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${user.id})`);
+
+        if (!error) setConnectionStatus('none');
+        setActionLoading(false);
+    };
+
+    const handleBlock = async () => {
+        if (!confirm('Are you sure you want to block this user? They will not be able to contact you.')) return;
+        setActionLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !profile) return;
+
+        // Upsert a block record: Current user is requester, Status is blocked
+        // This overwrites any existing connection
+        const { error } = await supabase
+            .from('connections')
+            .upsert({
+                requester_id: user.id,
+                recipient_id: profile.id,
+                status: 'blocked'
+            });
+
+        if (!error) setConnectionStatus('blocked');
+        setActionLoading(false);
+    };
 
     const handleAddCertificate = async () => {
         if (!newCert.title || !newCert.issuing_org) return; // Basic validation
@@ -78,6 +188,7 @@ export default function UserProfilePage() {
         if (userId) {
             fetchProfile(userId);
             fetchUserPosts(userId);
+            fetchConnectionStatus(userId);
         }
     }, [userId]);
 
@@ -145,17 +256,33 @@ export default function UserProfilePage() {
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
-                            <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden mb-4 bg-white">
-                                <img
-                                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=10b981&color=fff`}
-                                    alt={profile.name}
-                                    className="w-full h-full object-cover"
-                                />
+                            <div className="relative mb-4">
+                                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+                                    <img
+                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=10b981&color=fff`}
+                                        alt={profile.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(window.location.href);
+                                        alert('Profile link copied to clipboard!');
+                                    }}
+                                    className="absolute bottom-0 right-0 p-2 bg-white text-slate-400 hover:text-indigo-600 rounded-full shadow-md border border-slate-100 transition-all hover:scale-110"
+                                    title="Share Profile"
+                                >
+                                    <Share className="w-4 h-4" />
+                                </button>
                             </div>
 
                             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-1.5 justify-center">
                                 {profile.name}
-                                {profile.is_verified && <BadgeCheck className="w-5 h-5 text-yellow-500 fill-yellow-50" />}
+                                {profile.gold_verified ? (
+                                    <BadgeCheck className="w-5 h-5 text-yellow-500 fill-yellow-50" />
+                                ) : profile.is_verified ? (
+                                    <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
+                                ) : null}
                             </h1>
 
                             {profile.headline && (
@@ -187,7 +314,7 @@ export default function UserProfilePage() {
 
 
 
-                        {/* Socials */}
+                        {/* Socials & Share */}
                         <div className="mt-6 flex justify-center gap-3">
                             {profile.github_url && (
                                 <a href={profile.github_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all">
@@ -207,7 +334,99 @@ export default function UserProfilePage() {
                             <a href={`mailto:${profile.email}`} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all">
                                 <Mail className="w-5 h-5" />
                             </a>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                    alert('Link copied to clipboard!');
+                                }}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all"
+                                title="Share Profile"
+                            >
+                                <Share className="w-5 h-5" />
+                            </button>
                         </div>
+
+                        {/* Connection Button */}
+                        {currentUser && currentUser.id !== profile.id && (
+                            <div className="mt-6 px-6 w-full space-y-3">
+                                {connectionStatus === 'connected' ? (
+                                    <>
+                                        <button
+                                            disabled
+                                            className="w-full py-2.5 rounded-xl bg-green-50 text-green-600 font-semibold text-sm flex items-center justify-center gap-2 cursor-default border border-green-200"
+                                        >
+                                            <Check className="w-4 h-4" /> Connected
+                                        </button>
+                                        <button
+                                            onClick={handleDisconnect}
+                                            disabled={actionLoading}
+                                            className="w-full py-2.5 rounded-xl bg-white text-stone-500 font-medium text-sm flex items-center justify-center gap-2 border border-stone-200 hover:bg-stone-50 hover:text-red-600 transition-colors"
+                                        >
+                                            <UserMinus className="w-4 h-4" /> Disconnect
+                                        </button>
+                                    </>
+                                ) : connectionStatus === 'pending' ? (
+                                    <button
+                                        disabled
+                                        className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-500 font-medium text-sm flex items-center justify-center gap-2 cursor-default border border-slate-200"
+                                    >
+                                        <Clock className="w-4 h-4" /> Pending
+                                    </button>
+                                ) : connectionStatus === 'received' ? (
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                                        Accept Request
+                                    </button>
+                                ) : connectionStatus === 'blocked' ? (
+                                    <button
+                                        onClick={handleConnect} // Reuse handleConnect for unblock as it handles 'blocked' status
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-200"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                        Unblock User
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                                        Connect
+                                    </button>
+                                )}
+
+                                {connectionStatus !== 'blocked' && (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                const reportMessage = `🚨 REPORT\n\nReported User: ${profile.name}\nUser ID: ${profile.id}\nEmail: ${profile.email}\nUniversity: ${profile.university || 'N/A'}\n\nReason for report:\n[Please describe the issue]`;
+                                                sessionStorage.setItem('reportMessage', reportMessage);
+                                                sessionStorage.setItem('reportUserId', profile.id);
+                                                navigate('/app/messages');
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-stone-50 text-stone-500 hover:bg-stone-100 rounded-xl transition-all font-medium text-sm border border-stone-200"
+                                        >
+                                            <Flag className="w-4 h-4" />
+                                            Report Account
+                                        </button>
+
+                                        <button
+                                            onClick={handleBlock}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-transparent text-stone-400 hover:text-red-600 rounded-xl transition-all font-medium text-sm"
+                                        >
+                                            <Ban className="w-4 h-4" />
+                                            Block User
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Skills */}

@@ -101,7 +101,11 @@ export default function TalentSearchPage() {
                                         <div>
                                             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                                 {profile.name}
-                                                {profile.is_verified && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50" />}
+                                                {profile.gold_verified ? (
+                                                    <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50" />
+                                                ) : profile.is_verified ? (
+                                                    <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50" />
+                                                ) : null}
                                             </h3>
                                             <p className="text-slate-500 font-medium">{profile.headline || 'Student'}</p>
                                         </div>

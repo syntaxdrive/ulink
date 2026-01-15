@@ -1,0 +1,20 @@
+// Instructions for fixing message notifications:
+// In DashboardLayout.tsx around line 149-158, replace the notification logic with:
+
+// Fetch sender name
+let senderName = 'Someone';
+if (payload.new.sender_id) {
+    const { data: sender } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', payload.new.sender_id)
+        .single();
+    if (sender) senderName = sender.name;
+}
+
+setUnreadMessages(prev => Math.min(prev + 1, 99));
+handleNotification(
+    `New message from ${senderName}`,
+    payload.new.content || 'Sent an attachment',
+    () => navigate(`/app/messages?chat=${payload.new.sender_id}`)
+);

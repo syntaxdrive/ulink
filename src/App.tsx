@@ -14,6 +14,10 @@ import ProfilePage from './features/preferences/ProfilePage';
 import NotificationsPage from './features/notifications/NotificationsPage';
 
 import UserProfilePage from './features/profile/UserProfilePage';
+import LegalPage from './features/legal/LegalPage';
+import SettingsPage from './features/settings/SettingsPage';
+import AdminPage from './features/admin/AdminPage';
+import NotFoundPage from './features/layout/NotFoundPage';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -61,7 +65,15 @@ function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="profile/:userId" element={<UserProfilePage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="admin" element={<AdminPage />} />
+          {/* Internal 404: Keeps sidebar */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
+        <Route path="/legal/:type" element={<LegalPage />} />
+
+        {/* Global 404: Full page */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

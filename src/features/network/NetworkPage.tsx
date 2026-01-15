@@ -1,113 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
 import { Loader2, UserPlus, Check, Search, BadgeCheck } from 'lucide-react';
-import { type Profile } from '../../types';
+import { useNetwork } from './hooks/useNetwork';
 
 export default function NetworkPage() {
+    const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect } = useNetwork();
     const [activeTab, setActiveTab] = useState<'grow' | 'network'>('grow');
-    const [suggestions, setSuggestions] = useState<Profile[]>([]);
-    const [myNetwork, setMyNetwork] = useState<Profile[]>([]);
-
-    const [loading, setLoading] = useState(true);
-    const [connecting, setConnecting] = useState<string | null>(null);
-    const [connections, setConnections] = useState<Set<string>>(new Set());
-    const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
-
-    // Use refs to avoid re-triggering effects if we just want to access current value in async
-    // But for state we keep useState.
-
-    useEffect(() => {
-        fetchNetworkData();
-    }, []);
-
-    const fetchNetworkData = async () => {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        // 1. Fetch all my connections (accepted & pending)
-        const { data: allConnections } = await supabase
-            .from('connections')
-            .select('*')
-            .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
-
-        const connectedIds = new Set<string>();
-        const pendingIds = new Set<string>();
-        const connectedProfileIds: string[] = [];
-
-        if (allConnections) {
-            allConnections.forEach((conn: any) => {
-                const otherId = conn.requester_id === user.id ? conn.recipient_id : conn.requester_id;
-
-                if (conn.status === 'accepted') {
-                    connectedIds.add(otherId);
-                    connectedProfileIds.push(otherId);
-                } else if (conn.requester_id === user.id) {
-                    pendingIds.add(otherId);
-                }
-            });
-        }
-
-        setConnections(connectedIds);
-        setSentRequests(pendingIds);
-
-        // 2. Fetch "My Network" Profiles
-        if (connectedProfileIds.length > 0) {
-            const { data: networkProfiles } = await supabase
-                .from('profiles')
-                .select('*')
-                .in('id', connectedProfileIds);
-
-            if (networkProfiles) setMyNetwork(networkProfiles);
-        } else {
-            setMyNetwork([]);
-        }
-
-        // 3. Fetch "Suggestions" (Grow) - Exclude myself and existing connections
-        // Note: Supabase 'not.in' expects a list. If list is empty, it might error or behave oddly, so valid check needed.
-        let query = supabase
-            .from('profiles')
-            .select('*')
-            .neq('id', user.id)
-            .limit(50);
-
-        if (connectedProfileIds.length > 0) {
-            query = query.not('id', 'in', `(${connectedProfileIds.join(',')})`);
-        }
-
-        const { data: suggestionData } = await query;
-
-        if (suggestionData) {
-            setSuggestions(suggestionData);
-        }
-
-        setLoading(false);
-    };
-
-    const handleConnect = async (targetUserId: string) => {
-        setConnecting(targetUserId);
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (user) {
-            const { error } = await supabase
-                .from('connections')
-                .insert({
-                    requester_id: user.id,
-                    recipient_id: targetUserId,
-                    status: 'pending'
-                });
-
-            if (!error) {
-                setSentRequests(prev => new Set(prev).add(targetUserId));
-            } else {
-                console.error('Error sending connection request:', error);
-                alert('Failed to send connection request. Please try again.');
-            }
-        }
-        setConnecting(null);
-    };
 
     const displayedProfiles = activeTab === 'grow' ? suggestions : myNetwork;
 
@@ -187,7 +86,11 @@ export default function NetworkPage() {
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-stone-900 truncate flex items-center gap-1">
                                     {profile.name}
-                                    {profile.is_verified && <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50 shrink-0" />}
+                                    {profile.gold_verified ? (
+                                        <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50 shrink-0" />
+                                    ) : profile.is_verified ? (
+                                        <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50 shrink-0" />
+                                    ) : null}
                                 </h3>
                                 <p className="text-sm text-stone-500 truncate">
                                     {profile.role === 'org' ? 'Organization' : profile.university}
@@ -199,7 +102,7 @@ export default function NetworkPage() {
                         {/* Action Button: Connect (Grow Tab) or Message (Network Tab) */}
                         {activeTab === 'grow' ? (
                             <button
-                                onClick={() => handleConnect(profile.id)}
+                                onClick={() => connect(profile.id)}
                                 disabled={connections.has(profile.id) || sentRequests.has(profile.id) || connecting === profile.id}
                                 className={`p-2.5 rounded-xl transition-all shrink-0 ${connections.has(profile.id)
                                     ? 'bg-emerald-50 text-emerald-600'

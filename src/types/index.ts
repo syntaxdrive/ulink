@@ -37,6 +37,8 @@ export interface Profile {
     linkedin_url?: string;
     projects?: Project[];
     is_verified?: boolean;
+    is_admin?: boolean;
+    gold_verified?: boolean; // Computed from gold_verified_users table
     created_at: string;
 }
 
@@ -93,6 +95,7 @@ export interface Message {
     content: string;
     image_url?: string;
     created_at: string;
+    read_at?: string;
 }
 
 export interface Job {

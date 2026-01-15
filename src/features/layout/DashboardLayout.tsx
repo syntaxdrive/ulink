@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield } from 'lucide-react';
 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import NotificationToast from '../../components/ui/NotificationToast';
+
+import { useNotifications } from '../notifications/hooks/useNotifications';
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+    // Use Global Notifications Data
+    const { requests, generalNotifications } = useNotifications();
+    const unreadNotifications = requests.length + generalNotifications.filter(n => !n.read).length;
+
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
     const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
     const [toast, setToast] = useState<{ title: string; message: string; isVisible: boolean; onClick?: () => void }>({
@@ -24,61 +30,52 @@ export default function DashboardLayout() {
     };
 
     const handleNotification = (title: string, body: string, onClick?: () => void) => {
-        // Prefer Service Worker for mobile support
-        if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(registration => {
-                registration.showNotification(title, {
-                    body,
-                    icon: '/logo.svg',
-                    vibrate: [200, 100, 200], // Vibration
-                    tag: 'ulink-notification',
-                    renotify: true,
-                    data: { url: window.location.origin + (onClick ? '' : '/app/notifications') } // fallback url
-                } as any);
-            });
-        } else if (Notification.permission === 'granted') {
-            const n = new Notification(title, {
-                body,
-                icon: '/logo.svg',
-            });
-            if (onClick) {
-                n.onclick = (e) => {
-                    e.preventDefault();
-                    window.focus();
-                    onClick();
-                    n.close();
-                };
+        // System Notification: Only if app is in background/minimized
+        if (document.visibilityState === 'hidden' && Notification.permission === 'granted') {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(title, {
+                        body,
+                        icon: '/logo.svg',
+                        vibrate: [200, 100, 200],
+                        tag: 'ulink-notification',
+                        renotify: true,
+                        data: { url: window.location.origin + (onClick ? '' : '/app/notifications') }
+                    } as any);
+                });
+            } else {
+                new Notification(title, { body, icon: '/logo.svg' });
             }
         }
 
-        // Mobile Vibration Fallback (for older browsers)
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            try { navigator.vibrate([200, 100, 200]); } catch (e) { /* ignore */ }
-        }
-
+        // In-App Toast: Always show
         setToast({ title, message: body, isVisible: true, onClick });
-        playNotificationSound();
+
+        // Play sound if backgrounded (or always, user preference)
+        // Let's play it always for consistency, or only if hidden?
+        // User said: "updated badge... notifications dont have to come in when in app"
+        // Interpreting as: Be less intrusive.
+        if (document.visibilityState === 'hidden') playNotificationSound();
     };
 
-    // Reset unread counts when visiting relevant pages
-    useEffect(() => {
-        if (location.pathname.startsWith('/app/messages')) {
-            setUnreadMessages(0);
-        }
-        if (location.pathname.startsWith('/app/notifications')) {
-            setUnreadNotifications(0);
-        }
-    }, [location.pathname]);
+
+
+    const audioCtxRef = useRef<AudioContext | null>(null);
 
     const playNotificationSound = () => {
         try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') ctx.resume();
+
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch (A5)
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
             gain.gain.setValueAtTime(0.1, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.4);
             osc.start();
@@ -121,50 +118,71 @@ export default function DashboardLayout() {
 
             if (profile) setUserProfile(profile);
 
-            // Session-only tracking: Initial counts start at 0 (skipping DB fetch of unread items)
+            // 1. Fetch Initial Unread Message Count
+            const fetchMessageCount = async () => {
+                const { count } = await supabase
+                    .from('messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('recipient_id', user.id)
+                    .is('read_at', null);
 
-            // Subscribe
+                if (count !== null) setUnreadMessages(count);
+            };
+            fetchMessageCount();
+
+            // 2. Subscribe to Messenger Events
             channel = supabase.channel('dashboard-alerts')
                 .on(
                     'postgres_changes',
-                    { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+                    { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
                     async (payload) => {
-                        // Check if user is currently viewing messages
-                        if (locationRef.current.startsWith('/app/messages')) {
-                            // User is watching. Do not alert.
-                            return;
+                        // Re-fetch count on ANY change (New message or Message Read)
+                        // This ensures the badge "reduces as messages are checked"
+                        fetchMessageCount();
+
+
+                        // Handle New Message Notification Only
+                        if (payload.eventType === 'INSERT' && payload.new) {
+                            // Smart Notification Logic:
+                            // 1. If user is in the SPECIFIC chat with this person, do nothing (they see it).
+                            // 2. If user is in /app/messages but configured to another chat or list, show notification.
+                            // 3. If user is elsewhere, show notification.
+
+                            const currentParams = new URLSearchParams(window.location.search);
+                            const currentChatId = currentParams.get('chat');
+
+                            // Check "locationRef" effectively
+                            const isViewingThatChat = window.location.pathname.startsWith('/app/messages') && currentChatId === payload.new.sender_id;
+
+                            if (isViewingThatChat) return;
+
+                            // Fetch sender name
+                            let senderName = 'Someone';
+                            if (payload.new.sender_id) {
+                                const { data: sender } = await supabase
+                                    .from('profiles')
+                                    .select('name')
+                                    .eq('id', payload.new.sender_id)
+                                    .single();
+                                if (sender) senderName = sender.name;
+                            }
+
+                            handleNotification(
+                                `New message from ${senderName}`,
+                                payload.new.content || 'Sent an attachment',
+                                () => navigate(`/app/messages?chat=${payload.new.sender_id}`)
+                            );
                         }
-
-                        const newMsg = payload.new;
-                        let senderName = 'Someone';
-
-                        // Fetch sender name
-                        if (newMsg.sender_id) {
-                            const { data: sender } = await supabase
-                                .from('profiles')
-                                .select('name')
-                                .eq('id', newMsg.sender_id)
-                                .single();
-                            if (sender) senderName = sender.name;
-                        }
-
-                        setUnreadMessages(prev => prev + 1);
-                        handleNotification(
-                            `New message from ${senderName}`,
-                            newMsg.content || 'Sent an attachment',
-                            () => navigate(`/app/messages?chat=${newMsg.sender_id}`)
-                        );
                     }
                 )
                 .on(
                     'postgres_changes',
                     { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
                     (_payload) => {
-                        // Check if user is currently viewing notifications
                         if (locationRef.current.startsWith('/app/notifications')) {
                             return;
                         }
-                        setUnreadNotifications(prev => prev + 1);
+                        // setUnreadNotifications handled by global store automatically now via hook
                         handleNotification(
                             'New Notification',
                             'You have a new notification',
@@ -191,10 +209,12 @@ export default function DashboardLayout() {
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
+        ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Bell, label: 'Notifications', path: '/app/notifications' },
         { icon: User, label: 'Profile', path: '/app/profile' },
+        { icon: Settings, label: 'Settings', path: '/app/settings' },
     ];
 
     const getBadgeCount = (label: string) => {
@@ -388,12 +408,6 @@ export default function DashboardLayout() {
 
                     {/* Legal Footer */}
                     <div className="mt-6 px-2 text-[10px] text-slate-400 font-medium space-y-2 border-t border-slate-100 pt-4">
-                        <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <a href="#" className="hover:text-slate-600 hover:underline">Privacy Policy</a>
-                            <a href="#" className="hover:text-slate-600 hover:underline">Terms of Service</a>
-                            <a href="#" className="hover:text-slate-600 hover:underline">Cookie Policy</a>
-                            <a href="#" className="hover:text-slate-600 hover:underline">Copyright Policy</a>
-                        </div>
                         <p className="opacity-70">&copy; {new Date().getFullYear()} UniLink Nigeria. All rights reserved.</p>
                     </div>
                 </div>
