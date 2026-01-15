@@ -32,5 +32,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/      # The folder we built (Vite default is dist)
-          server-dir: ./htdocs/   # InfinityFree usually expects files in htdocs
+          server-dir: /htdocs/   # Absolute path to public folder
           dangerous-clean-slate: true # WARNING: Deletes files on server not in dist. Safer for SPAs.
