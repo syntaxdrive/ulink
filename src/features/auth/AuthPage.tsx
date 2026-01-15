@@ -39,7 +39,7 @@ export default function AuthPage() {
             <div className="relative z-10 w-full max-w-[400px] bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-500 p-8 text-center">
 
                 <div className="mb-8">
-                    <img src="/logo.svg" alt="UniLink" className="w-16 h-16 mx-auto mb-6 rounded-2xl shadow-sm" />
+                    <img src="/icon-192.svg" alt="UniLink" className="w-16 h-16 mx-auto mb-6 rounded-2xl shadow-sm" />
                     <h1 className="text-3xl font-display font-bold text-slate-900 mb-2 tracking-tight">
                         Welcome to UniLink
                     </h1>
