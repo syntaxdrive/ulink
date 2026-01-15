@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import AuthPage from './features/auth/AuthPage';
+import LandingPage from './features/landing/LandingPage';
 import DashboardLayout from './features/layout/DashboardLayout';
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
@@ -52,7 +52,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={!session ? <AuthPage /> : <Navigate to="/app" replace />}
+          element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
         />
         <Route
           path="/onboarding"
