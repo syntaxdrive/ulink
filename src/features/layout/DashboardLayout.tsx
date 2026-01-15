@@ -116,7 +116,16 @@ export default function DashboardLayout() {
                 .eq('id', user.id)
                 .single();
 
-            if (profile) setUserProfile(profile);
+            if (profile) {
+                setUserProfile(profile);
+                // If profile exists but is incomplete (no role), go to onboarding
+                if (!profile.role) {
+                    navigate('/onboarding');
+                }
+            } else {
+                // No profile found? Go to onboarding to create one
+                navigate('/onboarding');
+            }
 
             // 1. Fetch Initial Unread Message Count
             const fetchMessageCount = async () => {

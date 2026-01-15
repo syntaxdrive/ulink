@@ -18,6 +18,7 @@ import LegalPage from './features/legal/LegalPage';
 import SettingsPage from './features/settings/SettingsPage';
 import AdminPage from './features/admin/AdminPage';
 import NotFoundPage from './features/layout/NotFoundPage';
+import OnboardingPage from './features/auth/OnboardingPage';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -52,6 +53,10 @@ function App() {
         <Route
           path="/"
           element={!session ? <AuthPage /> : <Navigate to="/app" replace />}
+        />
+        <Route
+          path="/onboarding"
+          element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
         />
         <Route
           path="/app"
