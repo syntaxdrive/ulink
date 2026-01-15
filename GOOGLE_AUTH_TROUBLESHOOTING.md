@@ -30,3 +30,23 @@ If you have configured the Google Cloud OAuth Consent Screen but still see `proj
 ## 5. Verification for Logo
 *   **Issue**: If you uploaded a **Logo**, Google might restrict showing the custom branding until the app is verified.
 *   **Fix**: Try temporarily **removing the logo** and saving. If the name "UniLink" appears after removing the logo, you know it's a verification requirement.
+
+## 6. "Requested path is invalid" Error
+*   **Issue**: You see this error when trying to sign in.
+*   **Cause**: The URL you are redirected back to (e.g., `http://localhost:5173/app`) is not whitelisted in Supabase.
+*   **Fix**:
+    1.  Go to **Supabase Dashboard** > **Authentication** > **URL Configuration**.
+    2.  Under **Redirect URLs**, add:
+        *   `http://localhost:5173/app`
+        *   `https://your-production-domain.vercel.app/app`
+    3.  Save changes.
+
+## 7. Google Cloud Redirect URI
+*   **Issue**: Google rejects the login request.
+*   **Fix**:
+    1.  Copy your Supabase Callback URL (usually `https://<project-ref>.supabase.co/auth/v1/callback`).
+    2.  Go to **Google Cloud Console** > **Credentials**.
+    3.  Click on your **OAuth 2.0 Client ID**.
+    4.  Under **Authorized redirect URIs**, paste the URL.
+    5.  Save.
+
