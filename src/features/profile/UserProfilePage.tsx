@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
 import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban } from 'lucide-react';
+import EditProfileModal from './components/EditProfileModal';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
@@ -17,6 +18,7 @@ export default function UserProfilePage() {
     // Connection Logic
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
     const [actionLoading, setActionLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     const fetchConnectionStatus = async (targetId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -300,6 +302,7 @@ export default function UserProfilePage() {
                                     <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
                                 ) : null}
                             </h1>
+                            <p className="text-stone-400 font-medium text-sm mb-3">@{profile.username || profile.id.slice(0, 6)}</p>
 
                             {profile.headline && (
                                 <p className="text-slate-500 font-medium mt-1 mb-3">{profile.headline}</p>
@@ -365,12 +368,14 @@ export default function UserProfilePage() {
                         {/* Action Buttons */}
                         {currentUser && currentUser.id === profile.id ? (
                             <div className="mt-6 px-6 w-full">
-                                <Link
-                                    to="/app/profile"
-                                    className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300"
-                                >
-                                    <Briefcase className="w-4 h-4" /> Edit Profile
-                                </Link>
+                                <div className="mt-6 px-6 w-full">
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300"
+                                    >
+                                        <Briefcase className="w-4 h-4" /> Edit Profile
+                                    </button>
+                                </div>
                             </div>
                         ) : currentUser && (
                             <div className="mt-6 px-6 w-full space-y-3">
@@ -716,6 +721,14 @@ export default function UserProfilePage() {
                     )}
                 </div>
             </div >
-        </div >
+            {isEditing && profile && (
+                <EditProfileModal
+                    user={profile}
+                    isOpen={isEditing}
+                    onClose={() => setIsEditing(false)}
+                    onUpdate={(updated) => setProfile(updated)}
+                />
+            )}
+        </div>
     );
 }

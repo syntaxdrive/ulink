@@ -90,10 +90,10 @@ export default function AdminPage() {
     };
 
     const toggleVerify = async (userId: string, currentStatus: boolean) => {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ is_verified: !currentStatus })
-            .eq('id', userId);
+        const { error } = await supabase.rpc('admin_toggle_verify', {
+            target_id: userId,
+            should_verify: !currentStatus
+        });
 
         if (!error) {
             setUsers(prev => prev.map(u =>
