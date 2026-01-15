@@ -70,6 +70,13 @@ export function useNetwork() {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
+            // Optimistic Update
+            setSentRequests(prev => {
+                const newSet = new Set(prev);
+                newSet.add(targetUserId);
+                return newSet;
+            });
+
             const { error } = await supabase
                 .from('connections')
                 .insert({
@@ -78,11 +85,15 @@ export function useNetwork() {
                     status: 'pending'
                 });
 
-            if (!error) {
-                setSentRequests(prev => new Set(prev).add(targetUserId));
-            } else {
+            if (error) {
                 console.error('Error sending connection request:', error);
                 alert('Failed to send connection request. Please try again.');
+                // Rollback
+                setSentRequests(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(targetUserId);
+                    return newSet;
+                });
             }
         }
         setConnecting(null);
