@@ -144,14 +144,23 @@ export default function UserProfilePage() {
         }
     };
 
-    const fetchProfile = async (id: string) => {
-        const { data } = await supabase
-            .from('profiles')
-            .select('*, certificates(*)')
-            .eq('id', id)
-            .single();
+    const fetchProfile = async (idOrUsername: string) => {
+        let query = supabase.from('profiles').select('*, certificates(*)');
 
-        if (data) setProfile(data);
+        // Simple UUID check
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrUsername);
+
+        if (isUUID) {
+            query = query.eq('id', idOrUsername);
+        } else {
+            query = query.eq('username', idOrUsername);
+        }
+
+        const { data } = await query.single();
+
+        if (data) {
+            setProfile(data);
+        }
         setLoading(false);
     };
 
@@ -187,10 +196,15 @@ export default function UserProfilePage() {
     useEffect(() => {
         if (userId) {
             fetchProfile(userId);
-            fetchUserPosts(userId);
-            fetchConnectionStatus(userId);
         }
     }, [userId]);
+
+    useEffect(() => {
+        if (profile?.id) {
+            fetchUserPosts(profile.id);
+            fetchConnectionStatus(profile.id);
+        }
+    }, [profile?.id]);
 
     const toggleLike = async (post: any) => {
         const { data: { user } } = await supabase.auth.getUser();

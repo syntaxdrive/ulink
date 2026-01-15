@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText } from 'lucide-react';
 import type { Message, Profile } from '../../../types';
 import MessageItem from './MessageItem';
@@ -183,33 +184,35 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                     <ArrowLeft className="w-6 h-6" />
                 </button>
 
-                <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden relative">
-                    <img
-                        src={activeChat.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}&background=random`}
-                        alt={activeChat.name}
-                        className="w-full h-full object-cover"
-                    />
-                    {onlineUsers.has(activeChat.id) && (
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full z-10"></div>
-                    )}
-                </div>
-                <div>
-                    <h3 className="font-bold text-stone-900 flex items-center gap-1">
-                        {activeChat.name}
-                        {activeChat.gold_verified ? (
-                            <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50" />
-                        ) : activeChat.is_verified ? (
-                            <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50" />
-                        ) : null}
-                    </h3>
-                    <p className="text-xs text-stone-500">
-                        {onlineUsers.has(activeChat.id) ? (
-                            <span className="text-green-600 font-medium">Online</span>
-                        ) : (
-                            activeChat.headline || activeChat.university || activeChat.role
+                <Link to={`/app/profile/${activeChat.username || activeChat.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:bg-stone-50 p-2 -my-2 rounded-lg transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden relative shrink-0">
+                        <img
+                            src={activeChat.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}&background=random`}
+                            alt={activeChat.name}
+                            className="w-full h-full object-cover"
+                        />
+                        {onlineUsers.has(activeChat.id) && (
+                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full z-10"></div>
                         )}
-                    </p>
-                </div>
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-bold text-stone-900 flex items-center gap-1 truncate">
+                            {activeChat.name}
+                            {activeChat.gold_verified ? (
+                                <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50 shrink-0" />
+                            ) : activeChat.is_verified ? (
+                                <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50 shrink-0" />
+                            ) : null}
+                        </h3>
+                        <p className="text-xs text-stone-500 truncate">
+                            {onlineUsers.has(activeChat.id) ? (
+                                <span className="text-green-600 font-medium">Online</span>
+                            ) : (
+                                activeChat.headline || activeChat.university || activeChat.role
+                            )}
+                        </p>
+                    </div>
+                </Link>
             </div>
 
             {/* Messages List */}

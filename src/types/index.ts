@@ -22,6 +22,7 @@ export interface Profile {
     id: string;
     email: string;
     name: string;
+    username?: string;
     role: 'student' | 'org';
     university?: string;
     avatar_url?: string;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import ThreeBackground from '../../components/ThreeBackground';
-import { Building2, GraduationCap, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, GraduationCap, ArrowRight, Loader2, AtSign } from 'lucide-react';
 import { NIGERIAN_UNIVERSITIES } from '../../lib/universities';
 
 export default function OnboardingPage() {
@@ -10,6 +10,7 @@ export default function OnboardingPage() {
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState<'student' | 'org'>('student');
     const [university, setUniversity] = useState('');
+    const [username, setUsername] = useState('');
     const [showUniDropdown, setShowUniDropdown] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,18 @@ export default function OnboardingPage() {
         setLoading(true);
         setError(null);
 
+        // Basic validation
+        if (username.length < 3) {
+            setError('Username must be at least 3 characters long');
+            setLoading(false);
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            setError('Username can only contain letters, numbers, and underscores');
+            setLoading(false);
+            return;
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No user found');
@@ -48,6 +61,7 @@ export default function OnboardingPage() {
                 name: user.user_metadata.name || user.email?.split('@')[0],
                 avatar_url: user.user_metadata.avatar_url,
                 role,
+                username: username.toLowerCase(),
                 university: role === 'student' ? university : null,
                 updated_at: new Date().toISOString(),
             };
@@ -56,7 +70,12 @@ export default function OnboardingPage() {
                 .from('profiles')
                 .upsert(updates);
 
-            if (upsertError) throw upsertError;
+            if (upsertError) {
+                if (upsertError.code === '23505') { // Unique violation
+                    throw new Error('Username is already taken. Please choose another.');
+                }
+                throw upsertError;
+            }
 
             navigate('/app');
         } catch (err: any) {
@@ -104,6 +123,19 @@ export default function OnboardingPage() {
                             <Building2 className={`w-6 h-6 mb-2 transition-transform duration-300 ${role === 'org' ? 'scale-110' : 'group-hover:scale-110'}`} />
                             <span className="text-xs font-medium uppercase tracking-wider">Organization</span>
                         </button>
+                    </div>
+
+                    {/* Username Input */}
+                    <div className="relative group">
+                        <AtSign className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-indigo-600 z-10" />
+                        <input
+                            type="text"
+                            placeholder="Choose a username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
+                            required
+                        />
                     </div>
 
                     {role === 'student' && (
