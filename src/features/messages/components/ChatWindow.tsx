@@ -139,38 +139,47 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const [isSending, setIsSending] = useState(false);
+
+    // ... (Keep existing typing logic hooks)
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if ((!newMessage.trim() && !imageFile) || !userId) return;
+        if ((!newMessage.trim() && !imageFile) || !userId || isSending) return;
 
-        let imageUrl = null;
-        if (imageFile) {
-            const fileExt = imageFile.name.split('.').pop();
-            const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
+        setIsSending(true);
+        try {
+            let imageUrl = null;
+            if (imageFile) {
+                const fileExt = imageFile.name.split('.').pop();
+                const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('uploads')
-                .upload(fileName, imageFile);
+                const { error: uploadError } = await supabase.storage
+                    .from('uploads')
+                    .upload(fileName, imageFile);
 
-            if (uploadError) {
-                console.error('Error uploading chat image:', uploadError);
-                alert('Failed to send image.');
-                return;
+                if (uploadError) {
+                    console.error('Error uploading chat image:', uploadError);
+                    alert('Failed to send image.');
+                    return;
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('uploads')
+                    .getPublicUrl(fileName);
+
+                imageUrl = publicUrl;
             }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('uploads')
-                .getPublicUrl(fileName);
+            // Pass simple args to parent/hook
+            await onSendMessage(newMessage, imageUrl, replyingTo || undefined);
 
-            imageUrl = publicUrl;
+            setNewMessage('');
+            setReplyingTo(null);
+            clearImage();
+        } finally {
+            setIsSending(false);
         }
-
-        // Pass simple args to parent/hook
-        await onSendMessage(newMessage, imageUrl, replyingTo || undefined);
-
-        setNewMessage('');
-        setReplyingTo(null);
-        clearImage();
     };
 
     return (

@@ -201,12 +201,26 @@ export default function PostItem({
                 )}
             </div>
 
-            {/* Post Image */}
-            {post.image_url && (
-                <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-50">
-                    <img src={post.image_url} alt="Post content" className="w-full max-h-96 object-contain bg-stone-50" />
-                </div>
-            )}
+            {/* Post Images */}
+            {(() => {
+                const images = post.image_urls?.length ? post.image_urls : (post.image_url ? [post.image_url] : []);
+                if (images.length === 0) return null;
+
+                return (
+                    <div className={`mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-50 grid gap-0.5 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        {images.map((url, i) => (
+                            <div key={i} className={`relative overflow-hidden ${images.length === 3 && i === 0 ? 'col-span-2' : ''
+                                }`}>
+                                <img
+                                    src={url}
+                                    alt="Post content"
+                                    className={`w-full object-cover bg-stone-50 ${images.length > 1 ? 'h-48 md:h-64' : 'max-h-[500px] object-contain'}`}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                );
+            })()}
 
             {/* Actions */}
             <div className="flex items-center gap-6 pt-4 border-t border-stone-50">

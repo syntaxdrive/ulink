@@ -2,52 +2,73 @@ import { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Smile, X } from 'lucide-react';
 
 interface CreatePostProps {
-    onCreate: (content: string, imageFile: File | null) => Promise<void>;
+    onCreate: (content: string, imageFiles: File[]) => Promise<void>;
 }
 
 export default function CreatePost({ onCreate }: CreatePostProps) {
     const [content, setContent] = useState('');
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [previews, setPreviews] = useState<string[]>([]);
     const [isPosting, setIsPosting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageClick = () => fileInputRef.current?.click();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const maxSize = 10 * 1024 * 1024;
-            if (file.size > maxSize) {
-                alert('Image size must be less than 10MB.');
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const newFiles = Array.from(files);
+            const totalFiles = imageFiles.length + newFiles.length;
+
+            if (totalFiles > 4) {
+                alert('You can only select up to 4 images.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
-            if (!file.type.startsWith('image/')) {
-                alert('Please upload a valid image.');
-                if (fileInputRef.current) fileInputRef.current.value = '';
-                return;
-            }
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
+
+            const validFiles: File[] = [];
+            const newPreviews: string[] = [];
+
+            newFiles.forEach(file => {
+                if (file.size > 10 * 1024 * 1024) {
+                    alert(`Skipped ${file.name}: Image size must be less than 10MB.`);
+                    return;
+                }
+                if (!file.type.startsWith('image/')) {
+                    alert(`Skipped ${file.name}: Not an image.`);
+                    return;
+                }
+                validFiles.push(file);
+                newPreviews.push(URL.createObjectURL(file));
+            });
+
+            setImageFiles(prev => [...prev, ...validFiles]);
+            setPreviews(prev => [...prev, ...newPreviews]);
         }
+        // Reset input so same file can be selected again
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const clearImage = () => {
-        setImageFile(null);
-        setImagePreview(null);
+    const removeImage = (index: number) => {
+        setImageFiles(prev => prev.filter((_, i) => i !== index));
+        setPreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const clearAllImages = () => {
+        setImageFiles([]);
+        setPreviews([]);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() && !imageFile) return;
+        if (!content.trim() && imageFiles.length === 0) return;
 
         setIsPosting(true);
         try {
-            await onCreate(content, imageFile);
+            await onCreate(content, imageFiles);
             setContent('');
-            clearImage();
+            clearAllImages();
         } catch (error) {
             console.error(error);
             alert('Failed to create post');
@@ -67,23 +88,44 @@ export default function CreatePost({ onCreate }: CreatePostProps) {
                     onChange={(e) => setContent(e.target.value)}
                 />
 
-                {imagePreview && (
-                    <div className="relative inline-block mt-2">
-                        <img src={imagePreview} alt="Preview" className="h-32 rounded-xl object-cover border border-stone-200" />
-                        <button
-                            type="button"
-                            onClick={clearImage}
-                            className="absolute -top-2 -right-2 bg-stone-900 text-white rounded-full p-1 shadow-md hover:bg-stone-700"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
+                {/* Image Grid Preview */}
+                {previews.length > 0 && (
+                    <div className={`grid gap-2 ${previews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {previews.map((src, index) => (
+                            <div key={index} className="relative group">
+                                <img
+                                    src={src}
+                                    alt={`Preview ${index}`}
+                                    className={`w-full object-cover rounded-xl border border-stone-200 ${previews.length === 1 ? 'max-h-80' : 'h-40'}`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 )}
 
                 <div className="flex justify-between items-center px-1">
                     <div className="flex gap-2">
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                        <button type="button" onClick={handleImageClick} className={`p-2 rounded-xl transition-all ${imageFile ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            multiple // Enable multiple
+                            onChange={handleFileChange}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleImageClick}
+                            className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}
+                            title="Add Image"
+                        >
                             <ImageIcon className="w-5 h-5" />
                         </button>
                         <button type="button" className="p-2 text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
@@ -92,7 +134,7 @@ export default function CreatePost({ onCreate }: CreatePostProps) {
                     </div>
                     <button
                         type="submit"
-                        disabled={!content.trim() && !imageFile}
+                        disabled={(!content.trim() && imageFiles.length === 0) || isPosting}
                         className="bg-stone-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
                     >
                         <Send className="w-4 h-4" />

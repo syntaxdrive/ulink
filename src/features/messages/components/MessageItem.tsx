@@ -189,7 +189,7 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
             {/* Desktop Reply Button */}
             <button
                 onClick={() => onReply(msg)}
-                className={`md:hidden group-hover:block hidden opacity-0 group-hover:opacity-100 transition-opacity p-2 text-stone-300 hover:text-stone-500 ${isMe ? 'mr-1' : 'ml-1'}`}
+                className={`p-2 text-stone-300 hover:text-stone-500 transition-opacity ${isMe ? 'mr-1' : 'ml-1'} opacity-100 md:opacity-0 md:group-hover:opacity-100`}
             >
                 <Reply className="w-4 h-4" />
             </button>

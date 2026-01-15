@@ -134,38 +134,56 @@ export function useFeed() {
         }
     };
 
-    const createPost = async (content: string, imageFile: File | null) => {
-        if (!content.trim() && !imageFile) return;
+    const createPost = async (content: string, imageFiles: File[]) => {
+        if (!content.trim() && imageFiles.length === 0) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        let imageUrl = null;
-        if (imageFile) {
-            const fileExt = imageFile.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const filePath = `posts/${fileName}`;
-            const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, imageFile);
-            if (uploadError) throw uploadError;
-            const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
-            imageUrl = publicUrl;
-        }
+        const imageUrls: string[] = [];
 
-        const { data, error } = await supabase
-            .from('posts')
-            .insert({ author_id: user.id, content: content, image_url: imageUrl })
-            .select(`*, profiles:author_id (*), likes (user_id), comments (id)`)
-            .single();
+        try {
+            for (const file of imageFiles) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+                const filePath = `posts/${fileName}`;
+                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, file);
 
-        if (error) throw error;
-        if (data) {
-            const newPost = {
-                ...data,
-                likes_count: 0,
-                comments_count: 0,
-                user_has_liked: false,
-                profiles: currentUserProfile || { id: user.id, name: 'You' }
-            };
-            addPost(newPost);
+                if (uploadError) {
+                    console.error('Error uploading file:', file.name, uploadError);
+                    continue; // Skip failed uploads or throw? Continuing seems safer for bulk.
+                }
+
+                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
+                imageUrls.push(publicUrl);
+            }
+
+            const mainImageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
+
+            const { data, error } = await supabase
+                .from('posts')
+                .insert({
+                    author_id: user.id,
+                    content: content,
+                    image_url: mainImageUrl,
+                    image_urls: imageUrls
+                })
+                .select(`*, profiles:author_id (*), likes (user_id), comments (id)`)
+                .single();
+
+            if (error) throw error;
+            if (data) {
+                const newPost = {
+                    ...data,
+                    likes_count: 0,
+                    comments_count: 0,
+                    user_has_liked: false,
+                    profiles: currentUserProfile || { id: user.id, name: 'You' }
+                };
+                addPost(newPost);
+            }
+        } catch (error) {
+            console.error('Error creating post:', error);
+            throw error;
         }
     };
 
