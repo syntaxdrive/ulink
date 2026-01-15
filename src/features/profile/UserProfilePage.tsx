@@ -348,8 +348,17 @@ export default function UserProfilePage() {
                             </button>
                         </div>
 
-                        {/* Connection Button */}
-                        {currentUser && currentUser.id !== profile.id && (
+                        {/* Action Buttons */}
+                        {currentUser && currentUser.id === profile.id ? (
+                            <div className="mt-6 px-6 w-full">
+                                <Link
+                                    to="/app/profile"
+                                    className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300"
+                                >
+                                    <Briefcase className="w-4 h-4" /> Edit Profile
+                                </Link>
+                            </div>
+                        ) : currentUser && (
                             <div className="mt-6 px-6 w-full space-y-3">
                                 {connectionStatus === 'connected' ? (
                                     <>
