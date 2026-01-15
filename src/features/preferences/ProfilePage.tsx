@@ -164,6 +164,10 @@ export default function ProfilePage() {
         }
     };
 
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
     const handleDeletePost = async (postId: string) => {
         if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
         setUserPosts(prev => prev.filter(p => p.id !== postId));
