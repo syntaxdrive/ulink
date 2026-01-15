@@ -1,4 +1,4 @@
-import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -61,6 +61,7 @@ export default function SettingsPage() {
             items: [
                 { icon: FileText, label: "Contact Support", path: "mailto:unilinkrep@gmail.com", description: "Get help with your account" },
                 { icon: Shield, label: "Report a Problem", path: "mailto:unilinkrep@gmail.com?subject=Report%20Problem", description: "Found a bug? Let us know." },
+                { icon: Info, label: "About UniLink", path: "/about", description: "Our mission and story" },
             ]
         },
         {

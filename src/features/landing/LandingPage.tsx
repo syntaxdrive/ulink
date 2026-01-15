@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowRight, Users, Briefcase, Zap, Sparkles, CheckCircle2 } from 'lucide-react';
 
@@ -205,9 +206,9 @@ export default function LandingPage() {
                         <span className="font-bold text-slate-700">UniLink</span>
                     </div>
                     <div className="flex gap-8 text-sm text-slate-500">
-                        <a href="#" className="hover:text-slate-900">About</a>
+                        <Link to="/about" className="hover:text-slate-900">About</Link>
                         <a href="mailto:unilinkrep@gmail.com" className="hover:text-slate-900">Contact</a>
-                        <a href="#" className="hover:text-slate-900">Terms</a>
+                        <Link to="/legal/terms" className="hover:text-slate-900">Terms</Link>
                     </div>
                     <p className="text-slate-400 text-sm">
                         &copy; {new Date().getFullYear()} UniLink Nigeria.
