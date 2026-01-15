@@ -58,6 +58,7 @@ export function useFeed() {
 
     const fetchPosts = async (userId?: string) => {
         setLoading(true);
+
         const { data, error } = await supabase
             .from('posts')
             .select(`
@@ -69,12 +70,35 @@ export function useFeed() {
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            const formatted = data.map((post: any) => ({
+            // VIP Users List
+            const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
+
+            let formatted = data.map((post: any) => ({
                 ...post,
                 likes_count: post.likes ? post.likes.length : 0,
                 comments_count: post.comments ? post.comments.length : 0,
-                user_has_liked: userId ? post.likes.some((like: any) => like.user_id === userId) : false
+                user_has_liked: userId ? post.likes.some((like: any) => like.user_id === userId) : false,
+                // Helper for sorting
+                is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
+
+            // SMART ALGORITHM: Boost VIP posts from the last 24 hours to the top
+            const ONE_DAY = 24 * 60 * 60 * 1000;
+            formatted.sort((a: any, b: any) => {
+                const now = Date.now();
+                const aTime = new Date(a.created_at).getTime();
+                const bTime = new Date(b.created_at).getTime();
+                const aIsRecent = (now - aTime) < ONE_DAY;
+                const bIsRecent = (now - bTime) < ONE_DAY;
+
+                // If both are recent VIPs or neither, maintain chronological order (bTime - aTime)
+                // If A is recent VIP and B is not, A comes first
+                if (a.is_vip && aIsRecent && (!b.is_vip || !bIsRecent)) return -1;
+                if (b.is_vip && bIsRecent && (!a.is_vip || !aIsRecent)) return 1;
+
+                return bTime - aTime;
+            });
+
             setPosts(formatted);
         }
         setLoading(false);

@@ -256,8 +256,8 @@ export default function UserProfilePage() {
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
-                            <div className="relative mb-4">
-                                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+                            <div className="relative mb-4 inline-block group/avatar">
+                                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white relative z-10">
                                     <img
                                         src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=10b981&color=fff`}
                                         alt={profile.name}
@@ -265,12 +265,14 @@ export default function UserProfilePage() {
                                     />
                                 </div>
                                 <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         navigator.clipboard.writeText(window.location.href);
                                         alert('Profile link copied to clipboard!');
                                     }}
-                                    className="absolute bottom-0 right-0 p-2 bg-white text-slate-400 hover:text-indigo-600 rounded-full shadow-md border border-slate-100 transition-all hover:scale-110"
-                                    title="Share Profile"
+                                    className="absolute bottom-0 right-0 z-20 p-2.5 bg-white text-slate-500 hover:text-indigo-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 hover:shadow-xl"
+                                    title="Copy Profile Link"
                                 >
                                     <Share className="w-4 h-4" />
                                 </button>
@@ -404,11 +406,28 @@ export default function UserProfilePage() {
                                 {connectionStatus !== 'blocked' && (
                                     <>
                                         <button
-                                            onClick={() => {
-                                                const reportMessage = `🚨 REPORT\n\nReported User: ${profile.name}\nUser ID: ${profile.id}\nEmail: ${profile.email}\nUniversity: ${profile.university || 'N/A'}\n\nReason for report:\n[Please describe the issue]`;
-                                                sessionStorage.setItem('reportMessage', reportMessage);
-                                                sessionStorage.setItem('reportUserId', profile.id);
-                                                navigate('/app/messages');
+                                            onClick={async () => {
+                                                const reason = prompt(`Why are you reporting ${profile.name}?`);
+                                                if (!reason) return;
+
+                                                const { data: { user } } = await supabase.auth.getUser();
+                                                if (!user) return;
+
+                                                const { error } = await supabase
+                                                    .from('reports')
+                                                    .insert({
+                                                        reporter_id: user.id,
+                                                        reported_id: profile.id,
+                                                        reason: reason,
+                                                        status: 'pending'
+                                                    });
+
+                                                if (error) {
+                                                    console.error(error);
+                                                    alert('Failed to submit report.');
+                                                } else {
+                                                    alert('Report submitted successfully. We will review this account.');
+                                                }
                                             }}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-stone-50 text-stone-500 hover:bg-stone-100 rounded-xl transition-all font-medium text-sm border border-stone-200"
                                         >

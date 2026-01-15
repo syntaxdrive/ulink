@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, BadgeCheck, Search, Building2, Mail } from 'lucide-react';
+import { Users, Shield, BadgeCheck, Search, Building2, Mail, Flag } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 
@@ -24,6 +24,8 @@ export default function AdminPage() {
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [emailTargetUser, setEmailTargetUser] = useState<Profile | null>(null);
 
+    const [reports, setReports] = useState<any[]>([]);
+
     useEffect(() => {
         checkAdmin();
     }, []);
@@ -32,7 +34,6 @@ export default function AdminPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return navigate('/');
 
-        // Fetch profile to check role
         const { data: profile } = await supabase
             .from('profiles')
             .select('*')
@@ -40,7 +41,7 @@ export default function AdminPage() {
             .single();
 
         if (!profile?.is_admin) {
-            navigate('/app/feed'); // Kick out
+            navigate('/app/feed');
             return;
         }
 
@@ -54,15 +55,38 @@ export default function AdminPage() {
         const { data: statsData } = await supabase.rpc('get_admin_stats');
         if (statsData) setStats(statsData);
 
-        // 2. Fetch Recent Users (Limit 100 for now)
+        // 2. Fetch Recent Users
         const { data: usersData } = await supabase
             .from('profiles')
             .select('*')
-            .order('created_at', { ascending: false })
+            .order('created_at', { ascending: false });
+        if (usersData) setUsers(usersData);
+
+        // 3. Fetch Reports
+        const { data: reportsData } = await supabase
+            .from('reports')
+            .select(`
+                *,
+                reporter:reporter_id(name, email, avatar_url),
+                reported:reported_id(name, email, avatar_url)
+            `)
+            .eq('status', 'pending')
             .order('created_at', { ascending: false });
 
-        if (usersData) setUsers(usersData);
+        if (reportsData) setReports(reportsData);
+
         setLoading(false);
+    };
+
+    const resolveReport = async (reportId: string) => {
+        const { error } = await supabase
+            .from('reports')
+            .update({ status: 'resolved' })
+            .eq('id', reportId);
+
+        if (!error) {
+            setReports(prev => prev.filter(r => r.id !== reportId));
+        }
     };
 
     const toggleVerify = async (userId: string, currentStatus: boolean) => {
@@ -153,8 +177,75 @@ export default function AdminPage() {
                 </div>
             </div>
 
+            {/* User Reports Section */}
+            <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-stone-100 flex items-center gap-3">
+                    <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                        <Flag className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-xl font-bold text-stone-900">Flagged Accounts & Reports</h2>
+                </div>
+
+                <div className="overflow-x-auto">
+                    {reports.length === 0 ? (
+                        <div className="p-8 text-center text-stone-500">
+                            <p>No active reports found. All good! 👍</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-red-50 text-red-900 text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th className="px-6 py-4 font-semibold">Reported User</th>
+                                    <th className="px-6 py-4 font-semibold">Reported By</th>
+                                    <th className="px-6 py-4 font-semibold">Reason</th>
+                                    <th className="px-6 py-4 font-semibold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-red-100">
+                                {reports.map((report) => (
+                                    <tr key={report.id} className="hover:bg-red-50/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-stone-200 overflow-hidden">
+                                                    <img src={report.reported?.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-stone-900 text-sm">{report.reported?.name || 'Unknown'}</p>
+                                                    <p className="text-xs text-stone-500">{report.reported?.email}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-stone-200 overflow-hidden">
+                                                    <img src={report.reporter?.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <span className="text-sm font-medium text-stone-700">{report.reporter?.name || 'Unknown'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="text-sm text-stone-700 max-w-xs">{report.reason}</p>
+                                            <p className="text-xs text-stone-400 mt-1">{new Date(report.created_at).toLocaleDateString()}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button
+                                                onClick={() => resolveReport(report.id)}
+                                                className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 text-stone-600 text-xs font-semibold rounded-lg shadow-sm"
+                                            >
+                                                Mark Resolved
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+
             {/* User Management */}
             <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+                {/* ... existing table ... */}
                 <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <h2 className="text-xl font-bold text-stone-900">User Management</h2>
                     <div className="relative">
