@@ -182,7 +182,8 @@ export function useFeed() {
                 addPost(newPost);
             }
         } catch (error) {
-            console.error('Error creating post:', error);
+            console.error('Error creating post:', JSON.stringify(error, null, 2));
+            alert('Failed to create post: ' + ((error as any).message || 'Unknown error'));
             throw error;
         }
     };
