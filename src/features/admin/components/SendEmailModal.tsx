@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { X, Mail, Loader2, Users, BadgeCheck, User } from 'lucide-react';
 import { type Profile } from '../../../types';
-import { supabase } from '../../../lib/supabase';
 
 interface SendEmailModalProps {
     isOpen: boolean;
@@ -34,7 +33,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
         e.preventDefault();
         setSending(true);
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await import('../../../lib/supabase').then(m => m.supabase.auth.getUser());
         const userEmail = user?.email || '';
 
         // Filter recipients

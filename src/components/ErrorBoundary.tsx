@@ -1,8 +1,9 @@
-import React from 'react';
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
 interface Props {
-    children: React.ReactNode;
+    children: ReactNode;
 }
 
 interface State {
@@ -10,7 +11,7 @@ interface State {
     error: Error | null;
 }
 
-export default class ErrorBoundary extends React.Component<Props, State> {
+export default class ErrorBoundary extends Component<Props, State> {
     public state: State = {
         hasError: false,
         error: null,
@@ -20,7 +21,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         return { hasError: true, error };
     }
 
-    public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
     }
 
@@ -70,4 +71,3 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         return this.props.children;
     }
 }
-

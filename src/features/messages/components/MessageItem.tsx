@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Reply, FileText, Download, CheckCheck, Check, Trash2 } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 
