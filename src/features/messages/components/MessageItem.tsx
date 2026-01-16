@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Reply, FileText, Download, CheckCheck, Check } from 'lucide-react';
+import { Reply, FileText, Download, CheckCheck, Check, Trash2 } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 
 export const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
@@ -10,64 +10,26 @@ interface MessageItemProps {
     onReply: (msg: Message) => void;
     activeChat?: Profile | null;
     onImageClick: (url: string) => void;
+    onDelete?: (id: string) => void;
 }
 
-export default function MessageItem({ msg, isMe, onReply, activeChat, onImageClick }: MessageItemProps) {
-    const [offset, setOffset] = useState(0);
-    const startX = useRef<number | null>(null);
-    const startY = useRef<number | null>(null);
-    const isSwiping = useRef(false);
-    const threshold = 100;
+export default function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete }: MessageItemProps) {
+    const [showMenu, setShowMenu] = useState(false);
+    const longPressTimer = useRef<any>(null);
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        startX.current = e.touches[0].clientX;
-        startY.current = e.touches[0].clientY;
-        isSwiping.current = false;
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (startX.current === null || startY.current === null) return;
-
-        const currentX = e.touches[0].clientX;
-        const currentY = e.touches[0].clientY;
-        const diffX = currentX - startX.current;
-        const diffY = Math.abs(currentY - startY.current);
-
-        // Cancel if vertical scroll is dominant
-        if (!isSwiping.current && diffY > Math.abs(diffX)) {
-            startX.current = null;
-            return;
-        }
-
-        // Deal with resistance/threshold
-        // Deadzone check - must be deliberate
-        if (!isSwiping.current && Math.abs(diffX) > 30 && diffY < 20) {
-            isSwiping.current = true;
-        }
-
-        if (isSwiping.current) {
-            // Prevent scrolling when swiping
-            e.preventDefault();
-
-            // isMe (Right Aligned) -> Allow Swipe Left (negative diff)
-            if (isMe && diffX < 0 && diffX > -120) {
-                setOffset(diffX * 0.7);
-            }
-            // !isMe (Left Aligned) -> Allow Swipe Right (positive diff)
-            else if (!isMe && diffX > 0 && diffX < 120) {
-                setOffset(diffX * 0.7);
-            }
-        }
+    const handleTouchStart = () => {
+        longPressTimer.current = setTimeout(() => {
+            setShowMenu(true);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 500); // 500ms long press
     };
 
     const handleTouchEnd = () => {
-        if (Math.abs(offset) > threshold) {
-            onReply(msg);
-        }
-        setOffset(0);
-        startX.current = null;
-        startY.current = null;
-        isSwiping.current = false;
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+
+    const handleTouchMove = () => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
     };
 
     // Parsing quoted content
@@ -83,11 +45,15 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
 
     return (
         <div
-            className={`relative flex items-end gap-2 group ${isMe ? 'justify-end' : 'justify-start'} overflow-visible px-2`}
-            style={{ touchAction: 'pan-y' }}
+            className={`relative flex items-end gap-2 group ${isMe ? 'justify-end' : 'justify-start'} px-2`}
             onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
+            onContextMenu={(e) => {
+                e.preventDefault(); // Prevent native browser menu
+                // Also trigger menu on right click for desktop consistency if desired
+                // setShowMenu(true); 
+            }}
         >
             {/* Avatar for received messages */}
             {!isMe && activeChat && (
@@ -100,26 +66,11 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                 </div>
             )}
 
-            {/* Reply Icon Indicator */}
             <div
-                className={`absolute text-stone-300 transition-opacity duration-200 flex items-center justify-center top-0 bottom-0 ${isMe ? 'right-0' : 'left-0'}`}
-                style={{
-                    opacity: Math.abs(offset) > 15 ? 1 : 0,
-                    // Dynamic transform based on side
-                    transform: isMe
-                        ? `translateX(${Math.abs(offset) > threshold ? -10 : 20}px)`
-                        : `translateX(${offset > threshold ? 10 : -20}px)`
-                }}
-            >
-                <Reply className={`w-5 h-5 ${isMe ? 'scale-x-[-1]' : ''}`} />
-            </div>
-
-            <div
-                className={`max-w-[85%] md:max-w-[70%] px-4 py-2 rounded-2xl text-sm transition-transform duration-200 relative z-10 shadow-sm ${isMe
+                className={`max-w-[85%] md:max-w-[70%] px-4 py-2 rounded-2xl text-sm relative z-10 shadow-sm transition-transform duration-200 ${isMe
                     ? 'bg-emerald-600 text-white rounded-br-none'
                     : 'bg-white border border-stone-100 text-stone-800 rounded-bl-none'
-                    }`}
-                style={{ transform: `translateX(${offset}px)` }}
+                    } ${showMenu ? 'scale-105 shadow-md ring-2 ring-emerald-500/20' : ''}`}
             >
                 {/* Quoted Message Preview */}
                 {quoteContent && (
@@ -184,12 +135,39 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                         )
                     )}
                 </div>
+
+                {/* Context Menu Popover */}
+                {showMenu && (
+                    <>
+                        <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
+                        <div
+                            className={`absolute z-50 bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} bg-white rounded-xl shadow-xl border border-stone-100 py-1 min-w-[140px] animate-in zoom-in-95 duration-200 overflow-hidden`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => { setShowMenu(false); onReply(msg); }}
+                                className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-3 active:bg-stone-100"
+                            >
+                                <Reply className="w-4 h-4" /> Reply
+                            </button>
+                            {isMe && onDelete && (
+                                <button
+                                    onClick={() => { setShowMenu(false); onDelete(msg.id); }}
+                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 border-t border-stone-50 active:bg-red-50"
+                                >
+                                    <Trash2 className="w-4 h-4" /> Delete
+                                </button>
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* Desktop Reply Button */}
+            {/* Desktop Reply Button (Keep for desktop hover) */}
             <button
                 onClick={() => onReply(msg)}
-                className={`p-2 text-stone-300 hover:text-stone-500 transition-opacity ${isMe ? 'mr-1' : 'ml-1'} opacity-100 md:opacity-0 md:group-hover:opacity-100`}
+                className={`p-2 text-stone-300 hover:text-stone-500 transition-opacity ${isMe ? 'mr-1' : 'ml-1'} opacity-0 group-hover:opacity-100 hidden md:block`}
+                title="Reply"
             >
                 <Reply className="w-4 h-4" />
             </button>

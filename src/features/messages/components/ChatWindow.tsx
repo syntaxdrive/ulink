@@ -12,9 +12,10 @@ interface ChatWindowProps {
     onlineUsers: Set<string>;
     onBack: () => void;
     onSendMessage: (content: string, imageUrl: string | null, replyTo?: Message) => Promise<void>;
+    onDeleteMessage: (id: string) => Promise<void>;
 }
 
-export default function ChatWindow({ activeChat, messages, userId, onlineUsers, onBack, onSendMessage }: ChatWindowProps) {
+export default function ChatWindow({ activeChat, messages, userId, onlineUsers, onBack, onSendMessage, onDeleteMessage }: ChatWindowProps) {
     const [newMessage, setNewMessage] = useState('');
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -237,6 +238,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         onReply={setReplyingTo}
                         activeChat={activeChat}
                         onImageClick={setLightboxImage}
+                        onDelete={onDeleteMessage}
                     />
                 ))}
 

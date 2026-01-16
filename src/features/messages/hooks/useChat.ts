@@ -227,6 +227,15 @@ export function useChat() {
         }
     };
 
+    const deleteMessage = async (messageId: string) => {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        const { error } = await supabase.from('messages').delete().eq('id', messageId);
+        if (error) {
+            console.error('Error deleting message:', error);
+            // Revert? For now, we assume success or refresh
+        }
+    };
+
     return {
         conversations,
         activeChat,
@@ -236,6 +245,7 @@ export function useChat() {
         userId,
         onlineUsers,
         unreadCounts,
-        sendMessage
+        sendMessage,
+        deleteMessage
     };
 }
