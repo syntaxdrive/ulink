@@ -15,7 +15,8 @@ export default function MessagesPage() {
         userId,
         onlineUsers,
         unreadCounts,
-        sendMessage
+        sendMessage,
+        deleteMessage
     } = useChat();
 
     const [searchParams] = useSearchParams();
@@ -58,6 +59,7 @@ export default function MessagesPage() {
                         onlineUsers={onlineUsers}
                         onBack={() => setActiveChat(null)}
                         onSendMessage={sendMessage}
+                        onDeleteMessage={deleteMessage}
                     />
                 </div>
             ) : (
