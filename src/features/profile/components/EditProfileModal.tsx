@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Loader2, X, AtSign } from 'lucide-react';
+import { Loader2, X, AtSign, Image as ImageIcon, Instagram, Twitter, Upload } from 'lucide-react';
 import type { Profile } from '../../../types';
 
 interface EditProfileModalProps {
@@ -19,7 +19,12 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
         location: user.location || '',
         university: user.university || '',
         about: user.about || '',
+        instagram: user.instagram_url || '',
+        twitter: user.twitter_url || '',
     });
+    const [bgFile, setBgFile] = useState<File | null>(null);
+    const [bgPreview, setBgPreview] = useState<string | null>(user.background_image_url || null);
+    const bgInputRef = useRef<HTMLInputElement>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -30,8 +35,27 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
             location: user.location || '',
             university: user.university || '',
             about: user.about || '',
+            instagram: user.instagram_url || '',
+            twitter: user.twitter_url || '',
         });
+        setBgPreview(user.background_image_url || null);
     }, [user, isOpen]);
+
+    const handleBgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image must be less than 5MB');
+                return;
+            }
+            setBgFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setBgPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,10 +63,34 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
         setError(null);
 
         try {
+            let bgUrl = user.background_image_url;
+
+            if (bgFile) {
+                const fileExt = bgFile.name.split('.').pop();
+                const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('uploads')
+                    .upload(fileName, bgFile, { upsert: true });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('uploads')
+                    .getPublicUrl(fileName);
+                bgUrl = publicUrl;
+            }
+
             const updates: any = {
                 ...formData,
+                background_image_url: bgUrl,
+                instagram_url: formData.instagram,
+                twitter_url: formData.twitter,
                 updated_at: new Date().toISOString(),
             };
+
+            // Clean up temp fields
+            delete updates.instagram;
+            delete updates.twitter;
 
             // Remove username if it hasn't changed to avoid unique constraint checks on self
             if (updates.username === user.username) {
@@ -63,7 +111,7 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                 throw updateError;
             }
 
-            onUpdate({ ...user, ...formData });
+            onUpdate({ ...user, ...formData, background_image_url: bgUrl, instagram_url: formData.instagram, twitter_url: formData.twitter });
             onClose();
         } catch (err: any) {
             setError(err.message);
@@ -91,6 +139,30 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                             {error}
                         </div>
                     )}
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider">Background Image</label>
+                        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 group">
+                            {bgPreview ? (
+                                <img src={bgPreview} alt="Background" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="flex items-center justify-center w-full h-full text-stone-400">
+                                    <ImageIcon className="w-8 h-8" />
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                onClick={() => bgInputRef.current?.click()}>
+                                <Upload className="w-6 h-6 text-white" />
+                            </div>
+                        </div>
+                        <input
+                            type="file"
+                            ref={bgInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleBgChange}
+                        />
+                    </div>
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-stone-500 uppercase tracking-wider">Full Name</label>
@@ -160,6 +232,35 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                             className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 outline-none transition-all min-h-[100px] resize-none"
                             placeholder="Tell us about yourself..."
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider">Instagram</label>
+                            <div className="relative">
+                                <Instagram className="absolute left-3 top-3 w-4 h-4 text-stone-400" />
+                                <input
+                                    type="url"
+                                    value={formData.instagram}
+                                    onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                                    className="w-full pl-9 pr-3 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
+                                    placeholder="https://instagram.com/..."
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider">X (Twitter)</label>
+                            <div className="relative">
+                                <Twitter className="absolute left-3 top-3 w-4 h-4 text-stone-400" />
+                                <input
+                                    type="url"
+                                    value={formData.twitter}
+                                    onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+                                    className="w-full pl-9 pr-3 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    placeholder="https://x.com/..."
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="pt-4">

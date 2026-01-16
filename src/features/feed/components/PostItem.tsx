@@ -281,7 +281,7 @@ export default function PostItem({
                                                         onClick={() => {
                                                             if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id);
                                                         }}
-                                                        className="text-stone-400 hover:text-red-500 transition-colors p-1"
+                                                        className="text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                     </button>

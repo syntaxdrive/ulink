@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { type Profile, type Project, type Post, type Certificate } from '../../types';
-import { Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin, Globe, MapPin, Briefcase, BadgeCheck, MessageCircle, Heart, Award, Upload, Share } from 'lucide-react';
+import { Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin, Globe, MapPin, Briefcase, BadgeCheck, MessageCircle, Heart, Award, Upload, Share, Instagram, Twitter } from 'lucide-react';
 
 
 function formatTimeAgo(dateString: string) {
@@ -48,6 +48,13 @@ export default function ProfilePage() {
     const [website, setWebsite] = useState('');
     const [github, setGithub] = useState('');
     const [linkedin, setLinkedin] = useState('');
+    const [instagram, setInstagram] = useState('');
+    const [twitter, setTwitter] = useState('');
+
+    // Background Image
+    const [bgUrl, setBgUrl] = useState('');
+    const [bgFile, setBgFile] = useState<File | null>(null);
+    const bgInputRef = useRef<HTMLInputElement>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const certFileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +79,22 @@ export default function ProfilePage() {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setAvatarUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleBgFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image must be less than 5MB');
+                return;
+            }
+            setBgFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setBgUrl(reader.result as string);
             };
             reader.readAsDataURL(file);
         }
@@ -104,6 +127,9 @@ export default function ProfilePage() {
         setWebsite(data.website || '');
         setGithub(data.github_url || '');
         setLinkedin(data.linkedin_url || '');
+        setInstagram(data.instagram_url || '');
+        setTwitter(data.twitter_url || '');
+        setBgUrl(data.background_image_url || '');
     };
 
     const fetchProfile = async () => {
@@ -187,6 +213,22 @@ export default function ProfilePage() {
         setSaving(true);
         try {
             let finalAvatarUrl = avatarUrl;
+            let finalBgUrl = bgUrl;
+
+            // 0. Upload Background if Changed
+            if (bgFile) {
+                const fileExt = bgFile.name.split('.').pop();
+                const fileName = `backgrounds/${profile.id}_${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('uploads')
+                    .upload(fileName, bgFile, { upsert: true });
+
+                if (uploadError) throw uploadError;
+                const { data: { publicUrl } } = supabase.storage
+                    .from('uploads')
+                    .getPublicUrl(fileName);
+                finalBgUrl = publicUrl;
+            }
 
             // 1. Upload Avatar if Changed
             if (avatarFile) {
@@ -212,6 +254,7 @@ export default function ProfilePage() {
                 headline,
                 location,
                 avatar_url: finalAvatarUrl,
+                background_image_url: finalBgUrl,
                 about,
                 skills,
                 projects,
@@ -219,6 +262,8 @@ export default function ProfilePage() {
                 website,
                 github_url: github,
                 linkedin_url: linkedin,
+                instagram_url: instagram,
+                twitter_url: twitter,
                 updated_at: new Date().toISOString(),
             };
 
@@ -235,6 +280,7 @@ export default function ProfilePage() {
 
             setProfile({ ...profile, ...updates });
             setAvatarFile(null); // Reset file
+            setBgFile(null);
             alert('Profile updated successfully!');
         } catch (error) {
             console.error('Error updating profile:', error);
@@ -336,8 +382,8 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => {
-                            // Assuming '/app/user/:id' is the public profile route
-                            const publicUrl = `${window.location.origin}/app/user/${profile?.id}`;
+                            // Fixed: use correct /app/profile/:id route
+                            const publicUrl = `${window.location.origin}/app/profile/${profile?.id}`;
                             navigator.clipboard.writeText(publicUrl);
                             alert('Profile link copied to clipboard!');
                         }}
@@ -362,84 +408,101 @@ export default function ProfilePage() {
                 <div className="lg:col-span-1 space-y-6">
 
                     {/* Identity Card */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="w-32 h-32 rounded-full border-4 border-slate-50 overflow-hidden mb-4 relative group shadow-inner">
-                                <img
-                                    src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`}
-                                    alt="Profile"
-                                    className="w-full h-full object-cover"
-                                />
-                                <div onClick={handleAvatarClick} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                    <Camera className="w-8 h-8 text-white" />
-                                </div>
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        {/* Background Image Area */}
+                        <div className="relative h-32 bg-slate-100 group/bg cursor-pointer" onClick={() => bgInputRef.current?.click()}>
+                            {bgUrl ? (
+                                <img src={bgUrl} alt="Background" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/bg:opacity-100 transition-opacity">
+                                <Camera className="w-6 h-6 text-white drop-shadow-md" />
                             </div>
+                        </div>
+                        <input type="file" ref={bgInputRef} className="hidden" accept="image/*" onChange={handleBgFileChange} />
 
-                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-
-                            <input
-                                type="url"
-                                placeholder="Avatar URL"
-                                value={avatarUrl}
-                                onChange={(e) => setAvatarUrl(e.target.value)}
-                                className="w-full text-xs text-center text-slate-500 bg-transparent border-none focus:ring-0 mb-4 placeholder:text-slate-300"
-                            />
-
-                            <div className="w-full space-y-3">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                        {isStudent ? 'Full Name' : 'Company Name'}
-                                        {profile?.is_verified && <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-100" />}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value.replace(/\p{Extended_Pictographic}/gu, ''))}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
-                                        placeholder={isStudent ? "Your Name" : "Company Name"}
+                        {/* Avatar & Inputs Area */}
+                        <div className="px-6 pb-6 relative">
+                            {/* Avatar - Negative Margin to pull it up */}
+                            <div className="flex flex-col items-center text-center -mt-16">
+                                <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden mb-4 relative group shadow-lg bg-white">
+                                    <img
+                                        src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
                                     />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{isStudent ? 'Headline' : 'Industry / Tagline'}</label>
-                                    <input
-                                        type="text"
-                                        value={headline}
-                                        onChange={(e) => setHeadline(e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
-                                        placeholder={isStudent ? "Software Engineer | Designer" : "FinTech | EdTech | Recruiting"}
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Location</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                        <input
-                                            type="text"
-                                            value={location}
-                                            onChange={(e) => setLocation(e.target.value)}
-                                            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
-                                            placeholder="Lagos, Nigeria"
-                                        />
+                                    <div onClick={handleAvatarClick} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <Camera className="w-8 h-8 text-white" />
                                     </div>
                                 </div>
 
-                                {isStudent && (
+                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+
+                                <input
+                                    type="url"
+                                    placeholder="Avatar URL"
+                                    value={avatarUrl}
+                                    onChange={(e) => setAvatarUrl(e.target.value)}
+                                    className="w-full text-xs text-center text-slate-500 bg-transparent border-none focus:ring-0 mb-4 placeholder:text-slate-300"
+                                />
+
+                                <div className="w-full space-y-3">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">University</label>
+                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                            {isStudent ? 'Full Name' : 'Company Name'}
+                                            {profile?.is_verified && <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-100" />}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value.replace(/\p{Extended_Pictographic}/gu, ''))}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
+                                            placeholder={isStudent ? "Your Name" : "Company Name"}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{isStudent ? 'Headline' : 'Industry / Tagline'}</label>
+                                        <input
+                                            type="text"
+                                            value={headline}
+                                            onChange={(e) => setHeadline(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                            placeholder={isStudent ? "Software Engineer | Designer" : "FinTech | EdTech | Recruiting"}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Location</label>
                                         <div className="relative">
-                                            <School className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                            <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                             <input
                                                 type="text"
-                                                value={university}
-                                                onChange={(e) => setUniversity(e.target.value)}
+                                                value={location}
+                                                onChange={(e) => setLocation(e.target.value)}
                                                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
-                                                placeholder="University Name"
+                                                placeholder="Lagos, Nigeria"
                                             />
                                         </div>
                                     </div>
-                                )}
+
+                                    {isStudent && (
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">University</label>
+                                            <div className="relative">
+                                                <School className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    value={university}
+                                                    onChange={(e) => setUniversity(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                                    placeholder="University Name"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -488,6 +551,26 @@ export default function ProfilePage() {
                                     onChange={(e) => setWebsite(e.target.value)}
                                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
                                     placeholder="Portfolio Website"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Instagram className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="url"
+                                    value={instagram}
+                                    onChange={(e) => setInstagram(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    placeholder="Instagram"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Twitter className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="url"
+                                    value={twitter}
+                                    onChange={(e) => setTwitter(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    placeholder="X (Twitter)"
                                 />
                             </div>
                         </div>

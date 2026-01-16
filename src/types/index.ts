@@ -41,6 +41,9 @@ export interface Profile {
     is_admin?: boolean;
     gold_verified?: boolean; // Computed from gold_verified_users table
     created_at: string;
+    background_image_url?: string;
+    instagram_url?: string;
+    twitter_url?: string;
 }
 
 export interface Project {

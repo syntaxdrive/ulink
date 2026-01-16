@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter } from 'lucide-react';
 import EditProfileModal from './components/EditProfileModal';
 
 export default function UserProfilePage() {
@@ -274,7 +274,14 @@ export default function UserProfilePage() {
                 <div className="lg:col-span-1 space-y-6">
                     {/* Identity Card */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                        {profile.background_image_url ? (
+                            <div className="absolute top-0 left-0 right-0 h-32">
+                                <img src={profile.background_image_url} alt="Background" className="w-full h-full object-cover opacity-90" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/90"></div>
+                            </div>
+                        ) : (
+                            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                        )}
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
                             <div className="relative mb-4 inline-block group/avatar">
                                 <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white relative z-10">
@@ -339,6 +346,16 @@ export default function UserProfilePage() {
 
                         {/* Socials & Share */}
                         <div className="mt-6 flex justify-center gap-3">
+                            {profile.instagram_url && (
+                                <a href={profile.instagram_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-all">
+                                    <Instagram className="w-5 h-5" />
+                                </a>
+                            )}
+                            {profile.twitter_url && (
+                                <a href={profile.twitter_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-500 hover:bg-sky-50 rounded-full transition-all">
+                                    <Twitter className="w-5 h-5" />
+                                </a>
+                            )}
                             {profile.github_url && (
                                 <a href={profile.github_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all">
                                     <Github className="w-5 h-5" />
