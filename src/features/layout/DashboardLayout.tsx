@@ -37,7 +37,7 @@ export default function DashboardLayout() {
                 navigator.serviceWorker.ready.then(registration => {
                     registration.showNotification(title, {
                         body,
-                        icon: '/icon-192.png',
+                        icon: '/icon-512.png',
                         vibrate: [200, 100, 200],
                         tag: 'ulink-notification',
                         renotify: true,
@@ -45,7 +45,7 @@ export default function DashboardLayout() {
                     } as any);
                 });
             } else {
-                new Notification(title, { body, icon: '/icon-192.png' });
+                new Notification(title, { body, icon: '/icon-512.png' });
             }
         }
 
@@ -255,7 +255,7 @@ export default function DashboardLayout() {
             {/* Mobile Top Bar */}
             <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 z-40">
                 <div className="flex items-center gap-2">
-                    <img src="/icon-192.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                    <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
                     <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
                 </div>
                 <button
@@ -348,7 +348,7 @@ export default function DashboardLayout() {
                 {/* Brand Header */}
                 <div className="p-8 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                        <img src="/icon-192.png" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
+                        <img src="/icon-512.png" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
                         <div>
                             <h1 className="text-xl font-display font-bold tracking-tight text-slate-900">
                                 UniLink

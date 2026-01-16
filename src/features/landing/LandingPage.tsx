@@ -36,7 +36,7 @@ export default function LandingPage() {
             <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md border-b border-slate-100 py-3' : 'bg-transparent py-5'}`}>
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <img src="/icon-192.png" alt="UniLink" className="w-8 h-8 rounded-lg shadow-sm" />
+                        <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg shadow-sm" />
                         <span className="font-display font-bold text-xl tracking-tight text-slate-900">UniLink</span>
                     </div>
                     {/* Sign In removed as requested */}
@@ -209,7 +209,7 @@ export default function LandingPage() {
             <footer className="border-t border-slate-200 py-12 bg-white">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-2 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
-                        <img src="/icon-192.png" alt="UniLink" className="w-6 h-6" />
+                        <img src="/icon-512.png" alt="UniLink" className="w-6 h-6" />
                         <span className="font-bold text-slate-700">UniLink</span>
                     </div>
                     <div className="flex gap-8 text-sm text-slate-500">
