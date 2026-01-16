@@ -27,28 +27,16 @@ export function useChat() {
     }, [activeChat]);
 
     const fetchConversations = useCallback(async (myId: string) => {
-        const { data: connections } = await supabase
-            .from('connections')
-            .select(`
-                requester_id,
-                recipient_id,
-                requester:profiles!requester_id(*),
-                recipient:profiles!recipient_id(*)
-            `)
-            .eq('status', 'accepted')
-            .or(`requester_id.eq.${myId},recipient_id.eq.${myId}`);
+        const { data, error } = await supabase.rpc('get_sorted_conversations', { current_user_id: myId });
 
-        if (!connections) return;
+        if (error) {
+            console.error('Error fetching conversations:', error);
+            return;
+        }
 
-        const profiles = connections.map((conn: any) => {
-            if (conn.requester_id === myId) return conn.recipient;
-            return conn.requester;
-        });
-
-        const uniqueProfiles = profiles.filter((profile: Profile, index: number, self: Profile[]) =>
-            index === self.findIndex((p) => p.id === profile.id)
-        );
-        setConversations(uniqueProfiles);
+        if (data) {
+            setConversations(data);
+        }
     }, []);
 
     const markAsRead = useCallback(async (senderId: string) => {
@@ -113,6 +101,7 @@ export function useChat() {
                             [senderId]: (prev[senderId] || 0) + 1
                         }));
                     }
+                    fetchConversations(userId);
                 })
             .subscribe();
 
@@ -233,6 +222,8 @@ export function useChat() {
         if (error) {
             console.error('Error sending message:', error);
             // Ideally rollback or show error
+        } else {
+            fetchConversations(userId);
         }
     };
 
