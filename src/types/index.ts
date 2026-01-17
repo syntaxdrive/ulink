@@ -33,6 +33,8 @@ export interface Profile {
     experience?: Experience[];
     certificates?: Certificate[];
     connections_count?: number;
+    followers_count?: number;
+    following_count?: number;
     website?: string;
     github_url?: string;
     linkedin_url?: string;
@@ -69,18 +71,49 @@ export interface Like {
     user_id: string;
 }
 
+export interface Community {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    icon_url?: string;
+    cover_image_url?: string;
+    privacy: 'public' | 'private' | 'restricted';
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    members_count?: number; // Computed view often useful
+    is_member?: boolean; // UI helper
+}
+
+export interface CommunityMember {
+    id: string;
+    community_id: string;
+    user_id: string;
+    role: 'owner' | 'admin' | 'moderator' | 'member';
+    joined_at: string;
+    profile?: Profile; // Joined profile data
+}
+
 export interface Post {
     id: string;
     author_id: string;
     content: string;
     image_url?: string;
-    image_urls?: string[];
+    image_urls?: string[]; // Multiple images support
     created_at: string;
+    updated_at: string;
+    likes_count: number;
+    comments_count: number;
+    user_has_liked: boolean;
     profiles?: Profile; // Joined data
-    // Client-side computed fields
-    likes_count?: number;
-    comments_count?: number;
-    user_has_liked?: boolean;
+    community_id?: string; // Optional link to a community
+    community?: Community; // Joined community data
+
+    // Polls
+    poll_options?: string[];
+    poll_counts?: number[];
+    user_vote?: number | null;
 }
 
 export interface Connection {
@@ -91,6 +124,15 @@ export interface Connection {
     created_at: string;
     requester?: Profile;
     recipient?: Profile;
+}
+
+export interface Follow {
+    id: string;
+    follower_id: string;
+    following_id: string;
+    created_at: string;
+    follower?: Profile;
+    following?: Profile;
 }
 
 export interface Message {

@@ -198,7 +198,18 @@ export function useChat() {
 
         let finalContent = content;
         if (replyTo) {
-            finalContent = `> ${replyTo.content.substring(0, 50)}${replyTo.content.length > 50 ? '...' : ''}\n\n${content}`;
+            let contentToQuote = replyTo.content;
+
+            // Prevent nested/triple quotes: If the message we're replying to is already a quote,
+            // extract only the actual message text (the part after the quote).
+            if (contentToQuote.startsWith('> ') && contentToQuote.includes('\n\n')) {
+                const splitIndex = contentToQuote.indexOf('\n\n');
+                if (splitIndex !== -1) {
+                    contentToQuote = contentToQuote.substring(splitIndex + 2);
+                }
+            }
+
+            finalContent = `> ${contentToQuote.substring(0, 50)}${contentToQuote.length > 50 ? '...' : ''}\n\n${content}`;
         }
 
         const tempMsg: any = {

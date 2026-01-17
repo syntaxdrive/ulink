@@ -1,15 +1,21 @@
 import { useState, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, X } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus } from 'lucide-react';
 
 interface CreatePostProps {
-    onCreate: (content: string, imageFiles: File[]) => Promise<void>;
+    onCreate: (content: string, imageFiles: File[], communityId?: string, pollOptions?: string[]) => Promise<void>;
+    communityId?: string;
+    user?: any; // Just for types, usually passed down
+    onPostCreated?: (post: any) => void;
 }
 
-export default function CreatePost({ onCreate }: CreatePostProps) {
+export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
     const [content, setContent] = useState('');
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
     const [isPosting, setIsPosting] = useState(false);
+    const [showPoll, setShowPoll] = useState(false);
+    const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageClick = () => fileInputRef.current?.click();
@@ -60,15 +66,42 @@ export default function CreatePost({ onCreate }: CreatePostProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const handlePollChange = (index: number, value: string) => {
+        const newOptions = [...pollOptions];
+        newOptions[index] = value;
+        setPollOptions(newOptions);
+    };
+
+    const addPollOption = () => {
+        if (pollOptions.length < 5) setPollOptions([...pollOptions, '']);
+    };
+
+    const removePollOption = (index: number) => {
+        if (pollOptions.length > 2) {
+            setPollOptions(pollOptions.filter((_, i) => i !== index));
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() && imageFiles.length === 0) return;
+        if (!content.trim() && imageFiles.length === 0 && !showPoll) return;
+
+        let finalPollOptions: string[] | undefined;
+        if (showPoll) {
+            finalPollOptions = pollOptions.filter(o => o.trim());
+            if (finalPollOptions.length < 2) {
+                alert('Poll must have at least 2 options.');
+                return;
+            }
+        }
 
         setIsPosting(true);
         try {
-            await onCreate(content, imageFiles);
+            await onCreate(content, imageFiles, communityId, finalPollOptions);
             setContent('');
             clearAllImages();
+            setShowPoll(false);
+            setPollOptions(['', '']);
         } catch (error) {
             console.error(error);
             alert('Failed to create post');
@@ -110,6 +143,41 @@ export default function CreatePost({ onCreate }: CreatePostProps) {
                     </div>
                 )}
 
+                {/* Poll Creator */}
+                {showPoll && (
+                    <div className="space-y-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
+                        {pollOptions.map((option, index) => (
+                            <div key={index} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={option}
+                                    onChange={(e) => handlePollChange(index, e.target.value)}
+                                    placeholder={`Option ${index + 1}`}
+                                    className="flex-1 px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                                />
+                                {pollOptions.length > 2 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removePollOption(index)}
+                                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Minus className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {pollOptions.length < 5 && (
+                            <button
+                                type="button"
+                                onClick={addPollOption}
+                                className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1 pl-1"
+                            >
+                                <Plus className="w-3 h-3" /> Add Option
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 <div className="flex justify-between items-center px-1">
                     <div className="flex gap-2">
                         <input
@@ -128,13 +196,21 @@ export default function CreatePost({ onCreate }: CreatePostProps) {
                         >
                             <ImageIcon className="w-5 h-5" />
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowPoll(!showPoll)}
+                            className={`p-2 rounded-xl transition-all ${showPoll ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}
+                            title="Create Poll"
+                        >
+                            <BarChart2 className="w-5 h-5" />
+                        </button>
                         <button type="button" className="p-2 text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
                             <Smile className="w-5 h-5" />
                         </button>
                     </div>
                     <button
                         type="submit"
-                        disabled={(!content.trim() && imageFiles.length === 0) || isPosting}
+                        disabled={(!content.trim() && imageFiles.length === 0 && !showPoll) || isPosting}
                         className="bg-stone-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
                     >
                         <Send className="w-4 h-4" />

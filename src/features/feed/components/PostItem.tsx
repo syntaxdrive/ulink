@@ -33,6 +33,7 @@ interface PostItemProps {
     onSearchTag: (tag: string) => void;
     onReport: (id: string) => void;
     onDeleteComment: (postId: string, commentId: string) => void;
+    onVotePoll?: (postId: string, optionIndex: number) => Promise<void>;
 }
 
 export default function PostItem({
@@ -49,7 +50,8 @@ export default function PostItem({
     onPostComment,
     onSearchTag,
     onReport,
-    onDeleteComment
+    onDeleteComment,
+    onVotePoll
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
 
@@ -200,6 +202,54 @@ export default function PostItem({
                     </button>
                 )}
             </div>
+
+            {/* Polls */}
+            {post.poll_options && post.poll_options.length > 0 && (
+                <div className="mb-4 space-y-2 max-w-lg">
+                    {post.poll_options.map((option, index) => {
+                        const counts = post.poll_counts || [];
+                        const count = counts[index] || 0;
+                        const totalVotes = counts.reduce((a, b) => a + b, 0);
+                        const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                        const isSelected = post.user_vote === index;
+
+                        return (
+                            <button
+                                key={index}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (onVotePoll) onVotePoll(post.id, index);
+                                }}
+                                className={`w-full relative overflow-hidden rounded-xl border transition-all ${isSelected
+                                    ? 'border-emerald-500 bg-emerald-50/30'
+                                    : 'border-stone-200 bg-white hover:bg-stone-50'
+                                    }`}
+                            >
+                                <div
+                                    className={`absolute inset-y-0 left-0 transition-all duration-500 ${isSelected ? 'bg-emerald-100' : 'bg-stone-100'
+                                        }`}
+                                    style={{ width: `${percent}%`, opacity: 0.5 }}
+                                />
+                                <div className="relative px-4 py-3 flex justify-between items-center z-10">
+                                    <div className="flex items-center gap-2">
+                                        {isSelected && <BadgeCheck className="w-4 h-4 text-emerald-600 fill-emerald-100" />}
+                                        <span className={`font-medium ${isSelected ? 'text-emerald-900' : 'text-stone-700'}`}>
+                                            {option}
+                                        </span>
+                                    </div>
+                                    <span className={`text-sm font-bold ${isSelected ? 'text-emerald-700' : 'text-stone-500'}`}>
+                                        {percent}%
+                                    </span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                    <p className="text-xs text-stone-400 pl-1">
+                        {(post.poll_counts || []).reduce((a, b) => a + b, 0)} votes
+                    </p>
+                </div>
+            )}
 
             {/* Post Images */}
             {(() => {
