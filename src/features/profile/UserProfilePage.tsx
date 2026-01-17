@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck } from 'lucide-react';
 import EditProfileModal from './components/EditProfileModal';
+import { useFollow } from './hooks/useFollow';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
@@ -19,6 +20,9 @@ export default function UserProfilePage() {
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
     const [actionLoading, setActionLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+
+    // Follow Logic
+    const { isFollowing, followersCount, followingCount, toggleFollow, canFollow, loading: followLoading } = useFollow(userId || '');
 
     const fetchConnectionStatus = async (targetId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -340,6 +344,14 @@ export default function UserProfilePage() {
                                 <div className="font-bold text-slate-900 text-lg">{profile.connections_count || 0}</div>
                                 <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">Connections</div>
                             </div>
+                            <div className="text-center">
+                                <div className="font-bold text-slate-900 text-lg">{followersCount}</div>
+                                <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">Followers</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="font-bold text-slate-900 text-lg">{followingCount}</div>
+                                <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">Following</div>
+                            </div>
                         </div>
 
 
@@ -449,6 +461,32 @@ export default function UserProfilePage() {
                                     >
                                         {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                                         Connect
+                                    </button>
+                                )}
+
+                                {/* Follow Button */}
+                                {canFollow && (
+                                    <button
+                                        onClick={toggleFollow}
+                                        disabled={followLoading}
+                                        className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isFollowing
+                                            ? 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-indigo-300'
+                                            }`}
+                                    >
+                                        {followLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : isFollowing ? (
+                                            <>
+                                                <UserCheck className="w-4 h-4" />
+                                                Following
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UserPlus className="w-4 h-4" />
+                                                Follow
+                                            </>
+                                        )}
                                     </button>
                                 )}
 

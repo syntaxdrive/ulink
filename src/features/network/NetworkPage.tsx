@@ -1,19 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, UserPlus, Check, Search, BadgeCheck } from 'lucide-react';
 import { useNetwork } from './hooks/useNetwork';
 
 export default function NetworkPage() {
-    const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect } = useNetwork();
+    const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect, searchUsers, searchResults, searching } = useNetwork();
     const [activeTab, setActiveTab] = useState<'grow' | 'network'>('grow');
     const [searchQuery, setSearchQuery] = useState('');
 
-    const displayedProfiles = activeTab === 'grow' ? suggestions : myNetwork;
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim()) {
+                searchUsers(searchQuery);
+            }
+        }, 300); // Wait 300ms after user stops typing
 
-    const filteredProfiles = displayedProfiles.filter(profile =>
-        (profile.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (profile.university && profile.university.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Determine which profiles to display
+    const displayedProfiles = searchQuery.trim()
+        ? searchResults // Show search results when searching
+        : (activeTab === 'grow' ? suggestions : myNetwork); // Otherwise show tab content
+
+    const filteredProfiles = displayedProfiles;
 
     if (loading) {
         return (
@@ -29,28 +40,30 @@ export default function NetworkPage() {
             <div className="sticky top-0 bg-[#FAFAFA]/95 backdrop-blur-md z-30 pt-4 pb-4 space-y-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 font-display">Your Network</h1>
-                    <p className="text-slate-500">Connect with students and alumni.</p>
+                    <p className="text-slate-500">Connect with students, alumni, and communities.</p>
                 </div>
 
-                {/* Search */}
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-stone-400 group-focus-within:text-emerald-500 transition-colors" />
+                        {searching ? (
+                            <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+                        ) : (
+                            <Search className="h-5 w-5 text-stone-400 group-focus-within:text-emerald-500 transition-colors" />
+                        )}
                     </div>
                     <input
                         type="text"
                         className="block w-full pl-11 pr-4 py-3 bg-white border border-stone-200/50 rounded-2xl text-stone-900 placeholder:text-stone-400 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 shadow-sm transition-all"
-                        placeholder="Search..."
+                        placeholder="Search people..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
 
-                {/* Tabs */}
-                <div className="flex p-1 bg-white border border-stone-200 rounded-xl w-fit">
+                <div className="flex p-1 bg-white border border-stone-200 rounded-xl w-full sm:w-fit overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('grow')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'grow'
+                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'grow'
                             ? 'bg-stone-900 text-white shadow-md'
                             : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
                             }`}
@@ -59,7 +72,7 @@ export default function NetworkPage() {
                     </button>
                     <button
                         onClick={() => setActiveTab('network')}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'network'
+                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'network'
                             ? 'bg-stone-900 text-white shadow-md'
                             : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
                             }`}

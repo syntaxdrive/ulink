@@ -18,7 +18,8 @@ export default function FeedPage() {
         loadingComments,
         postComment,
         deleteComment,
-        reportPost
+        reportPost,
+        votePoll
     } = useFeed();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -122,6 +123,7 @@ export default function FeedPage() {
                                 onSearchTag={setSearchQuery}
                                 onReport={reportPost}
                                 onDeleteComment={deleteComment}
+                                onVotePoll={votePoll}
                             />
                         ))}
                     </div>
@@ -129,6 +131,7 @@ export default function FeedPage() {
 
                 {/* Sidebar Column (Trending) */}
                 <div className="hidden lg:block lg:col-span-4 sticky top-4 space-y-6">
+
                     {/* Trending Card */}
                     <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-stone-200/50">
                         <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">

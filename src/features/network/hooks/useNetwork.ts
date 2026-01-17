@@ -9,6 +9,8 @@ export function useNetwork() {
     const [connections, setConnections] = useState<Set<string>>(new Set());
     const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
     const [connecting, setConnecting] = useState<string | null>(null);
+    const [searchResults, setSearchResults] = useState<Profile[]>([]);
+    const [searching, setSearching] = useState(false);
 
     const fetchNetworkData = useCallback(async () => {
         setLoading(true);
@@ -65,6 +67,44 @@ export function useNetwork() {
         setLoading(false);
     }, []);
 
+    const searchUsers = async (query: string) => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            setSearching(false);
+            return;
+        }
+
+        setSearching(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        try {
+            const { data, error } = await supabase.rpc('search_all_users', {
+                current_user_id: user.id,
+                search_query: query.trim()
+            });
+
+            if (error) {
+                console.error('Search error:', error);
+                // Fallback to client-side search if function doesn't exist yet
+                const allProfiles = [...suggestions, ...myNetwork];
+                const filtered = allProfiles.filter(profile =>
+                    (profile.name || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (profile.university && profile.university.toLowerCase().includes(query.toLowerCase())) ||
+                    (profile.headline && profile.headline.toLowerCase().includes(query.toLowerCase()))
+                );
+                setSearchResults(filtered);
+            } else if (data) {
+                setSearchResults(data);
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+            setSearchResults([]);
+        } finally {
+            setSearching(false);
+        }
+    };
+
     const connect = async (targetUserId: string) => {
         setConnecting(targetUserId);
         const { data: { user } } = await supabase.auth.getUser();
@@ -110,6 +150,9 @@ export function useNetwork() {
         connections,
         sentRequests,
         connecting,
-        connect
+        connect,
+        searchUsers,
+        searchResults,
+        searching
     };
 }

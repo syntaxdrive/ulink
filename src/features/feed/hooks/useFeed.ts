@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 
-export function useFeed() {
+export function useFeed(communityId?: string) {
     // 1. Use Global Store
     const { posts, setPosts, addPost, updatePost, removePost, needsRefresh } = useFeedStore();
 
@@ -27,8 +27,9 @@ export function useFeed() {
                 });
             }
 
-            // 80/20 Rule: Check if we need to fetch
-            if (needsRefresh() || posts.length === 0) {
+            // Always fetch if communityId is present (context switch)
+            // or if traditional refresh is needed
+            if (communityId || needsRefresh() || posts.length === 0) {
                 await fetchPosts(user?.id);
             } else {
                 setLoading(false); // Use cached data
@@ -36,10 +37,11 @@ export function useFeed() {
         };
         init();
 
-        // Realtime Subscription
+        // Realtime Subscription (Simplified for now - strictly main feed or all)
         const channel = supabase
             .channel('public:posts')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+                // Ideally filter here if (communityId && payload.new.community_id !== communityId) return;
                 fetchSinglePost(payload.new.id);
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
@@ -58,35 +60,65 @@ export function useFeed() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []); // Empty dependency array = mount once
+    }, [communityId]);
 
     const fetchPosts = async (userId?: string) => {
         setLoading(true);
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('posts')
             .select(`
-            *,
-            profiles:author_id (*),
-            likes (user_id),
-            comments (id)
-        `)
+                *,
+                profiles:author_id (*),
+                likes (user_id),
+                comments (id)
+            `)
             .order('created_at', { ascending: false });
+
+        if (communityId) {
+            // Community Feed: Only show posts from this specific community
+            query = query.eq('community_id', communityId);
+        } else {
+            // Main Feed: Only show posts NOT in any community (global posts)
+            query = query.is('community_id', null);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching posts:', error);
+        }
 
         if (!error && data) {
             // VIP Users List
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
+
+            // Safe Poll Vote Fetching
+            let pollVotesMap: Record<string, number> = {};
+            if (userId && data.length > 0) {
+                const postIds = data.map((p: any) => p.id);
+                // Attempt to fetch votes, ignoring errors (e.g. if table missing)
+                const { data: votes } = await supabase
+                    .from('poll_votes')
+                    .select('post_id, option_index')
+                    .eq('user_id', userId)
+                    .in('post_id', postIds);
+
+                if (votes) {
+                    votes.forEach((v: any) => { pollVotesMap[v.post_id] = v.option_index; });
+                }
+            }
 
             let formatted = data.map((post: any) => ({
                 ...post,
                 likes_count: post.likes ? post.likes.length : 0,
                 comments_count: post.comments ? post.comments.length : 0,
                 user_has_liked: userId ? post.likes.some((like: any) => like.user_id === userId) : false,
-                // Helper for sorting
+                user_vote: pollVotesMap[post.id] ?? null,
                 is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
 
-            // SMART ALGORITHM: Boost VIP posts from the last 24 hours to the top
+            // SMART ALGORITHM
             const ONE_DAY = 24 * 60 * 60 * 1000;
             formatted.sort((a: any, b: any) => {
                 const now = Date.now();
@@ -95,8 +127,6 @@ export function useFeed() {
                 const aIsRecent = (now - aTime) < ONE_DAY;
                 const bIsRecent = (now - bTime) < ONE_DAY;
 
-                // If both are recent VIPs or neither, maintain chronological order (bTime - aTime)
-                // If A is recent VIP and B is not, A comes first
                 if (a.is_vip && aIsRecent && (!b.is_vip || !bIsRecent)) return -1;
                 if (b.is_vip && bIsRecent && (!a.is_vip || !aIsRecent)) return 1;
 
@@ -117,6 +147,9 @@ export function useFeed() {
             .single();
 
         if (data) {
+            // If viewing a specific community, verify this post belongs to it
+            if (communityId && data.community_id !== communityId) return;
+
             const newPost = {
                 ...data,
                 likes_count: data.likes ? data.likes.length : 0,
@@ -124,7 +157,6 @@ export function useFeed() {
                 user_has_liked: user ? data.likes.some((like: any) => like.user_id === user.id) : false
             };
 
-            // Smart Update: If exists update, else add
             const exists = posts.some(p => p.id === newPost.id);
             if (exists) {
                 updatePost(newPost);
@@ -134,12 +166,13 @@ export function useFeed() {
         }
     };
 
-    const createPost = async (content: string, imageFiles: File[]) => {
+    const createPost = async (content: string, imageFiles: File[], targetCommunityId?: string, pollOptions?: string[]) => {
         if (!content.trim() && imageFiles.length === 0) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         const imageUrls: string[] = [];
+        const finalCommunityId = targetCommunityId || communityId;
 
         try {
             for (const file of imageFiles) {
@@ -150,7 +183,7 @@ export function useFeed() {
 
                 if (uploadError) {
                     console.error('Error uploading file:', file.name, uploadError);
-                    continue; // Skip failed uploads or throw? Continuing seems safer for bulk.
+                    continue;
                 }
 
                 const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
@@ -165,7 +198,10 @@ export function useFeed() {
                     author_id: user.id,
                     content: content,
                     image_url: mainImageUrl,
-                    image_urls: imageUrls
+                    image_urls: imageUrls,
+                    community_id: finalCommunityId, // Use finalCommunityId which we calculated above
+                    poll_options: pollOptions && pollOptions.length > 1 ? pollOptions : null,
+                    poll_counts: pollOptions && pollOptions.length > 1 ? new Array(pollOptions.length).fill(0) : null
                 })
                 .select(`*, profiles:author_id (*), likes (user_id), comments (id)`)
                 .single();
@@ -189,11 +225,10 @@ export function useFeed() {
     };
 
     const deletePost = async (postId: string) => {
-        removePost(postId); // Optimistic UI
+        removePost(postId);
         const { error } = await supabase.from('posts').delete().eq('id', postId);
         if (error) {
             console.error('Error deleting post:', error);
-            // Ideally revert here, but for now we rely on re-fetch on error
         }
     };
 
@@ -204,7 +239,6 @@ export function useFeed() {
         const isLiked = post.user_has_liked;
         const newLikeCount = isLiked ? (post.likes_count || 0) - 1 : (post.likes_count || 0) + 1;
 
-        // Optimistic Store Update
         updatePost({
             ...post,
             user_has_liked: !isLiked,
@@ -223,7 +257,7 @@ export function useFeed() {
             setActiveCommentPostId(null);
         } else {
             setActiveCommentPostId(postId);
-            if (!comments[postId]) { // Only fetch if not already loaded
+            if (!comments[postId]) {
                 setLoadingComments(true);
                 const { data } = await supabase
                     .from('comments')
@@ -253,7 +287,6 @@ export function useFeed() {
 
         setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), optimisticComment] }));
 
-        // Update comment count in store
         const post = posts.find(p => p.id === postId);
         if (post) {
             updatePost({ ...post, comments_count: (post.comments_count || 0) + 1 });
@@ -297,14 +330,46 @@ export function useFeed() {
         }
     };
 
+    const votePoll = async (postId: string, optionIndex: number) => {
+        const post = posts.find(p => p.id === postId);
+        if (!post || !post.poll_options || !post.poll_counts || !currentUserId) return;
+
+        // Optimistic Update
+        const newCounts = [...post.poll_counts];
+        const oldVote = post.user_vote;
+
+        if (oldVote !== null && oldVote !== undefined) {
+            newCounts[oldVote] = Math.max(0, newCounts[oldVote] - 1);
+        }
+        newCounts[optionIndex] = (newCounts[optionIndex] || 0) + 1;
+
+        updatePost({
+            ...post,
+            poll_counts: newCounts,
+            user_vote: optionIndex
+        });
+
+        // Database Update
+        const { error } = await supabase.from('poll_votes').upsert({
+            post_id: postId,
+            user_id: currentUserId,
+            option_index: optionIndex
+        }, { onConflict: 'post_id, user_id' });
+
+        if (error) {
+            console.error('Vote failed:', error);
+            // Revert on error (could actally fetchSinglePost to be safer)
+            fetchSinglePost(postId);
+            alert('Failed to register vote');
+        }
+    };
+
     const deleteComment = async (postId: string, commentId: string) => {
-        // Optimistic UI Update
         setComments(prev => ({
             ...prev,
             [postId]: prev[postId].filter(c => c.id !== commentId)
         }));
 
-        // Update post comment count
         const post = posts.find(p => p.id === postId);
         if (post) {
             updatePost({ ...post, comments_count: Math.max((post.comments_count || 0) - 1, 0) });
@@ -313,7 +378,6 @@ export function useFeed() {
         const { error } = await supabase.from('comments').delete().eq('id', commentId);
         if (error) {
             console.error('Error deleting comment:', error);
-            // Ideally we would revert state here
             alert('Failed to delete comment');
         }
     };
@@ -331,6 +395,7 @@ export function useFeed() {
         loadingComments,
         postComment,
         deleteComment,
-        reportPost
+        reportPost,
+        votePoll
     };
 }

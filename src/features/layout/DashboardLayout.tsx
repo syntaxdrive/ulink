@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, FileText } from 'lucide-react';
 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import NotificationToast from '../../components/ui/NotificationToast';
 import UsernameSetupModal from '../auth/components/UsernameSetupModal';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 import { useNotifications } from '../notifications/hooks/useNotifications';
 
@@ -20,20 +21,26 @@ export default function DashboardLayout() {
     const unreadNotifications = requests.length + generalNotifications.filter(n => !n.read).length;
 
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
-    const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
+    const [notificationPermission, setNotificationPermission] = useState(() =>
+        'Notification' in window ? Notification.permission : 'denied'
+    );
     const [toast, setToast] = useState<{ title: string; message: string; isVisible: boolean; onClick?: () => void }>({
         title: '', message: '', isVisible: false
     });
 
     const requestNotificationPermission = async () => {
+        if (!('Notification' in window)) {
+            alert('Notifications are not supported on this device.');
+            return;
+        }
         const permission = await Notification.requestPermission();
         setNotificationPermission(permission);
     };
 
     const handleNotification = (title: string, body: string, onClick?: () => void) => {
-        // System Notification: Only if app is in background/minimized
-        if (document.visibilityState === 'hidden' && Notification.permission === 'granted') {
-            if ('serviceWorker' in navigator) {
+        // System Notification: Only if app is in background/minimized and supported
+        if ('Notification' in window && document.visibilityState === 'hidden' && Notification.permission === 'granted') {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
                 navigator.serviceWorker.ready.then(registration => {
                     registration.showNotification(title, {
                         body,
@@ -43,9 +50,13 @@ export default function DashboardLayout() {
                         renotify: true,
                         data: { url: window.location.origin + (onClick ? '' : '/app/notifications') }
                     } as any);
-                });
+                }).catch(err => console.error('SW Notif failed', err));
             } else {
-                new Notification(title, { body, icon: '/icon-512.png' });
+                try {
+                    new Notification(title, { body, icon: '/icon-512.png' });
+                } catch (e) {
+                    console.error('Notification API failed', e);
+                }
             }
         }
 
@@ -226,9 +237,11 @@ export default function DashboardLayout() {
     const navItems = [
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
+        { icon: Globe, label: 'Communities', path: '#', comingSoon: true },
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+        { icon: FileText, label: 'Resume Review', path: '#', comingSoon: true },
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Bell, label: 'Notifications', path: '/app/notifications' },
         { icon: User, label: 'Profile', path: '/app/profile' },
@@ -289,30 +302,41 @@ export default function DashboardLayout() {
                         </div>
 
                         <nav className="flex-1 space-y-2">
-                            {navItems.map((item) => (
-                                <NavLink
-                                    key={item.path}
-                                    to={item.path}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    end={item.path === '/app'}
-                                    className={({ isActive }) =>
-                                        `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                            ? 'bg-slate-900 text-white shadow-md'
-                                            : 'text-slate-600 hover:bg-slate-50'
-                                        }`
-                                    }
-                                >
-                                    <div className="relative">
-                                        <item.icon className="w-5 h-5" />
-                                        {getBadgeCount(item.label) > 0 && (
-                                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                                {getBadgeCount(item.label)}
-                                            </span>
-                                        )}
+                            {navItems.map((item: any) =>
+                                item.comingSoon ? (
+                                    <div
+                                        key={item.label}
+                                        className="relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 cursor-not-allowed bg-slate-50/50"
+                                    >
+                                        <item.icon className="w-5 h-5 opacity-70" />
+                                        <span className="font-medium">{item.label}</span>
+                                        <span className="ml-auto text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-500 rounded-full">Soon</span>
                                     </div>
-                                    <span className="font-medium">{item.label}</span>
-                                </NavLink>
-                            ))}
+                                ) : (
+                                    <NavLink
+                                        key={item.path}
+                                        to={item.path}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        end={item.path === '/app'}
+                                        className={({ isActive }) =>
+                                            `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
+                                                ? 'bg-slate-900 text-white shadow-md'
+                                                : 'text-slate-600 hover:bg-slate-50'
+                                            }`
+                                        }
+                                    >
+                                        <div className="relative">
+                                            <item.icon className="w-5 h-5" />
+                                            {getBadgeCount(item.label) > 0 && (
+                                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                                    {getBadgeCount(item.label)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="font-medium">{item.label}</span>
+                                    </NavLink>
+                                )
+                            )}
                         </nav>
 
                         <div className="pt-6 border-t border-slate-100">
@@ -366,29 +390,40 @@ export default function DashboardLayout() {
                         <span className="text-xs font-semibold text-slate-400 tracking-wider">MENU</span>
                     </div>
 
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            end={item.path === '/app'}
-                            className={({ isActive }) =>
-                                `relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
-                                    ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 ring-1 ring-slate-900'
-                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                                }`
-                            }
-                        >
-                            <div className="relative">
-                                <item.icon className="w-5 h-5" strokeWidth={1.5} />
-                                {getBadgeCount(item.label) > 0 && (
-                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                        {getBadgeCount(item.label)}
-                                    </span>
-                                )}
+                    {navItems.map((item: any) =>
+                        item.comingSoon ? (
+                            <div
+                                key={item.label}
+                                className="relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 cursor-not-allowed bg-slate-50/30"
+                            >
+                                <item.icon className="w-5 h-5 opacity-70" strokeWidth={1.5} />
+                                <span className="font-sans text-sm font-medium">{item.label}</span>
+                                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Soon</span>
                             </div>
-                            <span className="font-sans text-sm font-medium">{item.label}</span>
-                        </NavLink>
-                    ))}
+                        ) : (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                end={item.path === '/app'}
+                                className={({ isActive }) =>
+                                    `relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
+                                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 ring-1 ring-slate-900'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                    }`
+                                }
+                            >
+                                <div className="relative">
+                                    <item.icon className="w-5 h-5" strokeWidth={1.5} />
+                                    {getBadgeCount(item.label) > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                            {getBadgeCount(item.label)}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="font-sans text-sm font-medium">{item.label}</span>
+                            </NavLink>
+                        )
+                    )}
                 </nav>
 
                 {/* Footer / Logout */}
@@ -435,7 +470,9 @@ export default function DashboardLayout() {
             {/* Main Content */}
             <main className="flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 pt-16 md:pt-0">
                 <div className="max-w-7xl mx-auto p-6 md:p-10 pb-32">
-                    <Outlet />
+                    <ErrorBoundary>
+                        <Outlet />
+                    </ErrorBoundary>
                 </div>
             </main>
 

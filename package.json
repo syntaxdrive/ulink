@@ -7,12 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync",
+    "cap:build": "npm run build && npx cap sync",
+    "deploy:bundle": "npm run build && npx capawesome bundles:create --path dist",
+    "deploy:dev": "npm run deploy:bundle && npx capawesome bundles:channels:assign development --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')",
+    "deploy:staging": "npm run deploy:bundle && npx capawesome bundles:channels:assign staging --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')",
+    "deploy:production": "npm run deploy:bundle && npx capawesome bundles:channels:assign production --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
+    "@capawesome/capacitor-live-update": "^8.1.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@supabase/supabase-js": "^2.90.1",
@@ -29,6 +36,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@capawesome/cli": "^3.11.0",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",

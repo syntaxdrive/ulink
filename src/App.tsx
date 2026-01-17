@@ -11,6 +11,7 @@ import FeedPage from './features/feed/FeedPage';
 import MessagesPage from './features/messages/MessagesPage';
 import JobsPage from './features/jobs/JobsPage';
 import TalentSearchPage from './features/jobs/TalentSearchPage';
+// import ResumeReviewPage from './features/jobs/ResumeReviewPage';
 import ProfilePage from './features/preferences/ProfilePage';
 import NotificationsPage from './features/notifications/NotificationsPage';
 
@@ -20,6 +21,8 @@ import SettingsPage from './features/settings/SettingsPage';
 import AdminPage from './features/admin/AdminPage';
 import NotFoundPage from './features/layout/NotFoundPage';
 import OnboardingPage from './features/auth/OnboardingPage';
+import CommunitiesPage from './features/communities/CommunitiesPage';
+import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,9 +68,12 @@ function App() {
           element={session ? <DashboardLayout /> : <Navigate to="/" replace />}
         >
           <Route index element={<FeedPage />} />
+          <Route path="communities" element={<CommunitiesPage />} />
+          <Route path="communities/:slug" element={<CommunityDetailsPage />} />
           <Route path="network" element={<NetworkPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="jobs" element={<JobsPage />} />
+          {/* <Route path="resume-review" element={<ResumeReviewPage />} /> */}
           <Route path="talent" element={<TalentSearchPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
