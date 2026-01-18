@@ -15,6 +15,7 @@ export default function UserProfilePage() {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isAddingCert, setIsAddingCert] = useState(false);
     const [newCert, setNewCert] = useState({ title: '', issuing_org: '', issue_date: '', credential_url: '' });
+    const [connectionsCount, setConnectionsCount] = useState(0);
 
     // Connection Logic
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
@@ -213,6 +214,13 @@ export default function UserProfilePage() {
         if (profile?.id) {
             fetchUserPosts(profile.id);
             fetchConnectionStatus(profile.id);
+
+            // Fetch real-time connection count
+            supabase.from('connections')
+                .select('*', { count: 'exact', head: true })
+                .or(`requester_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
+                .eq('status', 'accepted')
+                .then(({ count }) => setConnectionsCount(count || 0));
         }
     }, [profile?.id]);
 
@@ -341,7 +349,7 @@ export default function UserProfilePage() {
                         {/* Stats */}
                         <div className="flex justify-center gap-6 mt-6 border-t border-b border-stone-100 py-4 w-full">
                             <div className="text-center">
-                                <div className="font-bold text-slate-900 text-lg">{profile.connections_count || 0}</div>
+                                <div className="font-bold text-slate-900 text-lg">{connectionsCount}</div>
                                 <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">Connections</div>
                             </div>
                             <div className="text-center">

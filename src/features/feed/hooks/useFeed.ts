@@ -166,15 +166,17 @@ export function useFeed(communityId?: string) {
         }
     };
 
-    const createPost = async (content: string, imageFiles: File[], targetCommunityId?: string, pollOptions?: string[]) => {
-        if (!content.trim() && imageFiles.length === 0) return;
+    const createPost = async (content: string, imageFiles: File[], videoFile: File | null, targetCommunityId?: string, pollOptions?: string[]) => {
+        if (!content.trim() && imageFiles.length === 0 && !videoFile) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         const imageUrls: string[] = [];
+        let videoUrl: string | null = null;
         const finalCommunityId = targetCommunityId || communityId;
 
         try {
+            // Upload Images
             for (const file of imageFiles) {
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
@@ -190,6 +192,23 @@ export function useFeed(communityId?: string) {
                 imageUrls.push(publicUrl);
             }
 
+            // Upload Video
+            if (videoFile) {
+                const fileExt = videoFile.name.split('.').pop();
+                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt}`;
+                const filePath = `posts/${fileName}`;
+                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, videoFile);
+
+                if (uploadError) {
+                    console.error('Error uploading video:', videoFile.name, uploadError);
+                    alert('Failed to upload video');
+                    throw uploadError;
+                }
+
+                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
+                videoUrl = publicUrl;
+            }
+
             const mainImageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
 
             const { data, error } = await supabase
@@ -197,9 +216,10 @@ export function useFeed(communityId?: string) {
                 .insert({
                     author_id: user.id,
                     content: content,
-                    image_url: mainImageUrl,
+                    image_url: mainImageUrl, // Legacy
                     image_urls: imageUrls,
-                    community_id: finalCommunityId, // Use finalCommunityId which we calculated above
+                    video_url: videoUrl,
+                    community_id: finalCommunityId,
                     poll_options: pollOptions && pollOptions.length > 1 ? pollOptions : null,
                     poll_counts: pollOptions && pollOptions.length > 1 ? new Array(pollOptions.length).fill(0) : null
                 })
@@ -396,6 +416,7 @@ export function useFeed(communityId?: string) {
         postComment,
         deleteComment,
         reportPost,
-        votePoll
+        votePoll,
+        fetchSinglePost
     };
 }

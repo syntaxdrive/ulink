@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, UserPlus, Check, Search, BadgeCheck } from 'lucide-react';
+import { Loader2, UserPlus, Check, Search, BadgeCheck, School } from 'lucide-react';
 import { useNetwork } from './hooks/useNetwork';
 
 export default function NetworkPage() {
-    const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect, searchUsers, searchResults, searching } = useNetwork();
+    const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect, searchUsers, searchResults, searching, userProfile } = useNetwork();
     const [activeTab, setActiveTab] = useState<'grow' | 'network'>('grow');
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'university' | 'verified'>('all');
 
     // Debounce search
     useEffect(() => {
@@ -24,7 +25,16 @@ export default function NetworkPage() {
         ? searchResults // Show search results when searching
         : (activeTab === 'grow' ? suggestions : myNetwork); // Otherwise show tab content
 
-    const filteredProfiles = displayedProfiles;
+    const filteredProfiles = displayedProfiles.filter(profile => {
+        if (activeFilter === 'university') {
+            if (!userProfile?.university || !profile.university) return false;
+            return profile.university.toLowerCase().trim() === userProfile.university.toLowerCase().trim();
+        }
+        if (activeFilter === 'verified') {
+            return profile.is_verified || profile.gold_verified;
+        }
+        return true;
+    });
 
     if (loading) {
         return (
@@ -81,6 +91,39 @@ export default function NetworkPage() {
                         <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'network' ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-600'}`}>
                             {myNetwork.length}
                         </span>
+                    </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setActiveFilter('all')}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${activeFilter === 'all'
+                            ? 'bg-stone-900 text-white border-stone-900'
+                            : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                            }`}
+                    >
+                        All
+                    </button>
+                    {userProfile?.university && (
+                        <button
+                            onClick={() => setActiveFilter('university')}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${activeFilter === 'university'
+                                ? 'bg-stone-900 text-white border-stone-900'
+                                : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                                }`}
+                        >
+                            <School className="w-3 h-3" /> {userProfile.university}
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setActiveFilter('verified')}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${activeFilter === 'verified'
+                            ? 'bg-stone-900 text-white border-stone-900'
+                            : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                            }`}
+                    >
+                        <BadgeCheck className="w-3 h-3" /> Verified
                     </button>
                 </div>
             </div>

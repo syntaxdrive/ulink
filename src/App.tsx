@@ -8,10 +8,10 @@ import { type Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 import NetworkPage from './features/network/NetworkPage';
 import FeedPage from './features/feed/FeedPage';
+import PostPage from './features/feed/PostPage';
 import MessagesPage from './features/messages/MessagesPage';
 import JobsPage from './features/jobs/JobsPage';
 import TalentSearchPage from './features/jobs/TalentSearchPage';
-// import ResumeReviewPage from './features/jobs/ResumeReviewPage';
 import ProfilePage from './features/preferences/ProfilePage';
 import NotificationsPage from './features/notifications/NotificationsPage';
 
@@ -23,6 +23,7 @@ import NotFoundPage from './features/layout/NotFoundPage';
 import OnboardingPage from './features/auth/OnboardingPage';
 import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
+import LearnPage from './features/learn/LearnPage';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -38,6 +39,10 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      // Clean URL if we have a hash and a session (removes access_token from address bar)
+      if (session && window.location.hash && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -68,13 +73,14 @@ function App() {
           element={session ? <DashboardLayout /> : <Navigate to="/" replace />}
         >
           <Route index element={<FeedPage />} />
+          <Route path="post/:postId" element={<PostPage />} />
           <Route path="communities" element={<CommunitiesPage />} />
           <Route path="communities/:slug" element={<CommunityDetailsPage />} />
           <Route path="network" element={<NetworkPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="jobs" element={<JobsPage />} />
-          {/* <Route path="resume-review" element={<ResumeReviewPage />} /> */}
           <Route path="talent" element={<TalentSearchPage />} />
+          <Route path="learn" element={<LearnPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="profile/:userId" element={<UserProfilePage />} />

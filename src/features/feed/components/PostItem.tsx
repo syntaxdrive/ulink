@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
+import VideoEmbed from '../../../components/VideoEmbed';
+import { detectVideoEmbed, removeVideoLink } from '../../../utils/videoEmbed';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -55,6 +57,15 @@ export default function PostItem({
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
 
+    // Detect video embed in post content
+    const videoEmbed = useMemo(() => detectVideoEmbed(post.content), [post.content]);
+    const contentWithoutVideoLink = useMemo(() => {
+        if (videoEmbed) {
+            return removeVideoLink(post.content, videoEmbed);
+        }
+        return post.content;
+    }, [post.content, videoEmbed]);
+
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (confirm('Are you sure you want to delete this post?')) {
@@ -74,21 +85,21 @@ export default function PostItem({
     };
 
     const copyLink = () => {
-        navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+        navigator.clipboard.writeText(`${window.location.origin}/app/post/${post.id}`);
         alert('Link copied to clipboard!');
     };
 
     // Truncation Logic
     const [isExpanded, setIsExpanded] = useState(false);
     const MAX_LENGTH = 280; // Twitter-style length
-    const shouldTruncate = post.content.length > MAX_LENGTH;
+    const shouldTruncate = contentWithoutVideoLink.length > MAX_LENGTH;
 
     const contentToRender = isExpanded || !shouldTruncate
-        ? post.content
-        : post.content.slice(0, MAX_LENGTH) + '...';
+        ? contentWithoutVideoLink
+        : contentWithoutVideoLink.slice(0, MAX_LENGTH) + '...';
 
     const renderContent = (text: string) => {
-        return text.split(/(#[a-z0-9_]+)/gi).map((part, i) => {
+        return text.split(/([#@][a-z0-9_]+)/gi).map((part, i) => {
             if (part.match(/^#[a-z0-9_]+$/i)) {
                 return (
                     <span
@@ -102,6 +113,19 @@ export default function PostItem({
                     >
                         {part}
                     </span>
+                );
+            }
+            if (part.match(/^@[a-z0-9_]+$/i)) {
+                const username = part.substring(1);
+                return (
+                    <Link
+                        key={i}
+                        to={`/app/profile/${username}`}
+                        className="text-blue-600 font-bold hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {part}
+                    </Link>
                 );
             }
             return part;
@@ -203,6 +227,13 @@ export default function PostItem({
                 )}
             </div>
 
+            {/* Embedded Video from Link */}
+            {videoEmbed && (
+                <div className="mb-6">
+                    <VideoEmbed embed={videoEmbed} originalUrl={post.content.match(/https?:\/\/[^\s]+/)?.[0]} />
+                </div>
+            )}
+
             {/* Polls */}
             {post.poll_options && post.poll_options.length > 0 && (
                 <div className="mb-4 space-y-2 max-w-lg">
@@ -271,6 +302,20 @@ export default function PostItem({
                     </div>
                 );
             })()}
+
+            {/* Post Video */}
+            {post.video_url && (
+                <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-black">
+                    <video
+                        src={post.video_url}
+                        controls
+                        className="w-full max-h-[500px]"
+                        preload="metadata"
+                        playsInline
+                    />
+                </div>
+            )}
+
 
             {/* Actions */}
             <div className="flex items-center gap-6 pt-4 border-t border-stone-50">

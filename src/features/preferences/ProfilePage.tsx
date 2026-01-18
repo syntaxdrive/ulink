@@ -382,8 +382,9 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => {
-                            // Fixed: use correct /app/profile/:id route
-                            const publicUrl = `${window.location.origin}/app/profile/${profile?.id}`;
+                            // Use username if available, otherwise use ID
+                            const profileIdentifier = profile?.username || profile?.id;
+                            const publicUrl = `${window.location.origin}/app/profile/${profileIdentifier}`;
                             navigator.clipboard.writeText(publicUrl);
                             alert('Profile link copied to clipboard!');
                         }}
@@ -438,14 +439,6 @@ export default function ProfilePage() {
                                 </div>
 
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-
-                                <input
-                                    type="url"
-                                    placeholder="Avatar URL"
-                                    value={avatarUrl}
-                                    onChange={(e) => setAvatarUrl(e.target.value)}
-                                    className="w-full text-xs text-center text-slate-500 bg-transparent border-none focus:ring-0 mb-4 placeholder:text-slate-300"
-                                />
 
                                 <div className="w-full space-y-3">
                                     <div className="space-y-1">

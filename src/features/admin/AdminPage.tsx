@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Shield, BadgeCheck, Search, Building2, Mail, Flag } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
+import AnalyticsCharts from './components/AnalyticsCharts';
 
 interface DashboardStats {
     total_users: number;
@@ -176,6 +177,10 @@ export default function AdminPage() {
                     </div>
                 </div>
             </div>
+
+
+            {/* Advanced Analytics Charts */}
+            <AnalyticsCharts users={users} />
 
             {/* User Reports Section */}
             <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
