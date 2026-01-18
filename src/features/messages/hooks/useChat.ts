@@ -160,7 +160,12 @@ export function useChat() {
                             if (prev.some(m => m.id === newMsg.id)) return prev;
                             const realFromMe = newMsg.sender_id === userId;
                             if (realFromMe) {
-                                const tempMatch = prev.find(m => m.id.startsWith('temp-') && m.content === newMsg.content);
+                                const tempMatch = prev.find(m =>
+                                    m.id.startsWith('temp-') && (
+                                        (m.audio_url && m.audio_url === newMsg.audio_url) ||
+                                        (!m.audio_url && m.content === newMsg.content)
+                                    )
+                                );
                                 if (tempMatch) {
                                     return prev.map(m => m.id === tempMatch.id ? newMsg : m);
                                 }
@@ -193,7 +198,7 @@ export function useChat() {
         };
     }, [activeChat, userId, markAsRead]);
 
-    const sendMessage = async (content: string, imageUrl: string | null = null, replyTo?: Message) => {
+    const sendMessage = async (content: string, imageUrl: string | null = null, replyTo?: Message, audioUrl: string | null = null) => {
         if (!activeChat || !userId) return;
 
         let finalContent = content;
@@ -216,9 +221,10 @@ export function useChat() {
             id: 'temp-' + Date.now(),
             sender_id: userId,
             recipient_id: activeChat.id,
-            content: finalContent,
+            content: finalContent || (audioUrl ? 'Voice Message' : ''),
             created_at: new Date().toISOString(),
-            image_url: imageUrl
+            image_url: imageUrl,
+            audio_url: audioUrl
         };
 
         setMessages((prev) => [...prev, tempMsg]);
@@ -226,8 +232,9 @@ export function useChat() {
         const { error } = await supabase.from('messages').insert({
             sender_id: userId,
             recipient_id: activeChat.id,
-            content: finalContent,
-            image_url: imageUrl
+            content: finalContent || (audioUrl ? 'Voice Message' : ''),
+            image_url: imageUrl,
+            audio_url: audioUrl
         });
 
         if (error) {

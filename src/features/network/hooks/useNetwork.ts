@@ -12,10 +12,16 @@ export function useNetwork() {
     const [searchResults, setSearchResults] = useState<Profile[]>([]);
     const [searching, setSearching] = useState(false);
 
+    const [userProfile, setUserProfile] = useState<Profile | null>(null);
+
     const fetchNetworkData = useCallback(async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        // Fetch my profile
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profile) setUserProfile(profile);
 
         // 1. Fetch all my connections (accepted & pending)
         const { data: allConnections } = await supabase
@@ -153,6 +159,7 @@ export function useNetwork() {
         connect,
         searchUsers,
         searchResults,
-        searching
+        searching,
+        userProfile
     };
 }

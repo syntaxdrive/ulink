@@ -13,7 +13,11 @@ BEGIN
         'new_post', 
         'job_alert',
         'message',       
-        'system'
+        'system',
+        'job_update', -- NEW TYPE
+        'mention',    -- NEW TYPE
+        'connection_activity', -- NEW TYPE
+        'post_like'   -- Legacy support
     );
 
     -- 2. Drop the existing constraint
@@ -31,7 +35,11 @@ BEGIN
         'new_post', 
         'job_alert',
         'message',       
-        'system'
+        'system',
+        'job_update',
+        'mention',
+        'connection_activity',
+        'post_like'
     ));
     
 END $$;

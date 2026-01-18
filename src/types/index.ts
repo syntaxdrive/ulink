@@ -101,6 +101,7 @@ export interface Post {
     content: string;
     image_url?: string;
     image_urls?: string[]; // Multiple images support
+    video_url?: string; // Video support
     created_at: string;
     updated_at: string;
     likes_count: number;
@@ -139,8 +140,10 @@ export interface Message {
     id: string;
     sender_id: string;
     recipient_id: string;
+    conversation_id?: string;
     content: string;
     image_url?: string;
+    audio_url?: string;
     created_at: string;
     read_at?: string;
 }
@@ -154,4 +157,5 @@ export interface Job {
     application_link?: string;
     created_at: string;
     creator_id?: string;
+    status?: 'active' | 'closed';
 }

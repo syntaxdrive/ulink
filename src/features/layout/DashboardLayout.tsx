@@ -1,18 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, FileText } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap } from 'lucide-react';
 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
 import NotificationToast from '../../components/ui/NotificationToast';
 import UsernameSetupModal from '../auth/components/UsernameSetupModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import InstallGuideModal from '../../components/InstallGuideModal';
 
 import { useNotifications } from '../notifications/hooks/useNotifications';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useUIStore } from '../../stores/useUIStore';
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { isImmersive } = useUIStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
 
@@ -28,6 +32,18 @@ export default function DashboardLayout() {
         title: '', message: '', isVisible: false
     });
 
+    const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall({
+        onInstallAvailable: () => {
+            // Show a subtle toast when install becomes available
+            setToast({
+                title: '📱 Install UniLink',
+                message: 'You can now install UniLink as an app. Click here or use the Install button in settings.',
+                isVisible: true,
+                onClick: install
+            });
+        }
+    });
+
     const requestNotificationPermission = async () => {
         if (!('Notification' in window)) {
             alert('Notifications are not supported on this device.');
@@ -38,7 +54,7 @@ export default function DashboardLayout() {
     };
 
     const handleNotification = (title: string, body: string, onClick?: () => void) => {
-        // System Notification: Only if app is in background/minimized and supported
+        // System Notification
         if ('Notification' in window && document.visibilityState === 'hidden' && Notification.permission === 'granted') {
             if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
                 navigator.serviceWorker.ready.then(registration => {
@@ -60,17 +76,11 @@ export default function DashboardLayout() {
             }
         }
 
-        // In-App Toast: Always show
+        // In-App Toast
         setToast({ title, message: body, isVisible: true, onClick });
 
-        // Play sound if backgrounded (or always, user preference)
-        // Let's play it always for consistency, or only if hidden?
-        // User said: "updated badge... notifications dont have to come in when in app"
-        // Interpreting as: Be less intrusive.
         if (document.visibilityState === 'hidden') playNotificationSound();
     };
-
-
 
     const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -100,7 +110,7 @@ export default function DashboardLayout() {
     const locationRef = useRef(location.pathname);
     useEffect(() => { locationRef.current = location.pathname; }, [location.pathname]);
 
-    // Initialize Audio Context on first interaction to bypass autoplay policy
+    // Initialize Audio Context
     useEffect(() => {
         const initAudio = () => {
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -120,8 +130,6 @@ export default function DashboardLayout() {
         const setupRealtime = async () => {
             const { data: { user } } = await supabase.auth.getUser();
 
-            // CRITICAL GUARD: If session is structurally valid but user is logically missing (e.g. deleted on server),
-            // we must boot them out to prevent crashes in child components.
             if (!user) {
                 await supabase.auth.signOut();
                 navigate('/');
@@ -137,18 +145,16 @@ export default function DashboardLayout() {
 
             if (profile) {
                 setUserProfile(profile);
-                // If profile exists but is incomplete (no role), go to onboarding
                 if (!profile.role) {
                     navigate('/onboarding');
                 }
             } else {
-                // No profile found? Go to onboarding to create one
                 navigate('/onboarding');
             }
 
             // 1. Fetch Initial Unread Message Count
             const fetchMessageCount = async () => {
-                if (!user?.id) return; // double check
+                if (!user?.id) return;
                 const { count } = await supabase
                     .from('messages')
                     .select('id', { count: 'exact', head: true })
@@ -165,27 +171,15 @@ export default function DashboardLayout() {
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
                     async (payload) => {
-                        // Re-fetch count on ANY change (New message or Message Read)
-                        // This ensures the badge "reduces as messages are checked"
                         fetchMessageCount();
 
-
-                        // Handle New Message Notification Only
                         if (payload.eventType === 'INSERT' && payload.new) {
-                            // Smart Notification Logic:
-                            // 1. If user is in the SPECIFIC chat with this person, do nothing (they see it).
-                            // 2. If user is in /app/messages but configured to another chat or list, show notification.
-                            // 3. If user is elsewhere, show notification.
-
                             const currentParams = new URLSearchParams(window.location.search);
                             const currentChatId = currentParams.get('chat');
-
-                            // Check "locationRef" effectively
                             const isViewingThatChat = window.location.pathname.startsWith('/app/messages') && currentChatId === payload.new.sender_id;
 
                             if (isViewingThatChat) return;
 
-                            // Fetch sender name
                             let senderName = 'Someone';
                             if (payload.new.sender_id) {
                                 const { data: sender } = await supabase
@@ -211,7 +205,6 @@ export default function DashboardLayout() {
                         if (locationRef.current.startsWith('/app/notifications')) {
                             return;
                         }
-                        // setUnreadNotifications handled by global store automatically now via hook
                         handleNotification(
                             'New Notification',
                             'You have a new notification',
@@ -227,7 +220,21 @@ export default function DashboardLayout() {
         return () => {
             if (channel) supabase.removeChannel(channel);
         };
-    }, []); // Empty dependency array ensures one subscription setup
+    }, []);
+
+    // Activity Heartbeat
+    useEffect(() => {
+        const ping = () => {
+            supabase.rpc('update_last_seen').then(({ error }) => {
+                if (error) console.error('Activity heartbeat failed', error);
+            });
+        };
+
+        ping();
+        const timer = setInterval(ping, 5 * 60 * 1000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -241,10 +248,10 @@ export default function DashboardLayout() {
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
-        { icon: FileText, label: 'Resume Review', path: '#', comingSoon: true },
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
+        { icon: GraduationCap, label: 'Learn', path: '/app/learn' },
         { icon: Bell, label: 'Notifications', path: '/app/notifications' },
-        { icon: User, label: 'Profile', path: '/app/profile' },
+        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
         { icon: Settings, label: 'Settings', path: '/app/settings' },
     ];
 
@@ -254,34 +261,33 @@ export default function DashboardLayout() {
         return 0;
     };
 
-    // Filter items for bottom nav (Home, Network, Messages, Profile) & Career/Notifications go to menu
     const bottomNavItems = navItems.filter(item =>
-        ['/app', '/app/network', '/app/messages', '/app/profile'].includes(item.path)
+        ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
     );
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative">
 
-            {/* Subtle Background Pattern */}
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 
             {/* Mobile Top Bar */}
-            <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 z-40">
-                <div className="flex items-center gap-2">
-                    <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
-                    <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
-                </div>
-                <button
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative"
-                >
-                    <Menu className="w-6 h-6" />
-                    {/* Show dot if any unread in hidden menu items */}
-                    {(unreadNotifications > 0) && (
-                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                    )}
-                </button>
-            </header>
+            {location.pathname !== '/app/learn' && (
+                <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 z-40">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative"
+                    >
+                        <Menu className="w-6 h-6" />
+                        {(unreadNotifications > 0) && (
+                            <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        )}
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
+                        <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                    </div>
+                </header>
+            )}
 
             {/* Mobile Menu Drawer */}
             {isMobileMenuOpen && (
@@ -290,7 +296,7 @@ export default function DashboardLayout() {
                         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
                         onClick={() => setIsMobileMenuOpen(false)}
                     ></div>
-                    <div className="absolute top-0 right-0 bottom-0 w-[280px] bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-right duration-300">
+                    <div className="absolute top-0 left-0 bottom-0 w-[280px] bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-left duration-300">
                         <div className="flex justify-between items-center mb-8">
                             <span className="font-display font-bold text-xl text-slate-900">Menu</span>
                             <button
@@ -320,8 +326,8 @@ export default function DashboardLayout() {
                                         end={item.path === '/app'}
                                         className={({ isActive }) =>
                                             `relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                                ? 'bg-slate-900 text-white shadow-md'
-                                                : 'text-slate-600 hover:bg-slate-50'
+                                                ? 'bg-stone-900 text-white shadow-md'
+                                                : 'text-stone-600 hover:bg-stone-50'
                                             }`
                                         }
                                     >
@@ -355,6 +361,16 @@ export default function DashboardLayout() {
                                     </p>
                                 </div>
                             </div>
+
+                            {isInstallable && (
+                                <button
+                                    onClick={install}
+                                    className="flex items-center gap-3 px-4 py-3 w-full text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all mb-2"
+                                >
+                                    <Download className="w-5 h-5" />
+                                    <span className="font-medium">Install App</span>
+                                </button>
+                            )}
                             <button
                                 onClick={handleLogout}
                                 className="flex items-center gap-3 px-4 py-3 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
@@ -369,7 +385,6 @@ export default function DashboardLayout() {
 
             {/* Sidebar - Desktop */}
             <aside className="w-[280px] fixed h-full hidden md:flex flex-col z-40 border-r border-slate-200 bg-white/80 backdrop-blur-xl">
-                {/* Brand Header */}
                 <div className="p-8 border-b border-slate-100">
                     <div className="flex items-center gap-3">
                         <img src="/icon-512.png" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
@@ -384,7 +399,6 @@ export default function DashboardLayout() {
                     </div>
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 px-4 py-8 space-y-2">
                     <div className="px-4 mb-4">
                         <span className="text-xs font-semibold text-slate-400 tracking-wider">MENU</span>
@@ -407,8 +421,8 @@ export default function DashboardLayout() {
                                 end={item.path === '/app'}
                                 className={({ isActive }) =>
                                     `relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
-                                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 ring-1 ring-slate-900'
-                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                        ? 'bg-stone-900 text-white shadow-xl shadow-stone-200 ring-1 ring-stone-900'
+                                        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
                                     }`
                                 }
                             >
@@ -426,7 +440,6 @@ export default function DashboardLayout() {
                     )}
                 </nav>
 
-                {/* Footer / Logout */}
                 <div className="p-4 border-t border-slate-100 bg-slate-50/50">
                     <div className="flex items-center gap-3 mb-4 px-2">
                         <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
@@ -446,11 +459,22 @@ export default function DashboardLayout() {
                     {notificationPermission === 'default' && (
                         <button
                             onClick={requestNotificationPermission}
-                            className="w-full mb-3 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                            className="w-full mb-3 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
                         >
                             <Bell className="w-3 h-3" /> Enable Notifications
                         </button>
                     )}
+
+                    {isInstallable && (
+                        <button
+                            onClick={install}
+                            className="flex items-center gap-3 px-4 py-2.5 w-full text-emerald-600 hover:bg-emerald-50 border border-transparent rounded-xl transition-all duration-300 group mb-2"
+                        >
+                            <Download className="w-4 h-4" />
+                            <span className="font-sans text-xs font-semibold">Install App</span>
+                        </button>
+                    )}
+
                     <button
                         onClick={handleLogout}
                         className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent rounded-xl transition-all duration-300 group"
@@ -459,7 +483,6 @@ export default function DashboardLayout() {
                         <span className="font-sans text-xs font-semibold">Log Out</span>
                     </button>
 
-                    {/* Legal Footer */}
                     <div className="mt-6 px-2 text-[10px] text-slate-400 font-medium space-y-2 border-t border-slate-100 pt-4">
                         <p className="opacity-70">&copy; {new Date().getFullYear()} UniLink Nigeria. All rights reserved.</p>
                     </div>
@@ -467,9 +490,8 @@ export default function DashboardLayout() {
             </aside>
 
 
-            {/* Main Content */}
-            <main className="flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 pt-16 md:pt-0">
-                <div className="max-w-7xl mx-auto p-6 md:p-10 pb-32">
+            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-16'}`}>
+                <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-6 md:p-10 pb-32"}>
                     <ErrorBoundary>
                         <Outlet />
                     </ErrorBoundary>
@@ -477,7 +499,7 @@ export default function DashboardLayout() {
             </main>
 
             {/* Mobile Bottom Nav */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-200 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isImmersive ? 'translate-y-full' : 'translate-y-0'}`}>
                 {bottomNavItems.map((item) => (
                     <NavLink
                         key={item.path}
@@ -485,8 +507,8 @@ export default function DashboardLayout() {
                         end={item.path === '/app'}
                         className={({ isActive }) =>
                             `relative flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${isActive
-                                ? 'text-indigo-600'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'text-emerald-600'
+                                : 'text-stone-400 hover:text-stone-600'
                             }`
                         }
                     >
@@ -515,6 +537,12 @@ export default function DashboardLayout() {
                 isVisible={toast.isVisible}
                 onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
                 onClick={toast.onClick}
+            />
+
+            <InstallGuideModal
+                isOpen={showInstallModal}
+                onClose={() => setShowInstallModal(false)}
+                isIOS={isIOs}
             />
         </div>
     );

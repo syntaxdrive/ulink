@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Reply, FileText, Download, CheckCheck, Check, Trash2 } from 'lucide-react';
+import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 
 export const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
@@ -11,11 +11,24 @@ interface MessageItemProps {
     activeChat?: Profile | null;
     onImageClick: (url: string) => void;
     onDelete?: (id: string) => void;
+    onForward?: (msg: Message) => void;
 }
 
-export default function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete }: MessageItemProps) {
+export default function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, onForward }: MessageItemProps) {
     const [showMenu, setShowMenu] = useState(false);
     const longPressTimer = useRef<any>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const togglePlay = () => {
+        if (!audioRef.current) return;
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play();
+        }
+        setIsPlaying(!isPlaying);
+    };
 
     const handleTouchStart = () => {
         longPressTimer.current = setTimeout(() => {
@@ -120,11 +133,52 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                     )
                 )}
 
+                {/* Audio Message */}
+                {msg.audio_url && (
+                    <div className={`mt-2 flex items-center gap-3 p-3 rounded-xl min-w-[200px] ${isMe ? 'bg-emerald-800/20' : 'bg-stone-100'
+                        }`}>
+                        <button
+                            onClick={togglePlay}
+                            className={`p-2 rounded-full shrink-0 transition-colors ${isMe ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'bg-stone-900 text-white hover:bg-stone-700'
+                                }`}
+                        >
+                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                        </button>
+                        <div className="flex-1 h-8 flex items-center">
+                            {/* Visualizer Placeholder */}
+                            <div className="flex items-center gap-0.5 h-full w-full opacity-60">
+                                {[...Array(15)].map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className={`w-1 rounded-full ${isMe ? 'bg-white' : 'bg-stone-400'} animate-pulse`}
+                                        style={{
+                                            height: `${30 + Math.random() * 70}%`,
+                                            animationDelay: `${i * 0.1}s`
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <audio
+                            ref={audioRef}
+                            src={msg.audio_url}
+                            onEnded={() => setIsPlaying(false)}
+                            onPause={() => setIsPlaying(false)}
+                            onPlay={() => setIsPlaying(true)}
+                            className="hidden"
+                        />
+                    </div>
+                )}
+
                 {/* Timestamp & Read Status */}
                 <div className={`text-[10px] mt-1 flex justify-end items-center gap-1 select-none ${isMe ? 'text-emerald-100/70' : 'text-stone-400'}`}>
                     {new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {isMe && (
-                        msg.read_at ? (
+                        msg.id.startsWith('temp-') ? (
+                            <div className="flex items-center gap-0.5" title="Sending...">
+                                <Clock className="w-3 h-3 text-emerald-100/70" />
+                            </div>
+                        ) : msg.read_at ? (
                             <div className="flex items-center gap-0.5" title={`Seen ${new Date(msg.read_at).toLocaleString()}`}>
                                 <CheckCheck className="w-3.5 h-3.5 text-white" />
                             </div>
@@ -150,6 +204,14 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                             >
                                 <Reply className="w-4 h-4" /> Reply
                             </button>
+                            {onForward && (
+                                <button
+                                    onClick={() => { setShowMenu(false); onForward(msg); }}
+                                    className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-3 active:bg-stone-100 border-t border-stone-50"
+                                >
+                                    <Forward className="w-4 h-4" /> Forward
+                                </button>
+                            )}
                             {isMe && onDelete && (
                                 <button
                                     onClick={() => { setShowMenu(false); onDelete(msg.id); }}

@@ -1,11 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, Users, Briefcase, Zap, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Users, Briefcase, Zap, Sparkles, CheckCircle2, Download, X } from 'lucide-react';
+
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import InstallGuideModal from '../../components/InstallGuideModal';
 
 export default function LandingPage() {
     const [loading, setLoading] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall();
+    const [showInstallHint, setShowInstallHint] = useState(false);
+
+    useEffect(() => {
+        if (isInstallable) {
+            // Show hint after 1.5s
+            const timer = setTimeout(() => setShowInstallHint(true), 1500);
+            // Hide after 6s to avoid annoyance
+            const hideTimer = setTimeout(() => setShowInstallHint(false), 7500);
+            return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+        }
+    }, [isInstallable]);
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -39,7 +54,37 @@ export default function LandingPage() {
                         <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg shadow-sm" />
                         <span className="font-display font-bold text-xl tracking-tight text-slate-900">UniLink</span>
                     </div>
-                    {/* Sign In removed as requested */}
+
+                    {isInstallable && (
+                        <div className="relative">
+                            <button
+                                onClick={install}
+                                className="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-full flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 animate-in fade-in"
+                            >
+                                <Download className="w-4 h-4" />
+                                Install App
+                            </button>
+
+                            {/* Floating Hint Arrow */}
+                            {showInstallHint && (
+                                <div className="absolute top-full right-0 mt-4 flex flex-col items-end animate-bounce">
+                                    <div className="relative bg-slate-900/90 backdrop-blur text-white text-xs font-bold px-3 py-2 rounded-xl shadow-xl flex items-center gap-2 border border-slate-700/50">
+                                        <div className="absolute -top-1.5 right-6 w-3 h-3 bg-slate-900/90 rotate-45 border-l border-t border-slate-700/50"></div>
+                                        <span>Click to Install!</span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowInstallHint(false);
+                                            }}
+                                            className="p-0.5 hover:bg-slate-700/50 rounded-full transition-colors"
+                                        >
+                                            <X className="w-3 h-3 text-slate-400" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </nav>
 
@@ -215,6 +260,12 @@ export default function LandingPage() {
                     </p>
                 </div>
             </footer>
+
+            <InstallGuideModal
+                isOpen={showInstallModal}
+                onClose={() => setShowInstallModal(false)}
+                isIOS={isIOs}
+            />
         </div>
     );
 }

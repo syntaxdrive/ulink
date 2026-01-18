@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText, Mic, Square, Loader2, Smile } from 'lucide-react';
 import type { Message, Profile } from '../../../types';
 import MessageItem from './MessageItem';
+import ForwardMessageModal from './ForwardMessageModal';
 
 interface ChatWindowProps {
     activeChat: Profile;
@@ -11,7 +12,7 @@ interface ChatWindowProps {
     userId: string | null;
     onlineUsers: Set<string>;
     onBack: () => void;
-    onSendMessage: (content: string, imageUrl: string | null, replyTo?: Message) => Promise<void>;
+    onSendMessage: (content: string, imageUrl: string | null, replyTo?: Message, audioUrl?: string | null) => Promise<void>;
     onDeleteMessage: (id: string) => Promise<void>;
 }
 
@@ -21,6 +22,9 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+    const [showStickers, setShowStickers] = useState(false);
+    const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+    const [showForwardModal, setShowForwardModal] = useState(false);
 
     // Typing Indicator Logic
     const [isTyping, setIsTyping] = useState(false);
@@ -34,7 +38,19 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     useEffect(() => {
         if (!userId || !activeChat) return;
 
-        // Create unique channel ID for this 1-on-1 chat
+        // Mark messages as read
+        const markRead = async () => {
+            // Get conversation_id from the first message
+            if (messages.length > 0 && messages[0].conversation_id) {
+                const { error } = await supabase.rpc('mark_conversation_as_read', {
+                    target_conversation_id: messages[0].conversation_id
+                });
+                if (error) console.error('Error marking read:', error);
+            }
+        };
+        markRead();
+
+        // Subscribe to typing ... (existing code below)
         // Create unique channel ID for this 1-on-1 chat
         // Use consistent sorting to ensure both users join "chat-room:userA-userB"
         const sortedIds = [userId, activeChat.id].sort((a, b) => a.localeCompare(b));
@@ -62,7 +78,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             supabase.removeChannel(channel);
         };
-    }, [userId, activeChat.id]);
+    }, [userId, activeChat.id, messages.length]);
 
     const handleTyping = async () => {
         if (!userId || !activeChat) return;
@@ -142,6 +158,99 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
 
     const [isSending, setIsSending] = useState(false);
 
+    // Voice Notes State
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<any>(null);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Check supported types (Safari prefers mp4, Chrome prefers webm)
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+                    : '';
+
+            const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' });
+                await sendAudioMessage(audioBlob);
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Cannot access microphone. Please allow permissions.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        }
+    };
+
+    const sendAudioMessage = async (audioBlob: Blob) => {
+        setIsSending(true);
+        try {
+            // Convert audio blob to Base64 to bypass Supabase Storage MIME type restrictions
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+
+            reader.onloadend = async () => {
+                const base64Audio = reader.result as string;
+
+                try {
+                    await onSendMessage('', null, replyingTo || undefined, base64Audio);
+                    setReplyingTo(null);
+                } catch (error) {
+                    console.error('Failed to send voice note:', error);
+                    alert('Failed to send voice note');
+                } finally {
+                    setIsSending(false);
+                }
+            };
+
+            reader.onerror = () => {
+                console.error('Failed to read audio file');
+                alert('Failed to process voice note');
+                setIsSending(false);
+            };
+        } catch (error) {
+            console.error('Failed to send voice note:', error);
+            alert('Failed to send voice note');
+            setIsSending(false);
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
     // ... (Keep existing typing logic hooks)
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -180,6 +289,61 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             clearImage();
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleForward = (msg: Message) => {
+        setForwardingMessage(msg);
+        setShowForwardModal(true);
+    };
+
+    const handleForwardToRecipients = async (recipientIds: string[], message: Message) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Send message to each recipient
+            for (const recipientId of recipientIds) {
+                // Get or create conversation with recipient
+                const { data: existingConv } = await supabase
+                    .from('conversation_participants')
+                    .select('conversation_id')
+                    .eq('user_id', user.id)
+                    .single();
+
+                let conversationId = existingConv?.conversation_id;
+
+                if (!conversationId) {
+                    // Create new conversation
+                    const { data: newConv } = await supabase
+                        .from('conversations')
+                        .insert({ type: 'private' })
+                        .select()
+                        .single();
+
+                    if (newConv) {
+                        conversationId = newConv.id;
+                        // Add participants
+                        await supabase.from('conversation_participants').insert([
+                            { conversation_id: conversationId, user_id: user.id },
+                            { conversation_id: conversationId, user_id: recipientId }
+                        ]);
+                    }
+                }
+
+                // Insert forwarded message
+                await supabase.from('messages').insert({
+                    conversation_id: conversationId,
+                    sender_id: user.id,
+                    recipient_id: recipientId,
+                    content: message.content,
+                    image_url: message.image_url,
+                    audio_url: message.audio_url
+                });
+            }
+        } catch (error) {
+            console.error('Error forwarding message:', error);
+            throw error;
         }
     };
 
@@ -239,6 +403,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         activeChat={activeChat}
                         onImageClick={setLightboxImage}
                         onDelete={onDeleteMessage}
+                        onForward={handleForward}
                     />
                 ))}
 
@@ -288,36 +453,96 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             )}
 
             {/* Input Area */}
-            <div className="p-4 bg-white border-t border-stone-100 pb-safe">
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={handleFileChange} />
+            {isRecording ? (
+                <div className="p-4 bg-white border-t border-stone-100 flex items-center justify-between pb-safe">
+                    <div className="flex items-center gap-3 text-red-500 animate-pulse">
+                        <div className="w-3 h-3 bg-red-500 rounded-full" />
+                        <span className="font-mono font-medium">{formatTime(recordingTime)}</span>
+                    </div>
+                    <div className="text-sm text-stone-500 font-medium">Recording voice note...</div>
                     <button
-                        type="button"
-                        onClick={handleImageClick}
-                        className={`p-2 rounded-xl transition-all ${imageFile ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-400 hover:text-emerald-600'}`}
+                        onClick={stopRecording}
+                        className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-transform active:scale-95 shadow-lg shadow-red-200"
                     >
-                        <Paperclip className="w-5 h-5" />
+                        <Square className="w-5 h-5 fill-current" />
                     </button>
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => {
-                            setNewMessage(e.target.value);
-                            handleTyping();
-                        }}
-                        placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
-                        className="flex-1 px-4 py-2 rounded-xl bg-stone-50 border-none outline-none focus:ring-2 focus:ring-emerald-100"
-                        autoFocus
-                    />
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim() && !imageFile}
-                        className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Send className="w-5 h-5" />
-                    </button>
-                </form>
-            </div>
+                </div>
+            ) : (
+                <div className="p-4 bg-white border-t border-stone-100 pb-safe relative">
+                    {/* Sticker Picker Popover */}
+                    {showStickers && (
+                        <div className="absolute bottom-full left-4 mb-2 bg-white rounded-2xl shadow-xl border border-stone-100 p-4 w-72 grid grid-cols-4 gap-2 animate-in slide-in-from-bottom-5 z-20">
+                            <div className="col-span-4 flex justify-between items-center mb-2 pb-2 border-b border-stone-50">
+                                <span className="text-xs font-bold text-stone-500 uppercase">Stickers</span>
+                                <button onClick={() => setShowStickers(false)} className="bg-stone-100 p-1 rounded-full"><X className="w-3 h-3" /></button>
+                            </div>
+                            {['happy', 'love', 'cool', 'wink', 'cry', 'surprised', 'angry', 'confused', 'sleep', 'laugh', 'kiss', 'shades'].map(seed => (
+                                <button
+                                    key={seed}
+                                    onClick={() => {
+                                        const stickerUrl = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${seed}&radius=50&backgroundColor=transparent`;
+                                        onSendMessage('', stickerUrl, replyingTo || undefined);
+                                        setShowStickers(false);
+                                    }}
+                                    className="hover:bg-stone-50 p-1 rounded-xl transition-colors"
+                                >
+                                    <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${seed}&radius=50&backgroundColor=transparent`} alt={seed} className="w-full h-auto" />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="flex gap-2">
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={handleFileChange} />
+
+                        <button
+                            type="button"
+                            onClick={() => setShowStickers(!showStickers)}
+                            className={`p-2 rounded-xl transition-all ${showStickers ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-400 hover:text-emerald-600'}`}
+                        >
+                            <Smile className="w-5 h-5" />
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleImageClick}
+                            className={`p-2 rounded-xl transition-all ${imageFile ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-400 hover:text-emerald-600'}`}
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </button>
+
+                        <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => {
+                                setNewMessage(e.target.value);
+                                handleTyping();
+                            }}
+                            placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
+                            className="flex-1 px-4 py-2 rounded-xl bg-stone-50 border-none outline-none focus:ring-2 focus:ring-emerald-100"
+                            autoFocus
+                        />
+                        {newMessage.trim() || imageFile ? (
+                            <button
+                                type="submit"
+                                disabled={isSending}
+                                className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={startRecording}
+                                className="p-2 bg-stone-50 text-stone-500 rounded-xl hover:bg-stone-200 transition-colors"
+                                title="Record Voice Note"
+                            >
+                                <Mic className="w-5 h-5" />
+                            </button>
+                        )}
+                    </form>
+                </div>
+            )}
 
             {/* Lightbox / Image Viewer */}
             {lightboxImage && (
@@ -332,6 +557,17 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                     />
                 </div>
             )}
+
+            {/* Forward Message Modal */}
+            <ForwardMessageModal
+                message={forwardingMessage}
+                isOpen={showForwardModal}
+                onClose={() => {
+                    setShowForwardModal(false);
+                    setForwardingMessage(null);
+                }}
+                onForward={handleForwardToRecipients}
+            />
         </div>
     );
 }

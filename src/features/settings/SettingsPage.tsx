@@ -1,38 +1,17 @@
 import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import InstallGuideModal from '../../components/InstallGuideModal';
 
 export default function SettingsPage() {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [isStandalone, setIsStandalone] = useState(false);
+    const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall();
     const [notifPermission, setNotifPermission] = useState(
         'Notification' in window ? Notification.permission : 'denied'
     );
 
-    useEffect(() => {
-        // Detect Standalone (Already Installed)
-        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
 
-        const handleBeforeInstallPrompt = (e: any) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
-        };
-
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    }, []);
-
-    const handleInstallClick = async () => {
-        if (!deferredPrompt) return;
-        // Show the install prompt
-        deferredPrompt.prompt();
-        // Wait for the user to respond to the prompt
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-        }
-    };
 
     const requestNotificationPermission = async () => {
         if (!('Notification' in window)) return;
@@ -42,6 +21,8 @@ export default function SettingsPage() {
             new Notification('UniLink', { body: 'Notifications enabled successfully!' });
         }
     };
+
+
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -149,7 +130,7 @@ export default function SettingsPage() {
                 )}
 
                 {/* Install App Section */}
-                {!isStandalone && (
+                {isInstallable && (
                     <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
@@ -161,31 +142,12 @@ export default function SettingsPage() {
                             </div>
                         </div>
 
-                        {deferredPrompt ? (
-                            <button
-                                onClick={handleInstallClick}
-                                className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
-                            >
-                                Install App
-                            </button>
-                        ) : (
-                            <div className="text-sm text-emerald-800 bg-white/60 p-4 rounded-xl border border-emerald-100/50">
-                                <p className="mb-2 font-medium">Use as a Native App:</p>
-                                <p className="text-xs opacity-90 leading-relaxed">
-                                    This is a Progressive Web App (PWA). You don't need an APK file.
-                                </p>
-                                <div className="mt-3 space-y-2 text-xs">
-                                    <div className="flex gap-2 items-start">
-                                        <span className="font-bold">1.</span>
-                                        <span>Tap your browser's menu button (usually 3 dots <span className="font-bold">⋮</span> or Share icon).</span>
-                                    </div>
-                                    <div className="flex gap-2 items-start">
-                                        <span className="font-bold">2.</span>
-                                        <span>Select <span className="font-bold">"Add to Home Screen"</span> or <span className="font-bold">"Install App"</span>.</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <button
+                            onClick={install}
+                            className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
+                        >
+                            Install App
+                        </button>
                     </div>
                 )}
 
@@ -202,6 +164,12 @@ export default function SettingsPage() {
                     <p>&copy; {new Date().getFullYear()} UniLink Nigeria</p>
                 </div>
             </div>
+
+            <InstallGuideModal
+                isOpen={showInstallModal}
+                onClose={() => setShowInstallModal(false)}
+                isIOS={isIOs}
+            />
         </div>
     );
 }

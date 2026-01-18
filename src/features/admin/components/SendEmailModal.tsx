@@ -33,9 +33,6 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
         e.preventDefault();
         setSending(true);
 
-        const { data: { user } } = await import('../../../lib/supabase').then(m => m.supabase.auth.getUser());
-        const userEmail = user?.email || '';
-
         // Filter recipients
         let recipients: string[] = [];
         switch (audience) {
@@ -59,29 +56,30 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
             return;
         }
 
-        // Gmail URL Limit is approx 2000-8000 chars. To be safe, we chunk recipients.
-        // Assuming avg email is 30 chars, 50 emails = 1500 chars.
-        const CHUNK_SIZE = 50;
-        const recipientChunks = [];
-        for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
-            recipientChunks.push(recipients.slice(i, i + CHUNK_SIZE));
+        if (recipients.length === 0) {
+            alert('No recipients found for this selection.');
+            setSending(false);
+            return;
         }
 
-        // Open Gmail Composer(s)
-        recipientChunks.forEach((chunk) => {
-            const bccString = chunk.join(',');
-            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(userEmail)}&bcc=${encodeURIComponent(bccString)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-            window.open(gmailUrl, '_blank');
-        });
+        const bccString = recipients.join(',');
+        const mailtoUrl = `mailto:?bcc=${bccString}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 
-        alert(`Opened ${recipientChunks.length} Gmail composer window(s) with ${recipients.length} recipients in BCC.`);
+        if (mailtoUrl.length > 2000) {
+            alert('The recipient list is too long for to open automatically (URL limit). Please use the "Copy All" button and paste them into your BCC field.');
+            // Try anyway
+            window.location.href = mailtoUrl;
+        } else {
+            window.location.href = mailtoUrl;
+        }
+
         setSending(false);
         onClose();
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-stone-50 px-6 py-4 flex items-center justify-between border-b border-stone-100">
                     <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
@@ -93,7 +91,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                     </button>
                 </div>
 
-                <form onSubmit={handleSend} className="p-6 space-y-6">
+                <form onSubmit={handleSend} className="p-5 space-y-5">
                     {/* Audience Selector */}
                     <div className="space-y-3">
                         <label className="text-sm font-semibold text-stone-900">Select Audience</label>
@@ -139,6 +137,46 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                         </p>
                     </div>
 
+                    {/* Recipient Preview (Manual Copy) */}
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-stone-900 flex justify-between items-center">
+                            <span>Recipients ({getRecipientCount()})</span>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const recipients = (() => {
+                                        switch (audience) {
+                                            case 'single': return preSelectedUser?.email ? [preSelectedUser.email] : [];
+                                            case 'all': return allUsers.map(u => u.email).filter(Boolean);
+                                            case 'verified': return allUsers.filter(u => u.is_verified).map(u => u.email).filter(Boolean);
+                                            case 'unverified': return allUsers.filter(u => !u.is_verified).map(u => u.email).filter(Boolean);
+                                            default: return [];
+                                        }
+                                    })();
+                                    await navigator.clipboard.writeText(recipients.join(', '));
+                                    alert('Copied all emails to clipboard!');
+                                }}
+                                className="text-indigo-600 text-xs hover:underline"
+                            >
+                                Copy All
+                            </button>
+                        </label>
+                        <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-500 max-h-24 overflow-y-auto break-all">
+                            {(() => {
+                                const list = (() => {
+                                    switch (audience) {
+                                        case 'single': return preSelectedUser?.email ? [preSelectedUser.email] : [];
+                                        case 'all': return allUsers.map(u => u.email).filter(Boolean);
+                                        case 'verified': return allUsers.filter(u => u.is_verified).map(u => u.email).filter(Boolean);
+                                        case 'unverified': return allUsers.filter(u => !u.is_verified).map(u => u.email).filter(Boolean);
+                                        default: return [];
+                                    }
+                                })();
+                                return list.join(', ') || 'No recipients selected';
+                            })()}
+                        </div>
+                    </div>
+
                     {/* Email Content */}
                     <div className="space-y-4">
                         <div className="space-y-1.5">
@@ -150,7 +188,6 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                                 placeholder="Important update..."
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
-                                required
                             />
                         </div>
 
@@ -158,12 +195,11 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                             <label htmlFor="message" className="text-sm font-semibold text-stone-900">Message Body</label>
                             <textarea
                                 id="message"
-                                rows={6}
+                                rows={4}
                                 className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
                                 placeholder="Write your message here..."
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
-                                required
                             />
                         </div>
                     </div>
@@ -183,7 +219,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                            {sending ? 'Sending...' : 'Send Broadcast'}
+                            {sending ? 'Opening...' : 'Open Mail Client'}
                         </button>
                     </div>
                 </form>

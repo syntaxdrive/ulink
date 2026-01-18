@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
 
 interface CreatePostProps {
-    onCreate: (content: string, imageFiles: File[], communityId?: string, pollOptions?: string[]) => Promise<void>;
+    onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;
     communityId?: string;
     user?: any; // Just for types, usually passed down
     onPostCreated?: (post: any) => void;
@@ -11,18 +11,30 @@ interface CreatePostProps {
 export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
     const [content, setContent] = useState('');
     const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
     const [previews, setPreviews] = useState<string[]>([]);
+    const [videoPreview, setVideoPreview] = useState<string | null>(null);
     const [isPosting, setIsPosting] = useState(false);
     const [showPoll, setShowPoll] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageClick = () => fileInputRef.current?.click();
+
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
+            // If we have a video, don't allow images and vice versa for MVP simplicity
+            if (videoFile) {
+                alert('You cannot attach images and video to the same post.');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+
             const newFiles = Array.from(files);
             const totalFiles = imageFiles.length + newFiles.length;
 
@@ -55,9 +67,38 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (imageFiles.length > 0) {
+                alert('You cannot attach video and images to the same post.');
+                if (videoInputRef.current) videoInputRef.current.value = '';
+                return;
+            }
+            if (file.size > 50 * 1024 * 1024) { // 50MB Limit
+                alert('Video size must be less than 50MB.');
+                return;
+            }
+            if (!file.type.startsWith('video/')) {
+                alert('Invalid file type. Please select a video.');
+                return;
+            }
+
+            setVideoFile(file);
+            setVideoPreview(URL.createObjectURL(file));
+        }
+        if (videoInputRef.current) videoInputRef.current.value = '';
+    };
+
     const removeImage = (index: number) => {
         setImageFiles(prev => prev.filter((_, i) => i !== index));
         setPreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const removeVideo = () => {
+        setVideoFile(null);
+        setVideoPreview(null);
+        if (videoInputRef.current) videoInputRef.current.value = '';
     };
 
     const clearAllImages = () => {
@@ -84,7 +125,7 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() && imageFiles.length === 0 && !showPoll) return;
+        if (!content.trim() && imageFiles.length === 0 && !videoFile && !showPoll) return;
 
         let finalPollOptions: string[] | undefined;
         if (showPoll) {
@@ -97,9 +138,10 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
 
         setIsPosting(true);
         try {
-            await onCreate(content, imageFiles, communityId, finalPollOptions);
+            await onCreate(content, imageFiles, videoFile, communityId, finalPollOptions);
             setContent('');
             clearAllImages();
+            removeVideo();
             setShowPoll(false);
             setPollOptions(['', '']);
         } catch (error) {
@@ -140,6 +182,20 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
                                 </button>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Video Preview */}
+                {videoPreview && (
+                    <div className="relative group rounded-xl overflow-hidden bg-black/5">
+                        <video src={videoPreview} className="w-full max-h-80 rounded-xl" controls />
+                        <button
+                            type="button"
+                            onClick={removeVideo}
+                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                        >
+                            <X className="w-3 h-3" />
+                        </button>
                     </div>
                 )}
 
@@ -185,16 +241,32 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
                             ref={fileInputRef}
                             className="hidden"
                             accept="image/*"
-                            multiple // Enable multiple
+                            multiple
                             onChange={handleFileChange}
+                        />
+                        <input
+                            type="file"
+                            ref={videoInputRef}
+                            className="hidden"
+                            accept="video/*"
+                            onChange={handleVideoChange}
                         />
                         <button
                             type="button"
                             onClick={handleImageClick}
-                            className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}
-                            title="Add Image"
+                            disabled={!!videoFile}
+                            className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
+                            title="Add Images"
                         >
                             <ImageIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            disabled
+                            className="p-2 rounded-xl transition-all text-stone-300 cursor-not-allowed opacity-50"
+                            title="Video Upload - Coming Soon"
+                        >
+                            <Video className="w-5 h-5" />
                         </button>
                         <button
                             type="button"
@@ -210,7 +282,7 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
                     </div>
                     <button
                         type="submit"
-                        disabled={(!content.trim() && imageFiles.length === 0 && !showPoll) || isPosting}
+                        disabled={(!content.trim() && imageFiles.length === 0 && !videoFile && !showPoll) || isPosting}
                         className="bg-stone-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
                     >
                         <Send className="w-4 h-4" />
