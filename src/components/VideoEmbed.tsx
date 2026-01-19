@@ -3,8 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, ExternalLink, Volume2, VolumeX } from 'lucide-react';
 import YouTube, { type YouTubeEvent } from 'react-youtube';
 import type { VideoEmbed as VideoEmbedData } from '../utils/videoEmbed';
+import { useVideoStore } from '../stores/useVideoStore';
 
 interface VideoEmbedProps {
+    id?: string;
     embed: VideoEmbedData;
     originalUrl?: string;
     variant?: 'feed' | 'full';
@@ -14,7 +16,7 @@ interface VideoEmbedProps {
     defaultMuted?: boolean;
 }
 
-export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPlay, onPause, onEnded, defaultMuted = true }: VideoEmbedProps) {
+export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', onPlay, onPause, onEnded, defaultMuted = true }: VideoEmbedProps) {
     const [hasStarted, setHasStarted] = useState(false);
     const [isMuted, setIsMuted] = useState(defaultMuted);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -36,6 +38,24 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
         }
     }, [isMuted, player]);
 
+    // Global Video Store
+    const { playingId, setPlayingId } = useVideoStore();
+
+    // Handle Global Pause
+    useEffect(() => {
+        if (playingId && playingId !== id && hasStarted) {
+            // Pause execution
+            if (embed.platform === 'youtube' && player) {
+                try { player.pauseVideo(); } catch (e) { console.warn('YouTube pause error:', e); }
+            } else if (iframeRef.current) {
+                if (embed.platform === 'vimeo') {
+                    iframeRef.current.contentWindow?.postMessage('{"method":"pause"}', '*');
+                }
+            }
+            // For HTML5 video handled internally by this component (if extended later), or just logic state
+        }
+    }, [playingId, id, hasStarted, player, embed.platform]);
+
     // Intersection Observer for Auto-play/pause
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -44,16 +64,24 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
                     if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
                         if (!hasStarted) {
                             setHasStarted(true);
-                        } else {
+                        }
+
+                        // Only auto-play if no other video is playing OR we are the one playing
+                        // Actually, auto-play on scroll usually takes precedence (steals focus)
+                        // But to avoid chaos, let's say if we auto-play, we become the playingId
+
+                        if (id) {
                             // Resume playback
                             if (embed.platform === 'youtube' && player) {
-                                try { player.playVideo(); } catch (e) { console.warn('YouTube play error:', e); }
+                                try { player.playVideo(); setPlayingId(id); } catch (e) { console.warn('YouTube play error:', e); }
                             } else if (iframeRef.current) {
                                 if (embed.platform === 'vimeo') {
                                     iframeRef.current.contentWindow?.postMessage('{"method":"play"}', '*');
+                                    setPlayingId(id);
                                 }
                             }
                         }
+
                     } else if (hasStarted) {
                         // Pause when scrolled out
                         if (embed.platform === 'youtube' && player) {
@@ -63,11 +91,13 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
                                 iframeRef.current.contentWindow?.postMessage('{"method":"pause"}', '*');
                             }
                         }
+                        // If we were the playing ID, maybe clear it? 
+                        // Actually better to just leave it until someone else claims it.
                     }
                 });
             },
             {
-                threshold: [0, 0.5, 1],
+                threshold: [0, 0.25, 0.5, 1],
                 rootMargin: '0px'
             }
         );
@@ -81,7 +111,7 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
                 observer.unobserve(containerRef.current);
             }
         };
-    }, [hasStarted, embed.platform, player]);
+    }, [hasStarted, embed.platform, player, id, setPlayingId]);
 
     useEffect(() => {
         if (!hasStarted || !iframeRef.current) return;
@@ -190,9 +220,20 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
                         iframeClassName="w-full h-full"
                         onReady={(event: YouTubeEvent) => {
                             setPlayer(event.target);
-                            if (isMuted) event.target.mute();
+                            // Always start muted for autoplay compliance
+                            event.target.mute();
                         }}
-                        onPlay={onPlay}
+                        onPlay={(event: YouTubeEvent) => {
+                            // Unmute after playback starts if defaultMuted is false
+                            if (!defaultMuted) {
+                                try {
+                                    event.target.unMute();
+                                } catch (e) {
+                                    console.warn('YouTube unmute error:', e);
+                                }
+                            }
+                            if (onPlay) onPlay();
+                        }}
                         onPause={onPause}
                         onEnd={onEnded}
                         opts={{
@@ -200,6 +241,7 @@ export default function VideoEmbed({ embed, originalUrl, variant = 'feed', onPla
                             width: '100%',
                             playerVars: {
                                 autoplay: 1,
+                                mute: 1, // Always start muted for autoplay
                                 controls: variant === 'full' ? 0 : 1,
                                 modestbranding: 1,
                                 rel: 0,

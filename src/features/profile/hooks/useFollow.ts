@@ -13,9 +13,9 @@ export function useFollow(profileId: string) {
         fetchFollowStatus();
         fetchCounts();
 
-        // Subscribe to real-time updates
-        const channel = supabase
-            .channel(`follows:${profileId}`)
+        // Subscribe to real-time updates for followers (people following this profile)
+        const followersChannel = supabase
+            .channel(`followers:${profileId}`)
             .on('postgres_changes',
                 {
                     event: '*',
@@ -25,12 +25,30 @@ export function useFollow(profileId: string) {
                 },
                 () => {
                     fetchCounts();
+                    fetchFollowStatus();
+                }
+            )
+            .subscribe();
+
+        // Subscribe to real-time updates for following (people this profile follows)
+        const followingChannel = supabase
+            .channel(`following:${profileId}`)
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'follows',
+                    filter: `follower_id=eq.${profileId}`
+                },
+                () => {
+                    fetchCounts();
                 }
             )
             .subscribe();
 
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(followersChannel);
+            supabase.removeChannel(followingChannel);
         };
     }, [profileId]);
 
@@ -63,16 +81,20 @@ export function useFollow(profileId: string) {
 
     const fetchCounts = async () => {
         try {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('followers_count, following_count')
-                .eq('id', profileId)
-                .single();
+            // Get followers count - people who follow this profile
+            const { count: followersCount } = await supabase
+                .from('follows')
+                .select('*', { count: 'exact', head: true })
+                .eq('following_id', profileId);
 
-            if (profile) {
-                setFollowersCount(profile.followers_count || 0);
-                setFollowingCount(profile.following_count || 0);
-            }
+            // Get following count - people this profile follows
+            const { count: followingCount } = await supabase
+                .from('follows')
+                .select('*', { count: 'exact', head: true })
+                .eq('follower_id', profileId);
+
+            setFollowersCount(followersCount || 0);
+            setFollowingCount(followingCount || 0);
         } catch (error) {
             console.error('Error fetching counts:', error);
         }

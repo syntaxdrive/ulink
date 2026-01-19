@@ -16,15 +16,14 @@ export default function CommunityDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [isMember, setIsMember] = useState(false);
     const [role, setRole] = useState<string | null>(null);
-    const [user, setUser] = useState<any>(null); // Local user state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-    // Reuse feed hook logic but filter by community
     const {
         posts,
+        loading: postsLoading,
         currentUserId,
         createPost,
         toggleLike,
+        toggleRepost,
         toggleComments,
         activeCommentPostId,
         comments,
@@ -33,12 +32,9 @@ export default function CommunityDetailsPage() {
         deleteComment,
         reportPost,
         deletePost,
-        votePoll
+        votePoll,
+        currentUserProfile
     } = useFeed(community?.id);
-
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-    }, []);
 
     useEffect(() => {
         if (slug) fetchCommunityDetails();
@@ -63,6 +59,7 @@ export default function CommunityDetailsPage() {
             setCommunity(communityWithCount);
 
             // Check Membership
+            const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { data: member } = await supabase
                     .from('community_members')
@@ -85,7 +82,7 @@ export default function CommunityDetailsPage() {
     };
 
     const handleJoin = async () => {
-        if (!user || !community) return;
+        if (!currentUserId || !community) return;
         try {
             if (isMember) {
                 // Leave logic
@@ -99,7 +96,7 @@ export default function CommunityDetailsPage() {
                         .from('community_members')
                         .delete()
                         .eq('community_id', community.id)
-                        .eq('user_id', user.id);
+                        .eq('user_id', currentUserId);
                 }
             } else {
                 // Join logic
@@ -110,7 +107,7 @@ export default function CommunityDetailsPage() {
 
                 await supabase
                     .from('community_members')
-                    .insert({ community_id: community.id, user_id: user.id });
+                    .insert({ community_id: community.id, user_id: currentUserId });
             }
         } catch (error) {
             console.error('Error modifying membership:', error);
@@ -133,7 +130,7 @@ export default function CommunityDetailsPage() {
 
                 <div className="px-8 pb-8">
                     <div className="flex flex-col md:flex-row items-start md:items-end -mt-12 gap-6 mb-6">
-                        <div className="w-32 h-32 rounded-3xl bg-white p-1.5 shadow-xl">
+                        <div className="w-32 h-32 rounded-3xl bg-white p-1.5 shadow-xl relative z-10">
                             <div className={`w-full h-full rounded-2xl flex items-center justify-center text-4xl font-bold ${community.icon_url ? '' : 'bg-stone-100 text-stone-400'
                                 }`}>
                                 {community.icon_url ? (
@@ -193,7 +190,7 @@ export default function CommunityDetailsPage() {
                     {/* Only show post creation if member */}
                     {isMember ? (
                         <CreatePost
-                            user={user}
+                            user={currentUserProfile}
                             onCreate={createPost}
                             communityId={community.id}
                         />
@@ -204,30 +201,39 @@ export default function CommunityDetailsPage() {
                     )}
 
                     {/* Feed Content */}
-                    {/* Ideally we use the existing Post list logic here. 
-                        For now, since useFeed hooks everything up, we just need to confirm `posts` contains the community posts.
-                    */}
                     <div className="space-y-6">
-                        {posts.map(post => (
-                            <PostItem
-                                key={post.id}
-                                post={post}
-                                currentUserId={currentUserId}
-                                isActiveCommentSection={activeCommentPostId === post.id}
-                                isActiveMenu={false} // Add state if needed
-                                comments={comments[post.id] || []}
-                                loadingComments={loadingComments}
-                                onDelete={() => deletePost(post.id)}
-                                onLike={() => toggleLike(post)}
-                                onToggleComments={() => toggleComments(post.id)}
-                                onToggleMenu={() => { }} // simplified
-                                onPostComment={(content) => postComment(post.id, content)}
-                                onSearchTag={() => { }}
-                                onReport={() => reportPost(post.id)}
-                                onDeleteComment={deleteComment}
-                                onVotePoll={votePoll}
-                            />
-                        ))}
+                        {postsLoading ? (
+                            <div className="flex justify-center py-20">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                            </div>
+                        ) : posts.length === 0 ? (
+                            <div className="text-center py-20">
+                                <p className="text-stone-400 text-lg font-medium">No posts yet</p>
+                                <p className="text-stone-400 text-sm mt-2">Be the first to post in this community!</p>
+                            </div>
+                        ) : (
+                            posts.map(post => (
+                                <PostItem
+                                    key={post.id}
+                                    post={post}
+                                    currentUserId={currentUserId}
+                                    isActiveCommentSection={activeCommentPostId === post.id}
+                                    isActiveMenu={false}
+                                    comments={comments[post.id] || []}
+                                    loadingComments={loadingComments}
+                                    onDelete={() => deletePost(post.id)}
+                                    onLike={() => toggleLike(post)}
+                                    onRepost={(post, comment) => toggleRepost(post, comment)}
+                                    onToggleComments={() => toggleComments(post.id)}
+                                    onToggleMenu={() => { }}
+                                    onPostComment={(content) => postComment(post.id, content)}
+                                    onSearchTag={() => { }}
+                                    onReport={() => reportPost(post.id)}
+                                    onDeleteComment={deleteComment}
+                                    onVotePoll={votePoll}
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
 

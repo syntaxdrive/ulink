@@ -24,6 +24,7 @@ import OnboardingPage from './features/auth/OnboardingPage';
 import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import LearnPage from './features/learn/LearnPage';
+import UpdateNotification from './components/UpdateNotification';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -58,6 +59,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <UpdateNotification />
       <Routes>
         <Route
           path="/"

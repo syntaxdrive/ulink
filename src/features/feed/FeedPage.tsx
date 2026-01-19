@@ -12,6 +12,7 @@ export default function FeedPage() {
         createPost,
         deletePost,
         toggleLike,
+        toggleRepost,
         toggleComments,
         activeCommentPostId,
         comments,
@@ -19,7 +20,8 @@ export default function FeedPage() {
         postComment,
         deleteComment,
         reportPost,
-        votePoll
+        votePoll,
+        currentUserProfile
     } = useFeed();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -102,7 +104,7 @@ export default function FeedPage() {
                     </div>
 
                     {/* Create Post */}
-                    <CreatePost onCreate={createPost} />
+                    <CreatePost onCreate={createPost} user={currentUserProfile} />
 
                     {/* Feed */}
                     <div className="space-y-6">
@@ -117,6 +119,7 @@ export default function FeedPage() {
                                 loadingComments={loadingComments && activeCommentPostId === post.id}
                                 onDelete={deletePost}
                                 onLike={toggleLike}
+                                onRepost={toggleRepost}
                                 onToggleComments={toggleComments}
                                 onToggleMenu={toggleMenu}
                                 onPostComment={postComment}

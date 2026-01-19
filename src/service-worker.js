@@ -47,3 +47,10 @@ self.addEventListener('notificationclick', (event) => {
         })
     );
 });
+
+// 5. Handle SKIP_WAITING message for immediate updates
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});

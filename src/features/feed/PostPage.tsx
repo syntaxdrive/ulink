@@ -12,6 +12,7 @@ export default function PostPage() {
         fetchSinglePost,
         currentUserId,
         toggleLike,
+        toggleRepost,
         toggleComments,
         comments,
         loadingComments,
@@ -75,6 +76,7 @@ export default function PostPage() {
                 loadingComments={loadingComments}
                 onDelete={(id) => { deletePost(id); navigate('/app'); }} // Redirect after delete
                 onLike={toggleLike}
+                onRepost={(post, comment) => toggleRepost(post, comment)}
                 onToggleComments={() => { }} // No-op, always open
                 onToggleMenu={(id) => setActiveMenuId(activeMenuId === id ? null : id)}
                 onPostComment={postComment}

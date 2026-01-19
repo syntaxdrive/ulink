@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info } from 'lucide-react';
 import EditProfileModal from './components/EditProfileModal';
 import { useFollow } from './hooks/useFollow';
 
@@ -22,8 +22,11 @@ export default function UserProfilePage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Follow Logic
-    const { isFollowing, followersCount, followingCount, toggleFollow, canFollow, loading: followLoading } = useFollow(userId || '');
+    // Helper to check if profile is organization
+    const isOrganization = profile?.role === 'org';
+
+    // Follow Logic - Use profile.id (not userId which could be username)
+    const { isFollowing, followersCount, followingCount, toggleFollow, canFollow, loading: followLoading } = useFollow(profile?.id || '');
 
     const fetchConnectionStatus = async (targetId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -296,11 +299,11 @@ export default function UserProfilePage() {
                         )}
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
                             <div className="relative mb-4 inline-block group/avatar">
-                                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white relative z-10">
+                                <div className={`w-32 h-32 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white shadow-lg overflow-hidden bg-white relative z-10`}>
                                     <img
-                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=10b981&color=fff`}
+                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`}
                                         alt={profile.name}
-                                        className="w-full h-full object-cover"
+                                        className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'}`}
                                     />
                                 </div>
                                 <button
@@ -327,18 +330,26 @@ export default function UserProfilePage() {
                             </h1>
                             <p className="text-stone-400 font-medium text-sm mb-3">@{profile.username || profile.id.slice(0, 6)}</p>
 
+                            {/* Organization Badge */}
+                            {isOrganization && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-semibold mb-3">
+                                    <Briefcase className="w-3.5 h-3.5" />
+                                    Organization
+                                </div>
+                            )}
+
                             {profile.headline && (
-                                <p className="text-slate-500 font-medium mt-1 mb-3">{profile.headline}</p>
+                                <p className="text-slate-600 font-medium mt-1 mb-3 text-sm">{profile.headline}</p>
                             )}
 
                             {profile.location && (
-                                <div className="flex items-center gap-1 text-slate-400 text-sm mb-1">
-                                    <MapPin className="w-3.5 h-3.5" />
+                                <div className={`flex items-center gap-1.5 text-sm mb-2 ${isOrganization ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
+                                    <MapPin className="w-4 h-4" />
                                     {profile.location}
                                 </div>
                             )}
 
-                            {isStudent && profile.university && (
+                            {!isOrganization && profile.university && (
                                 <div className="flex items-center gap-1 text-slate-400 text-sm">
                                     <School className="w-3.5 h-3.5" />
                                     {profile.university}
@@ -350,7 +361,7 @@ export default function UserProfilePage() {
                         <div className="flex justify-center gap-6 mt-6 border-t border-b border-stone-100 py-4 w-full">
                             <div className="text-center">
                                 <div className="font-bold text-slate-900 text-lg">{connectionsCount}</div>
-                                <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">Connections</div>
+                                <div className="text-xs text-slate-500 font-medium uppercase tracking-wide">{isOrganization ? 'Contacts' : 'Connections'}</div>
                             </div>
                             <div className="text-center">
                                 <div className="font-bold text-slate-900 text-lg">{followersCount}</div>
@@ -565,6 +576,18 @@ export default function UserProfilePage() {
 
                 {/* RIGHT COLUMN */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* About Section */}
+                    {profile.about && (
+                        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative">
+                            <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <Info className="w-5 h-5 text-indigo-500" /> About
+                            </h3>
+                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                {profile.about}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Experience (New) */}
                     {profile.experience && profile.experience.length > 0 && (
                         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">

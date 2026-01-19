@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag } from 'lucide-react';
+import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
 import VideoEmbed from '../../../components/VideoEmbed';
 import { detectVideoEmbed, removeVideoLink } from '../../../utils/videoEmbed';
+import RepostModal from './RepostModal';
+import NativeVideoPlayer from './NativeVideoPlayer';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -29,6 +31,7 @@ interface PostItemProps {
     loadingComments: boolean;
     onDelete: (id: string) => void;
     onLike: (post: Post) => void;
+    onRepost: (post: Post, comment?: string) => void;
     onToggleComments: (id: string) => void;
     onToggleMenu: (id: string) => void;
     onPostComment: (id: string, content: string) => Promise<void>;
@@ -47,6 +50,7 @@ export default function PostItem({
     loadingComments,
     onDelete,
     onLike,
+    onRepost,
     onToggleComments,
     onToggleMenu,
     onPostComment,
@@ -56,6 +60,9 @@ export default function PostItem({
     onVotePoll
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
+    const [showRepostModal, setShowRepostModal] = useState(false);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     // Detect video embed in post content
     const videoEmbed = useMemo(() => detectVideoEmbed(post.content), [post.content]);
@@ -134,14 +141,28 @@ export default function PostItem({
 
     return (
         <article className="bg-white rounded-[2rem] p-6 shadow-[0_2px_20px_rgb(0,0,0,0.04)] border border-stone-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300">
+            {/* Repost Banner */}
+            {post.is_repost && post.profiles && (
+                <div className="flex items-center gap-2 mb-3 text-sm text-stone-500">
+                    <Repeat className="w-4 h-4 text-green-600" />
+                    <Link
+                        to={`/app/profile/${post.author_id}`}
+                        className="font-semibold text-stone-700 hover:text-green-600 transition-colors"
+                    >
+                        {post.profiles.name}
+                    </Link>
+                    <span>reposted</span>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex justify-between items-start mb-4">
                 <Link to={`/app/profile/${post.author_id}`} className="flex items-center gap-4 group">
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm">
+                    <div className={`w-12 h-12 ${post.profiles?.role === 'org' ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm`}>
                         <img
-                            src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.name || 'User')}&background=random`}
+                            src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.name || 'User')}&background=${post.profiles?.role === 'org' ? 'f97316' : 'random'}`}
                             alt={post.profiles?.name}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            className={`w-full h-full ${post.profiles?.role === 'org' ? 'object-contain p-1' : 'object-cover'} transition-transform duration-500 group-hover:scale-110`}
                         />
                     </div>
                     <div>
@@ -227,10 +248,45 @@ export default function PostItem({
                 )}
             </div>
 
+            {/* Original Post (for reposts) */}
+            {post.is_repost && post.original_post && (
+                <div className="mb-4 border-2 border-stone-200 rounded-2xl p-4 bg-stone-50/50">
+                    <Link to={`/app/profile/${post.original_post.author_id}`} className="flex items-center gap-3 mb-3">
+                        <img
+                            src={post.original_post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.original_post.profiles?.name || 'User')}`}
+                            alt={post.original_post.profiles?.name}
+                            className="w-10 h-10 rounded-xl object-cover"
+                        />
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-stone-900">{post.original_post.profiles?.name}</span>
+                                {post.original_post.profiles?.is_verified && (
+                                    <BadgeCheck className="w-4 h-4 text-blue-500 fill-current" />
+                                )}
+                            </div>
+                            <span className="text-xs text-stone-500">{formatTimeAgo(post.original_post.created_at)}</span>
+                        </div>
+                    </Link>
+                    <p className="text-stone-700 text-sm leading-relaxed mb-3">{post.original_post.content}</p>
+                    {post.original_post.image_url && (
+                        <img
+                            src={post.original_post.image_url}
+                            alt="Original post"
+                            className="rounded-xl w-full object-cover max-h-80"
+                        />
+                    )}
+                </div>
+            )}
+
             {/* Embedded Video from Link */}
             {videoEmbed && (
                 <div className="mb-6">
-                    <VideoEmbed embed={videoEmbed} originalUrl={post.content.match(/https?:\/\/[^\s]+/)?.[0]} />
+                    <VideoEmbed
+                        id={`${post.id}-embed`}
+                        embed={videoEmbed}
+                        originalUrl={post.content.match(/https?:\/\/[^\s]+/)?.[0]}
+                        defaultMuted={false}
+                    />
                 </div>
             )}
 
@@ -290,8 +346,14 @@ export default function PostItem({
                 return (
                     <div className={`mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-50 grid gap-0.5 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                         {images.map((url, i) => (
-                            <div key={i} className={`relative overflow-hidden ${images.length === 3 && i === 0 ? 'col-span-2' : ''
-                                }`}>
+                            <div
+                                key={i}
+                                className={`relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${images.length === 3 && i === 0 ? 'col-span-2' : ''}`}
+                                onClick={() => {
+                                    setFullscreenImage(url);
+                                    setCurrentImageIndex(i);
+                                }}
+                            >
                                 <img
                                     src={url}
                                     alt="Post content"
@@ -306,12 +368,9 @@ export default function PostItem({
             {/* Post Video */}
             {post.video_url && (
                 <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-black">
-                    <video
+                    <NativeVideoPlayer
                         src={post.video_url}
-                        controls
-                        className="w-full max-h-[500px]"
-                        preload="metadata"
-                        playsInline
+                        id={`${post.id}-video`}
                     />
                 </div>
             )}
@@ -340,6 +399,18 @@ export default function PostItem({
                     </div>
                     <span className="text-sm font-semibold text-stone-500 transition-all">
                         {post.comments_count || 0}
+                    </span>
+                </button>
+
+                <button
+                    onClick={() => setShowRepostModal(true)}
+                    className={`flex items-center gap-2 group transition-all ${post.user_has_reposted ? 'text-green-500' : 'text-stone-400 hover:text-green-500'}`}
+                >
+                    <div className={`p-2 rounded-xl group-hover:bg-green-50 transition-colors ${post.user_has_reposted ? 'bg-green-50' : ''}`}>
+                        <Repeat className="w-5 h-5 transition-transform group-active:scale-75" />
+                    </div>
+                    <span className={`text-sm font-semibold transition-all ${post.user_has_reposted ? 'text-green-600' : 'text-stone-500'}`}>
+                        {post.reposts_count || 0}
                     </span>
                 </button>
 
@@ -409,6 +480,85 @@ export default function PostItem({
                     </div>
                 </div>
             )}
+
+            {/* Repost Modal */}
+            <RepostModal
+                post={post}
+                isOpen={showRepostModal}
+                onClose={() => setShowRepostModal(false)}
+                onRepost={(post, comment) => {
+                    onRepost(post, comment);
+                }}
+            />
+
+            {/* Fullscreen Image Viewer */}
+            {fullscreenImage && (() => {
+                const images = post.image_urls?.length ? post.image_urls : (post.image_url ? [post.image_url] : []);
+                const handlePrevious = () => {
+                    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+                    setFullscreenImage(images[currentImageIndex > 0 ? currentImageIndex - 1 : images.length - 1]);
+                };
+                const handleNext = () => {
+                    setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+                    setFullscreenImage(images[currentImageIndex < images.length - 1 ? currentImageIndex + 1 : 0]);
+                };
+
+                return (
+                    <div
+                        className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+                        onClick={() => setFullscreenImage(null)}
+                    >
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setFullscreenImage(null)}
+                            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+                        >
+                            <X className="w-6 h-6 text-white" />
+                        </button>
+
+                        {/* Previous Button */}
+                        {images.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePrevious();
+                                }}
+                                className="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+                            >
+                                <ChevronLeft className="w-8 h-8 text-white" />
+                            </button>
+                        )}
+
+                        {/* Image */}
+                        <img
+                            src={fullscreenImage}
+                            alt="Fullscreen view"
+                            className="max-w-[90vw] max-h-[90vh] object-contain"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+
+                        {/* Next Button */}
+                        {images.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNext();
+                                }}
+                                className="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+                            >
+                                <ChevronRight className="w-8 h-8 text-white" />
+                            </button>
+                        )}
+
+                        {/* Image Counter */}
+                        {images.length > 1 && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+                                {currentImageIndex + 1} / {images.length}
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
         </article>
     );
 }

@@ -106,10 +106,19 @@ export interface Post {
     updated_at: string;
     likes_count: number;
     comments_count: number;
+    reposts_count?: number; // Count of reposts
     user_has_liked: boolean;
+    user_has_reposted?: boolean; // Whether current user has reposted
     profiles?: Profile; // Joined data
     community_id?: string; // Optional link to a community
     community?: Community; // Joined community data
+
+    // Repost fields
+    is_repost?: boolean; // Whether this is a repost
+    original_post_id?: string; // ID of the original post if this is a repost
+    original_post?: Post; // The original post data
+    reposted_by?: Profile; // Profile of the person who reposted (for display)
+    repost_comment?: string; // User's comment when quote reposting
 
     // Polls
     poll_options?: string[];
@@ -155,6 +164,10 @@ export interface Job {
     type: 'Internship' | 'Entry Level' | 'Full Time';
     description?: string;
     application_link?: string;
+    location?: string;
+    salary_range?: string;
+    deadline?: string;
+    logo_url?: string;
     created_at: string;
     creator_id?: string;
     status?: 'active' | 'closed';

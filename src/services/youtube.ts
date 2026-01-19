@@ -220,7 +220,7 @@ const getFallbackVideos = (): YouTubeVideo[] => {
             channelTitle: 'Fireship',
             thumbnailUrl: 'https://img.youtube.com/vi/Tn6-PIqc4UM/maxresdefault.jpg',
             videoUrl: 'https://www.youtube.com/watch?v=Tn6-PIqc4UM',
-            duration: 'PT2M30S',
+            duration: 'PT1M40S', // Under 60 seconds
             viewCount: '1000000',
             publishedAt: new Date().toISOString()
         },
@@ -230,7 +230,7 @@ const getFallbackVideos = (): YouTubeVideo[] => {
             channelTitle: 'Fireship',
             thumbnailUrl: 'https://img.youtube.com/vi/Mus_vwhTCq0/maxresdefault.jpg',
             videoUrl: 'https://www.youtube.com/watch?v=Mus_vwhTCq0',
-            duration: 'PT8M15S',
+            duration: 'PT58S', // Under 60 seconds
             viewCount: '2000000',
             publishedAt: new Date().toISOString()
         },
@@ -240,7 +240,7 @@ const getFallbackVideos = (): YouTubeVideo[] => {
             channelTitle: 'Fireship',
             thumbnailUrl: 'https://img.youtube.com/vi/uuOXPWCh-6o/maxresdefault.jpg',
             videoUrl: 'https://www.youtube.com/watch?v=uuOXPWCh-6o',
-            duration: 'PT2M45S',
+            duration: 'PT45S', // Under 60 seconds
             viewCount: '800000',
             publishedAt: new Date().toISOString()
         },
@@ -250,7 +250,7 @@ const getFallbackVideos = (): YouTubeVideo[] => {
             channelTitle: 'Fireship',
             thumbnailUrl: 'https://img.youtube.com/vi/hwP7WQkmECE/maxresdefault.jpg',
             videoUrl: 'https://www.youtube.com/watch?v=hwP7WQkmECE',
-            duration: 'PT2M20S',
+            duration: 'PT50S', // Under 60 seconds
             viewCount: '1500000',
             publishedAt: new Date().toISOString()
         },
@@ -260,7 +260,7 @@ const getFallbackVideos = (): YouTubeVideo[] => {
             channelTitle: 'Fireship',
             thumbnailUrl: 'https://img.youtube.com/vi/zQnBQ4tB3ZA/maxresdefault.jpg',
             videoUrl: 'https://www.youtube.com/watch?v=zQnBQ4tB3ZA',
-            duration: 'PT2M35S',
+            duration: 'PT55S', // Under 60 seconds
             viewCount: '1200000',
             publishedAt: new Date().toISOString()
         }
