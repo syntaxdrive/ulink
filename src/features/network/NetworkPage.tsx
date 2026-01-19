@@ -95,10 +95,10 @@ export default function NetworkPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
                     <button
                         onClick={() => setActiveFilter('all')}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${activeFilter === 'all'
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap flex-shrink-0 snap-start ${activeFilter === 'all'
                             ? 'bg-stone-900 text-white border-stone-900'
                             : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                             }`}
@@ -108,7 +108,7 @@ export default function NetworkPage() {
                     {userProfile?.university && (
                         <button
                             onClick={() => setActiveFilter('university')}
-                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${activeFilter === 'university'
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 snap-start ${activeFilter === 'university'
                                 ? 'bg-stone-900 text-white border-stone-900'
                                 : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                                 }`}
@@ -118,7 +118,7 @@ export default function NetworkPage() {
                     )}
                     <button
                         onClick={() => setActiveFilter('verified')}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${activeFilter === 'verified'
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 snap-start ${activeFilter === 'verified'
                             ? 'bg-stone-900 text-white border-stone-900'
                             : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                             }`}

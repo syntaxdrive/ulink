@@ -8,7 +8,8 @@ interface CreatePostProps {
     onPostCreated?: (post: any) => void;
 }
 
-export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
+export default function CreatePost({ onCreate, communityId, user }: CreatePostProps) {
+    const MAX_CHARS = 1000;
     const [content, setContent] = useState('');
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -155,13 +156,31 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
     return (
         <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <textarea
-                    className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
-                    placeholder="What's on your mind? #Hashtags"
-                    rows={2}
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                />
+                <div className="flex gap-4">
+                    {user && (
+                        <div className={`w-12 h-12 flex-shrink-0 bg-stone-100 overflow-hidden border-2 border-white shadow-sm ${user.role === 'org' ? 'rounded-xl' : 'rounded-full'}`}>
+                            <img
+                                src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
+                                alt={user.name}
+                                className={`w-full h-full ${user.role === 'org' ? 'object-contain p-1' : 'object-cover'}`}
+                            />
+                        </div>
+                    )}
+                    <textarea
+                        className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
+                        placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
+                        rows={2}
+                        value={content}
+                        onChange={(e) => {
+                            if (e.target.value.length <= MAX_CHARS) {
+                                setContent(e.target.value);
+                            }
+                        }}
+                    />
+                    <div className="text-right text-xs text-stone-400 mt-1 mr-2 font-medium">
+                        {content.length}/{MAX_CHARS}
+                    </div>
+                </div>
 
                 {/* Image Grid Preview */}
                 {previews.length > 0 && (
@@ -262,9 +281,10 @@ export default function CreatePost({ onCreate, communityId }: CreatePostProps) {
                         </button>
                         <button
                             type="button"
-                            disabled
-                            className="p-2 rounded-xl transition-all text-stone-300 cursor-not-allowed opacity-50"
-                            title="Video Upload - Coming Soon"
+                            onClick={() => videoInputRef.current?.click()}
+                            disabled={imageFiles.length > 0}
+                            className={`p-2 rounded-xl transition-all ${videoFile ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
+                            title="Add Video"
                         >
                             <Video className="w-5 h-5" />
                         </button>

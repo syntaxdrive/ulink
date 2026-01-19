@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
+import { notifyMentionedUsers } from '../../../utils/mentions';
 
 export function useFeed(communityId?: string) {
     // 1. Use Global Store
@@ -37,12 +38,22 @@ export function useFeed(communityId?: string) {
         };
         init();
 
-        // Realtime Subscription (Simplified for now - strictly main feed or all)
+        // Realtime Subscription with proper filtering
         const channel = supabase
             .channel('public:posts')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-                // Ideally filter here if (communityId && payload.new.community_id !== communityId) return;
-                fetchSinglePost(payload.new.id);
+                // Filter posts based on context to prevent cross-contamination
+                const newPost = payload.new as any;
+
+                if (communityId) {
+                    // In community: only show posts from THIS community
+                    if (newPost.community_id !== communityId) return;
+                } else {
+                    // In main feed: only show posts NOT in any community
+                    if (newPost.community_id !== null) return;
+                }
+
+                fetchSinglePost(newPost.id);
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
                 removePost(payload.old.id);
@@ -71,7 +82,11 @@ export function useFeed(communityId?: string) {
                 *,
                 profiles:author_id (*),
                 likes (user_id),
-                comments (id)
+                comments (id),
+                original_post:original_post_id (
+                    *,
+                    profiles:author_id (*)
+                )
             `)
             .order('created_at', { ascending: false });
 
@@ -236,6 +251,9 @@ export function useFeed(communityId?: string) {
                     profiles: currentUserProfile || { id: user.id, name: 'You' }
                 };
                 addPost(newPost);
+
+                // Notify mentioned users
+                notifyMentionedUsers(content, data.id, user.id, 'post');
             }
         } catch (error) {
             console.error('Error creating post:', JSON.stringify(error, null, 2));
@@ -269,6 +287,71 @@ export function useFeed(communityId?: string) {
             await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
         } else {
             await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+        }
+    };
+
+    const toggleRepost = async (post: Post, comment?: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const hasReposted = post.user_has_reposted;
+
+        if (hasReposted) {
+            // Undo repost - delete the repost
+            const newRepostCount = Math.max((post.reposts_count || 0) - 1, 0);
+
+            updatePost({
+                ...post,
+                user_has_reposted: false,
+                reposts_count: newRepostCount
+            });
+
+            await supabase
+                .from('posts')
+                .delete()
+                .eq('author_id', user.id)
+                .eq('original_post_id', post.id)
+                .eq('is_repost', true);
+        } else {
+            // Create repost
+            const newRepostCount = (post.reposts_count || 0) + 1;
+
+            updatePost({
+                ...post,
+                user_has_reposted: true,
+                reposts_count: newRepostCount
+            });
+
+            const { error } = await supabase
+                .from('posts')
+                .insert({
+                    author_id: user.id,
+                    content: comment || post.content,
+                    image_url: post.image_url,
+                    image_urls: post.image_urls,
+                    video_url: post.video_url,
+                    is_repost: true,
+                    original_post_id: post.id,
+                    repost_comment: comment || null,
+                    community_id: communityId || null
+                });
+
+            if (error) {
+                console.error('Error creating repost:', error);
+                // Revert optimistic update
+                updatePost({
+                    ...post,
+                    user_has_reposted: false,
+                    reposts_count: (post.reposts_count || 0)
+                });
+
+                // Check if it's a column missing error
+                if (error.message?.includes('column') || error.code === '42703') {
+                    alert('Repost feature requires database migration. Please run the SQL migration from REPOST_FEATURE.md');
+                } else {
+                    alert('Failed to repost: ' + (error.message || 'Unknown error'));
+                }
+            }
         }
     };
 
@@ -326,6 +409,9 @@ export function useFeed(communityId?: string) {
 
         if (data) {
             setComments(prev => ({ ...prev, [postId]: prev[postId].map(c => c.id === tempId ? data : c) }));
+
+            // Notify mentioned users in comment
+            notifyMentionedUsers(content, postId, user.id, 'comment');
         }
     };
 
@@ -409,6 +495,7 @@ export function useFeed(communityId?: string) {
         createPost,
         deletePost,
         toggleLike,
+        toggleRepost,
         toggleComments,
         activeCommentPostId,
         comments,
@@ -417,6 +504,7 @@ export function useFeed(communityId?: string) {
         deleteComment,
         reportPost,
         votePoll,
-        fetchSinglePost
+        fetchSinglePost,
+        currentUserProfile
     };
 }

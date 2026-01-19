@@ -183,13 +183,16 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                 throw new Error('Community created but no data returned');
             }
 
+            // Note: Database trigger automatically adds creator as owner
+            // See migrations/community_creator_trigger.sql
+
             // Success! Close modal and navigate
             onClose();
 
             // Small delay to ensure trigger has completed
             setTimeout(() => {
                 navigate(`/app/communities/${data.slug}`);
-            }, 100);
+            }, 150);
 
         } catch (error: any) {
             console.error('Error creating community:', error);
@@ -219,7 +222,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
+            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[80vh] sm:max-h-[85vh] overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
                 {/* Header - Fixed */}
                 <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50 flex-shrink-0">
                     <h2 className="text-lg sm:text-xl font-bold text-stone-900 font-display">Create Community</h2>

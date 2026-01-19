@@ -1,250 +1,183 @@
 import { useMemo } from 'react';
 import type { Profile } from '../../../types';
-import { GraduationCap, BarChart3, Users } from 'lucide-react';
+import { TrendingUp, Users, Activity, Calendar, Award, Target } from 'lucide-react';
 
 interface AnalyticsChartsProps {
     users: Profile[];
 }
 
 export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
-    // 1. Process Daily Signups (Histogram)
-    const chartData = useMemo(() => {
-        if (users.length === 0) return [];
+    // Calculate growth metrics
+    const growthMetrics = useMemo(() => {
+        if (users.length === 0) return { daily: 0, weekly: 0, monthly: 0, total: 0 };
 
-        const dateMap = new Map<string, number>();
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        // Populate with raw counts
-        users.forEach(user => {
-            // Use local date string YYYY-MM-DD
-            const date = new Date(user.created_at).toISOString().split('T')[0];
-            dateMap.set(date, (dateMap.get(date) || 0) + 1);
-        });
+        const dailySignups = users.filter(u => new Date(u.created_at) >= oneDayAgo).length;
+        const weeklySignups = users.filter(u => new Date(u.created_at) >= oneWeekAgo).length;
+        const monthlySignups = users.filter(u => new Date(u.created_at) >= oneMonthAgo).length;
 
-        // Convert to array and sort
-        let data = Array.from(dateMap.entries())
-            .map(([date, count]) => ({ date, count }))
-            .sort((a, b) => a.date.localeCompare(b.date));
-
-        // Take the last 14 days of activity to keep chart readable
-        return data.slice(-14);
+        return {
+            daily: dailySignups,
+            weekly: weeklySignups,
+            monthly: monthlySignups,
+            total: users.length
+        };
     }, [users]);
 
-    // 2. Compute Bar Dimensions
-    const { bars } = useMemo(() => {
-        if (chartData.length === 0) return { bars: [], maxCount: 0 };
+    // Calculate engagement rate (verified users as proxy)
+    const engagementRate = useMemo(() => {
+        if (users.length === 0) return 0;
+        const verifiedCount = users.filter(u => u.is_verified).length;
+        return Math.round((verifiedCount / users.length) * 100);
+    }, [users]);
 
-        const max = Math.max(...chartData.map(d => d.count)) || 1;
-        // ViewBox is 100 x 40
-        const chartWidth = 100;
-        const chartHeight = 40;
-        const gap = 2; // space between bars
-        const barWidth = (chartWidth / chartData.length) - gap;
-
-        const computedBars = chartData.map((d, i) => {
-            const height = (d.count / max) * chartHeight;
-            const x = i * (barWidth + gap) + (gap / 2);
-            const y = chartHeight - height; // SVG Y grows downwards
-            return { x, y, width: Math.max(barWidth, 1), height: Math.max(height, 1) }; // Ensure at least 1px
-        });
-
-        return { bars: computedBars, maxCount: max };
-    }, [chartData]);
-
+    // Top universities
     const topUniversities = useMemo(() => {
-        const statsMap = new Map<string, { count: number, displayName: string }>();
-
+        const uniMap = new Map<string, number>();
         users.forEach(u => {
-            const rawUni = u.university ? u.university.trim() : 'Not Specified';
-            const key = rawUni.toLowerCase();
-
-            if (!statsMap.has(key)) {
-                statsMap.set(key, { count: 0, displayName: rawUni });
-            }
-
-            const entry = statsMap.get(key)!;
-            entry.count++;
-
-            // Heuristic: Prefer "Title Case" over "lowercase" for display
-            if (rawUni[0] !== rawUni[0].toLowerCase() && entry.displayName[0] === entry.displayName[0].toLowerCase()) {
-                entry.displayName = rawUni;
-            }
+            const uni = u.university?.trim() || 'Not Specified';
+            uniMap.set(uni, (uniMap.get(uni) || 0) + 1);
         });
-
-        return Array.from(statsMap.values())
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5)
-            .map(item => [item.displayName, item.count] as [string, number]);
+        return Array.from(uniMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
     }, [users]);
 
-    const roleDistribution = useMemo(() => {
-        const roles = { student: 0, org: 0, admin: 0 };
+    // Role distribution
+    const roleStats = useMemo(() => {
+        const stats = { students: 0, orgs: 0, verified: 0 };
         users.forEach(u => {
-            if (u.is_admin) roles.admin++;
-            else if (u.role === 'org') roles.org++;
-            else roles.student++;
+            if (u.role === 'org') stats.orgs++;
+            else stats.students++;
+            if (u.is_verified) stats.verified++;
         });
-        return roles;
+        return stats;
     }, [users]);
-
-    // Helper to format date
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+            {/* Key Metrics for Investors */}
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-[2rem] p-6 md:p-8 text-white shadow-xl">
+                <h2 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
+                    <TrendingUp className="w-6 h-6 md:w-8 md:h-8" />
+                    Platform Growth
+                </h2>
+                <p className="text-indigo-100 mb-6 text-sm md:text-base">Real-time user acquisition metrics</p>
 
-            {/* Daily Signups (Histogram) */}
-            <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm col-span-1 lg:col-span-2 relative overflow-hidden group">
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-emerald-600" />
-                            Daily Signups
-                        </h2>
-                        <p className="text-stone-500 text-sm">New registrations per day (Last 14 active days)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Activity className="w-4 h-4 text-indigo-200" />
+                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 24h</p>
+                        </div>
+                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.daily}</p>
+                        <p className="text-xs text-indigo-200 mt-1">new users</p>
                     </div>
-                </div>
 
-                {/* Bar Chart SVG */}
-                <div className="relative h-48 w-full flex items-end justify-center">
-                    {chartData.length > 0 ? (
-                        <div className="w-full h-full relative">
-                            {/* Grid Lines */}
-                            <div className="absolute inset-x-0 bottom-0 h-full flex flex-col justify-between text-[10px] text-stone-300 pointer-events-none pb-6">
-                                <div className="border-b border-dashed border-stone-100 w-full"></div>
-                                <div className="border-b border-dashed border-stone-100 w-full"></div>
-                                <div className="border-b border-dashed border-stone-100 w-full"></div>
-                                <div className="border-b border-stone-200 w-full"></div>
-                            </div>
-
-                            <svg viewBox="0 0 100 40" className="w-full h-full preserve-3d" preserveAspectRatio="none">
-                                <defs>
-                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#10B981" />
-                                        <stop offset="100%" stopColor="#34D399" />
-                                    </linearGradient>
-                                </defs>
-                                {bars.map((bar, i) => (
-                                    <rect
-                                        key={i}
-                                        x={bar.x}
-                                        y={bar.y}
-                                        width={bar.width}
-                                        height={bar.height}
-                                        fill="url(#barGradient)"
-                                        rx="1"
-                                        className="transition-all duration-500 hover:opacity-80"
-                                    />
-                                ))}
-                            </svg>
-
-                            {/* X-Axis Labels */}
-                            <div className="absolute bottom-0 left-0 right-0 flex justify-between px-1">
-                                {chartData.map((d) => (
-                                    <div key={d.date} className="text-[10px] text-stone-400 font-medium text-center" style={{ width: `${100 / chartData.length}%` }}>
-                                        {formatDate(d.date)}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Hover Tooltip (Basic CSS based) */}
-                            {chartData.map((d, i) => {
-                                const bar = bars[i];
-                                return (
-                                    <div
-                                        key={`tooltip-${i}`}
-                                        className="absolute group-hover:opacity-100 opacity-0 transition-opacity bg-stone-900 text-white text-[10px] py-1 px-2 rounded -top-8 pointer-events-none"
-                                        style={{
-                                            left: `${bar.x}%`,
-                                            top: `${Math.min(bar.y, 30)}%`, // Rough positioning
-                                            transform: 'translateX(-50%)'
-                                        }}
-                                    >
-                                        {d.count} users
-                                    </div>
-                                )
-                            })}
-
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Calendar className="w-4 h-4 text-indigo-200" />
+                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 7 days</p>
                         </div>
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-                            No recent activity data.
+                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.weekly}</p>
+                        <p className="text-xs text-indigo-200 mt-1">new users</p>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Target className="w-4 h-4 text-indigo-200" />
+                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 30 days</p>
                         </div>
-                    )}
+                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.monthly}</p>
+                        <p className="text-xs text-indigo-200 mt-1">new users</p>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Users className="w-4 h-4 text-indigo-200" />
+                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Total</p>
+                        </div>
+                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.total}</p>
+                        <p className="text-xs text-indigo-200 mt-1">registered</p>
+                    </div>
                 </div>
             </div>
 
-            {/* University Distribution */}
-            <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
-                <h3 className="font-bold text-stone-900 mb-6 flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-blue-600" />
-                    Top Universities
-                </h3>
-                <div className="space-y-4">
-                    {topUniversities.map(([uni, count]) => (
+            {/* Secondary Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                {/* Engagement Rate */}
+                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <Award className="w-5 h-5 text-green-600" />
+                        </div>
+                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Engagement Rate</h3>
+                    </div>
+                    <p className="text-3xl md:text-5xl font-bold text-green-600">{engagementRate}%</p>
+                    <p className="text-xs md:text-sm text-stone-500 mt-2">{roleStats.verified} verified users</p>
+                </div>
+
+                {/* Student Count */}
+                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <Users className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Students</h3>
+                    </div>
+                    <p className="text-3xl md:text-5xl font-bold text-blue-600">{roleStats.students}</p>
+                    <p className="text-xs md:text-sm text-stone-500 mt-2">
+                        {Math.round((roleStats.students / users.length) * 100)}% of total
+                    </p>
+                </div>
+
+                {/* Organizations */}
+                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                            <Target className="w-5 h-5 text-orange-600" />
+                        </div>
+                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Organizations</h3>
+                    </div>
+                    <p className="text-3xl md:text-5xl font-bold text-orange-600">{roleStats.orgs}</p>
+                    <p className="text-xs md:text-sm text-stone-500 mt-2">
+                        {Math.round((roleStats.orgs / users.length) * 100)}% of total
+                    </p>
+                </div>
+            </div>
+
+            {/* Top Universities - Mobile Optimized */}
+            <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
+                <h3 className="font-bold text-stone-900 mb-4 md:mb-6 text-base md:text-lg">Top Universities</h3>
+                <div className="space-y-3 md:space-y-4">
+                    {topUniversities.map(([uni, count], index) => (
                         <div key={uni} className="group">
-                            <div className="flex justify-between items-center mb-1.5 text-sm">
-                                <span className="font-medium text-stone-700 truncate max-w-[70%]">{uni}</span>
-                                <span className="font-bold text-stone-900">{count}</span>
+                            <div className="flex justify-between items-center mb-2">
+                                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                                    <span className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs md:text-sm flex items-center justify-center">
+                                        {index + 1}
+                                    </span>
+                                    <span className="font-medium text-stone-700 text-sm md:text-base truncate">{uni}</span>
+                                </div>
+                                <span className="font-bold text-stone-900 text-base md:text-lg ml-2">{count}</span>
                             </div>
-                            <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="w-full bg-stone-100 h-2 md:h-3 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full rounded-full bg-blue-500 group-hover:bg-blue-600 transition-all duration-500"
+                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                                     style={{ width: `${(count / users.length) * 100}%` }}
                                 />
                             </div>
                         </div>
                     ))}
-                    {topUniversities.length === 0 && <p className="text-stone-400 text-sm">No university data yet.</p>}
+                    {topUniversities.length === 0 && (
+                        <p className="text-stone-400 text-sm text-center py-4">No university data yet</p>
+                    )}
                 </div>
             </div>
-
-            {/* Role Distribution */}
-            <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm">
-                <h3 className="font-bold text-stone-900 mb-6 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-purple-600" />
-                    Demographics
-                </h3>
-
-                <div className="flex items-center justify-center py-4">
-                    {/* Donut Chart */}
-                    <div
-                        className="w-40 h-40 rounded-full relative shadow-inner"
-                        style={{
-                            background: `conic-gradient(
-                                #10B981 0% ${(roleDistribution.student / users.length) * 100}%,
-                                #F59E0B ${(roleDistribution.student / users.length) * 100}% ${(roleDistribution.student / users.length) * 100 + (roleDistribution.org / users.length) * 100}%,
-                                #8B5CF6 ${(roleDistribution.student / users.length) * 100 + (roleDistribution.org / users.length) * 100}% 100%
-                            )`
-                        }}
-                    >
-                        <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
-                            <span className="text-2xl font-bold text-stone-900">{users.length}</span>
-                            <span className="text-xs text-stone-400 font-bold uppercase tracking-wider">Total</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div className="p-3 rounded-xl bg-stone-50 border border-stone-100">
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span className="text-xs font-bold text-stone-500 uppercase">Students</span>
-                        </div>
-                        <p className="text-xl font-bold text-stone-900">{roleDistribution.student}</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-stone-50 border border-stone-100">
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                            <span className="text-xs font-bold text-stone-500 uppercase">Orgs</span>
-                        </div>
-                        <p className="text-xl font-bold text-stone-900">{roleDistribution.org}</p>
-                    </div>
-                </div>
-            </div>
-
         </div>
     );
 }

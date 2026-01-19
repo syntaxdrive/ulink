@@ -1,4 +1,4 @@
-import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -10,6 +10,7 @@ export default function SettingsPage() {
     const [notifPermission, setNotifPermission] = useState(
         'Notification' in window ? Notification.permission : 'denied'
     );
+    const [isClearing, setIsClearing] = useState(false);
 
 
 
@@ -22,7 +23,29 @@ export default function SettingsPage() {
         }
     };
 
+    const clearCache = async () => {
+        setIsClearing(true);
+        try {
+            // Clear all caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
 
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(reg => reg.unregister()));
+            }
+
+            // Reload the page
+            window.location.reload();
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+            setIsClearing(false);
+            alert('Failed to clear cache. Please try again.');
+        }
+    };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -150,6 +173,27 @@ export default function SettingsPage() {
                         </button>
                     </div>
                 )}
+
+                {/* Clear Cache Button */}
+                <div className="bg-orange-50 rounded-[2rem] border border-orange-100 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
+                            <RefreshCw className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-orange-900">Clear Cache & Refresh</h2>
+                            <p className="text-xs text-orange-700">Force update to see the latest version</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={clearCache}
+                        disabled={isClearing}
+                        className="w-full bg-orange-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-orange-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isClearing ? 'animate-spin' : ''}`} />
+                        {isClearing ? 'Clearing...' : 'Clear Cache & Reload'}
+                    </button>
+                </div>
 
                 <button
                     onClick={handleLogout}

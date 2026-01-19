@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Job } from '../../types';
-import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, CheckCircle, XCircle, Users } from 'lucide-react';
+import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, CheckCircle, XCircle, Users, MapPin, Calendar, DollarSign, Clock } from 'lucide-react';
 
 export default function JobsPage() {
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -81,12 +81,20 @@ export default function JobsPage() {
         type: 'Internship' | 'Entry Level' | 'Full Time';
         description: string;
         application_link: string;
+        location: string;
+        salary_range: string;
+        deadline: string;
+        logo_url: string;
     }>({
         title: '',
         company: '',
         type: 'Internship',
         description: '',
-        application_link: ''
+        application_link: '',
+        location: '',
+        salary_range: '',
+        deadline: '',
+        logo_url: ''
     });
 
     // Search & Filter State
@@ -209,7 +217,7 @@ export default function JobsPage() {
 
             setShowPostForm(false);
             setEditingJob(null);
-            setNewJob({ title: '', company: userCompany, type: 'Internship', description: '', application_link: '' });
+            setNewJob({ title: '', company: userCompany, type: 'Internship', description: '', application_link: '', location: '', salary_range: '', deadline: '', logo_url: '' });
         } catch (error) {
             console.error('Error saving job:', error);
             alert('Failed to save job post.');
@@ -225,7 +233,11 @@ export default function JobsPage() {
             company: job.company,
             type: job.type || 'Internship',
             description: job.description || '',
-            application_link: job.application_link || ''
+            application_link: job.application_link || '',
+            location: job.location || '',
+            salary_range: job.salary_range || '',
+            deadline: job.deadline ? new Date(job.deadline).toISOString().split('T')[0] : '', // Format for date input
+            logo_url: job.logo_url || ''
         });
         setShowPostForm(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -234,7 +246,7 @@ export default function JobsPage() {
     const handleCancelEdit = () => {
         setEditingJob(null);
         setShowPostForm(false);
-        setNewJob({ title: '', company: userCompany, type: 'Internship', description: '', application_link: '' });
+        setNewJob({ title: '', company: userCompany, type: 'Internship', description: '', application_link: '', location: '', salary_range: '', deadline: '', logo_url: '' });
     };
 
     const toggleJobStatus = async (jobId: string, currentStatus: string) => {
@@ -400,12 +412,49 @@ export default function JobsPage() {
                                 <option>Entry Level</option>
                                 <option>Full Time</option>
                             </select>
-                            <input
-                                placeholder="Application Link (http://...)"
-                                className="w-full bg-white rounded-xl px-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                                value={newJob.application_link}
-                                onChange={e => setNewJob({ ...newJob, application_link: e.target.value })}
-                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="relative">
+                                <Search className="absolute left-4 top-3.5 w-5 h-5 text-stone-400" />
+                                <input
+                                    placeholder="Location (e.g. Lagos, Remote)"
+                                    className="w-full bg-white rounded-xl pl-11 pr-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                    value={newJob.location}
+                                    onChange={e => setNewJob({ ...newJob, location: e.target.value })}
+                                />
+                            </div>
+                            <div className="relative">
+                                <DollarSign className="absolute left-4 top-3.5 w-5 h-5 text-stone-400" />
+                                <input
+                                    placeholder="Salary Range (e.g. ₦150k - ₦200k)"
+                                    className="w-full bg-white rounded-xl pl-11 pr-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                    value={newJob.salary_range}
+                                    onChange={e => setNewJob({ ...newJob, salary_range: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="relative">
+                                <Clock className="absolute left-4 top-3.5 w-5 h-5 text-stone-400" />
+                                <input
+                                    type="date"
+                                    placeholder="Deadline"
+                                    className="w-full bg-white rounded-xl pl-11 pr-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                    value={newJob.deadline}
+                                    onChange={e => setNewJob({ ...newJob, deadline: e.target.value })}
+                                />
+                            </div>
+                            <div className="relative">
+                                <Globe className="absolute left-4 top-3.5 w-5 h-5 text-stone-400" />
+                                <input
+                                    placeholder="Application Link (http://...)"
+                                    className="w-full bg-white rounded-xl pl-11 pr-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                    value={newJob.application_link}
+                                    onChange={e => setNewJob({ ...newJob, application_link: e.target.value })}
+                                />
+                            </div>
                         </div>
                         <textarea
                             placeholder="Description"
@@ -514,9 +563,30 @@ export default function JobsPage() {
                                 </div>
 
                                 <h3 className="text-xl font-bold text-stone-900 mb-1 leading-snug">{job.title}</h3>
-                                <p className="text-stone-500 font-medium mb-4 flex items-center gap-1">
+                                <p className="text-stone-500 font-medium mb-3 flex items-center gap-1">
                                     {job.company}
                                 </p>
+
+                                <div className="space-y-1.5 mb-4">
+                                    {job.location && (
+                                        <div className="flex items-center gap-2 text-stone-500 text-sm">
+                                            <MapPin className="w-4 h-4 text-stone-400" />
+                                            {job.location}
+                                        </div>
+                                    )}
+                                    {job.salary_range && (
+                                        <div className="flex items-center gap-2 text-stone-500 text-sm">
+                                            <DollarSign className="w-4 h-4 text-stone-400" />
+                                            {job.salary_range}
+                                        </div>
+                                    )}
+                                    {job.deadline && (
+                                        <div className="flex items-center gap-2 text-stone-500 text-sm">
+                                            <Calendar className="w-4 h-4 text-stone-400" />
+                                            Deadline: {new Date(job.deadline).toLocaleDateString()}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="space-y-2 mb-6">
                                     {job.description && (
@@ -579,13 +649,34 @@ export default function JobsPage() {
                                     <Building2 className="w-8 h-8" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-stone-900 leading-tight mb-1">{selectedJob.title}</h2>
-                                    <div className="flex items-center gap-2 text-stone-500 font-medium">
-                                        <span>{selectedJob.company}</span>
-                                        <span className="w-1.5 h-1.5 rounded-full bg-stone-300" />
-                                        <span className="bg-stone-100 text-stone-600 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wide">
-                                            {selectedJob.type}
-                                        </span>
+                                    <h2 className="text-2xl font-bold text-stone-900 leading-tight mb-2">{selectedJob.title}</h2>
+                                    <div className="flex flex-col gap-1.5 text-stone-500 font-medium">
+                                        <div className="flex items-center gap-2">
+                                            <Building2 className="w-4 h-4" />
+                                            <span>{selectedJob.company}</span>
+                                        </div>
+                                        {selectedJob.location && (
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="w-4 h-4" />
+                                                <span>{selectedJob.location}</span>
+                                            </div>
+                                        )}
+                                        {selectedJob.salary_range && (
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign className="w-4 h-4" />
+                                                <span>{selectedJob.salary_range}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <span className="bg-stone-100 text-stone-600 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wide">
+                                                {selectedJob.type}
+                                            </span>
+                                            {selectedJob.deadline && (
+                                                <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-md font-medium">
+                                                    Deadline: {new Date(selectedJob.deadline).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
