@@ -65,13 +65,28 @@ export default function PostItem({
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     // Detect video embed in post content
-    const videoEmbed = useMemo(() => detectVideoEmbed(post.content), [post.content]);
+    const videoEmbed = useMemo(() => detectVideoEmbed(post.content || ''), [post.content]);
     const contentWithoutVideoLink = useMemo(() => {
         if (videoEmbed) {
-            return removeVideoLink(post.content, videoEmbed);
+            return removeVideoLink(post.content || '', videoEmbed);
         }
-        return post.content;
+        return post.content || '';
     }, [post.content, videoEmbed]);
+
+    // Detect video embed in original post (for reposts)
+    const originalVideoEmbed = useMemo(() => {
+        if (!post.original_post) return null;
+        return detectVideoEmbed(post.original_post.content || '');
+    }, [post.original_post]);
+
+    const originalContentWithoutLink = useMemo(() => {
+        if (!post.original_post) return '';
+        const content = post.original_post.content || '';
+        if (originalVideoEmbed) {
+            return removeVideoLink(content, originalVideoEmbed);
+        }
+        return content;
+    }, [post.original_post, originalVideoEmbed]);
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -160,6 +175,7 @@ export default function PostItem({
                 <Link to={`/app/profile/${post.author_id}`} className="flex items-center gap-4 group">
                     <div className={`w-12 h-12 ${post.profiles?.role === 'org' ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm`}>
                         <img
+                            loading="lazy"
                             src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.name || 'User')}&background=${post.profiles?.role === 'org' ? 'f97316' : 'random'}`}
                             alt={post.profiles?.name}
                             className={`w-full h-full ${post.profiles?.role === 'org' ? 'object-contain p-1' : 'object-cover'} transition-transform duration-500 group-hover:scale-110`}
@@ -253,6 +269,7 @@ export default function PostItem({
                 <div className="mb-4 border-2 border-stone-200 rounded-2xl p-4 bg-stone-50/50">
                     <Link to={`/app/profile/${post.original_post.author_id}`} className="flex items-center gap-3 mb-3">
                         <img
+                            loading="lazy"
                             src={post.original_post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.original_post.profiles?.name || 'User')}`}
                             alt={post.original_post.profiles?.name}
                             className="w-10 h-10 rounded-xl object-cover"
@@ -267,9 +284,33 @@ export default function PostItem({
                             <span className="text-xs text-stone-500">{formatTimeAgo(post.original_post.created_at)}</span>
                         </div>
                     </Link>
-                    <p className="text-stone-700 text-sm leading-relaxed mb-3">{post.original_post.content}</p>
+                    <p className="text-stone-700 text-sm leading-relaxed mb-3">{originalContentWithoutLink}</p>
+
+                    {/* Original Post Video Embed */}
+                    {originalVideoEmbed && (
+                        <div className="mb-3">
+                            <VideoEmbed
+                                id={`${post.original_post.id}-original-embed`}
+                                embed={originalVideoEmbed}
+                                originalUrl={(post.original_post.content || '').match(/https?:\/\/[^\s]+/)?.[0]}
+                                defaultMuted={true} // Mute inner videos by default
+                            />
+                        </div>
+                    )}
+
+                    {/* Original Post Native Video */}
+                    {post.original_post.video_url && (
+                        <div className="mb-3 rounded-xl overflow-hidden bg-black">
+                            <NativeVideoPlayer
+                                src={post.original_post.video_url}
+                                id={`${post.original_post.id}-original-video`}
+                            />
+                        </div>
+                    )}
+
                     {post.original_post.image_url && (
                         <img
+                            loading="lazy"
                             src={post.original_post.image_url}
                             alt="Original post"
                             className="rounded-xl w-full object-cover max-h-80"
@@ -284,7 +325,7 @@ export default function PostItem({
                     <VideoEmbed
                         id={`${post.id}-embed`}
                         embed={videoEmbed}
-                        originalUrl={post.content.match(/https?:\/\/[^\s]+/)?.[0]}
+                        originalUrl={(post.content || '').match(/https?:\/\/[^\s]+/)?.[0]}
                         defaultMuted={false}
                     />
                 </div>
@@ -355,6 +396,7 @@ export default function PostItem({
                                 }}
                             >
                                 <img
+                                    loading="lazy"
                                     src={url}
                                     alt="Post content"
                                     className={`w-full object-cover bg-stone-50 ${images.length > 1 ? 'h-48 md:h-64' : 'max-h-[500px] object-contain'}`}

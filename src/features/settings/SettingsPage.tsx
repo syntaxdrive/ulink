@@ -131,6 +131,39 @@ export default function SettingsPage() {
                     </div>
                 ))}
 
+                {/* Dark Mode Toggle Card - DISABLED (UI not fully implemented)
+                <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                    <div className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl text-slate-700 dark:text-slate-300">
+                                    {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-stone-900 dark:text-white">Dark Mode</h2>
+                                    <p className="text-xs text-stone-500 dark:text-zinc-400">
+                                        {isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={toggleDarkMode}
+                                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${isDarkMode ? 'bg-emerald-600' : 'bg-stone-300'
+                                    }`}
+                                role="switch"
+                                aria-checked={isDarkMode}
+                            >
+                                <span
+                                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${isDarkMode ? 'translate-x-7' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                */}
+
                 {/* Notification Permission Card */}
                 {notifPermission === 'default' && (
                     <div className="bg-blue-50 rounded-[2rem] border border-blue-100 p-6">
@@ -152,27 +185,27 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                {/* Install App Section */}
-                {isInstallable && (
-                    <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
-                                <Download className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-emerald-900">Get the App</h2>
-                                <p className="text-xs text-emerald-700">No download required!</p>
-                            </div>
+                {/* Install App Section - Always Visible */}
+                <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
+                            <Download className="w-5 h-5" />
                         </div>
-
-                        <button
-                            onClick={install}
-                            className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
-                        >
-                            Install App
-                        </button>
+                        <div>
+                            <h2 className="font-semibold text-emerald-900">Install UniLink App</h2>
+                            <p className="text-xs text-emerald-700">
+                                {isInstallable ? 'One-click install available!' : 'Add to your home screen'}
+                            </p>
+                        </div>
                     </div>
-                )}
+
+                    <button
+                        onClick={isInstallable ? install : () => setShowInstallModal(true)}
+                        className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
+                    >
+                        {isInstallable ? 'Install Now' : 'Show Install Guide'}
+                    </button>
+                </div>
 
                 {/* Clear Cache Button */}
                 <div className="bg-orange-50 rounded-[2rem] border border-orange-100 p-6">

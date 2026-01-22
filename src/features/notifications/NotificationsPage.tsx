@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, UserPlus, Check, X, Bell, MessageSquare, Heart, AtSign, Info, Trash2 } from 'lucide-react';
+import { Loader2, UserPlus, Check, X, Bell, MessageSquare, Heart, AtSign, Info, Trash2, Briefcase } from 'lucide-react';
 import { useNotifications } from './hooks/useNotifications';
 
 export default function NotificationsPage() {
@@ -151,6 +151,11 @@ export default function NotificationsPage() {
                                         case 'mention':
                                             icon = <AtSign className="w-5 h-5 text-orange-500" />;
                                             bgClass = "bg-orange-50";
+                                            break;
+                                        case 'job_update':
+                                            icon = <Briefcase className="w-5 h-5 text-emerald-500" />;
+                                            bgClass = "bg-emerald-50";
+                                            link = "/app/jobs";
                                             break;
                                         case 'connection_rejected':
                                             icon = <X className="w-5 h-5 text-red-500" />;

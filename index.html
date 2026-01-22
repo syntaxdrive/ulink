@@ -17,6 +17,23 @@
   <meta name="apple-mobile-web-app-title" content="UniLink" />
   <link rel="apple-touch-icon" href="/icon-512.png" />
 
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:site_name" content="UniLink" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="UniLink - The #1 Network for Nigerian Students" />
+  <meta property="og:description"
+    content="Connect with students across Nigerian universities. Network, share opportunities, and build your professional profile." />
+  <meta property="og:image" content="https://unilink.ng/icon-512.png" />
+  <meta property="og:url" content="https://unilink.ng" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="UniLink - The #1 Network for Nigerian Students" />
+  <meta name="twitter:description"
+    content="Connect with students across Nigerian universities. Network, share opportunities, and build your professional profile." />
+  <meta name="twitter:image" content="https://unilink.ng/icon-512.png" />
+
 
   <!-- Fonts: Space Grotesk based, Outfit for body (Premium/Clean) -->
   <link
@@ -43,11 +60,25 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #94A3B8;
     }
+
+    /* Custom Scrollbar for Dark Theme */
+    .dark ::-webkit-scrollbar-track {
+      background: #18181B;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #3F3F46;
+      border-radius: 4px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #52525B;
+    }
   </style>
   <title>UniLink</title>
 </head>
 
-<body class="bg-[#FAFAFA] text-slate-900">
+<body class="bg-[#FAFAFA] dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors duration-300">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

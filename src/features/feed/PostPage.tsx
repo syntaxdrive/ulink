@@ -4,6 +4,7 @@ import { useFeed } from './hooks/useFeed';
 import PostItem from './components/PostItem';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useFeedStore } from '../../stores/useFeedStore';
+import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 
 export default function PostPage() {
     const { postId } = useParams();
@@ -38,6 +39,27 @@ export default function PostPage() {
             toggleComments(postId);
         }
     }, [postId]);
+
+    // Update meta tags for social sharing when post loads
+    useEffect(() => {
+        if (post) {
+            const authorName = post.profiles?.name || 'UniLink User';
+            const postContent = post.content || '';
+            const postImage = post.image_url || post.image_urls?.[0];
+
+            updateMetaTags({
+                title: `${authorName}'s Post`,
+                description: postContent,
+                image: postImage || `${window.location.origin}/icon-512.png`,
+                url: window.location.href
+            });
+        }
+
+        // Reset meta tags when component unmounts
+        return () => {
+            resetMetaTags();
+        };
+    }, [post]);
 
     if (loading) {
         return (

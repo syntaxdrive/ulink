@@ -46,6 +46,9 @@ export interface Profile {
     background_image_url?: string;
     instagram_url?: string;
     twitter_url?: string;
+    website_url?: string;
+    facebook_url?: string;
+    industry?: string; // For organizations
 }
 
 export interface Project {
@@ -98,7 +101,7 @@ export interface CommunityMember {
 export interface Post {
     id: string;
     author_id: string;
-    content: string;
+    content: string | null;
     image_url?: string;
     image_urls?: string[]; // Multiple images support
     video_url?: string; // Video support

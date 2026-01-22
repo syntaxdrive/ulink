@@ -150,11 +150,17 @@ export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', o
         if (embed.platform === 'youtube') {
             // Loop video to prevent "More Videos" popup
             // Note: loop=1 requires playlist parameter with the same video ID
-            url += `?autoplay=1&enablejsapi=1&loop=1&playlist=${embed.videoId}&rel=0&controls=${variant === 'full' ? 0 : 1}&modestbranding=1&iv_load_policy=3&fs=0`;
+            // modestbranding=1 removes YouTube logo, iv_load_policy=3 disables annotations
+            url += `?autoplay=1&enablejsapi=1&loop=1&playlist=${embed.videoId}&rel=0&controls=${variant === 'full' ? 0 : 1}&modestbranding=1&iv_load_policy=3&fs=0&cc_load_policy=0&disablekb=1`;
         } else if (embed.platform === 'vimeo') {
-            url += `?autoplay=1&muted=1&api=1`;
-        } else if (embed.platform === 'tiktok' || embed.platform === 'instagram') {
+            // Remove Vimeo branding and controls
+            url += `?autoplay=1&muted=1&api=1&title=0&byline=0&portrait=0&badge=0`;
+        } else if (embed.platform === 'tiktok') {
+            // TikTok embed with minimal branding
             url += `?autoplay=1`;
+        } else if (embed.platform === 'instagram') {
+            // Instagram embed - captionless removes some UI elements
+            url += `/captionless/?autoplay=1`;
         }
 
         return url;
@@ -175,7 +181,7 @@ export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', o
                     alt={`${getPlatformName()} video`}
                     className={variant === 'full'
                         ? "w-full h-full object-contain"
-                        : "w-full aspect-video object-cover"}
+                        : (embed.isVertical ? "w-full aspect-[9/16] object-cover" : "w-full aspect-video object-cover")}
                     onError={(e) => {
                         const img = e.target as HTMLImageElement;
                         if (img && img.src && img.src.includes('maxresdefault')) {
@@ -183,15 +189,15 @@ export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', o
                         }
                     }}
                 />
-                < div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center" >
+                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                     <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getPlatformColor()} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
                         <Play className="w-8 h-8 text-white fill-white ml-1" />
                     </div>
-                </div >
+                </div>
                 <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/70 backdrop-blur-sm rounded text-xs text-white font-medium">
                     {getPlatformName()}
                 </div>
-            </div >
+            </div>
         );
     }
 
@@ -199,8 +205,8 @@ export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', o
     return (
         <div ref={containerRef} className={variant === 'full'
             ? "relative w-full h-full bg-black"
-            : "relative rounded-xl overflow-hidden bg-black"}>
-            <div className={variant === 'full' ? "w-full h-full relative" : "aspect-video relative"}>
+            : (embed.isVertical ? "relative rounded-xl overflow-hidden bg-black max-w-sm mx-auto" : "relative rounded-xl overflow-hidden bg-black")}>
+            <div className={variant === 'full' ? "w-full h-full relative" : (embed.isVertical ? "w-full aspect-[9/16] relative" : "w-full aspect-video relative")}>
                 {embed.platform === 'twitter' ? (
                     <div className="w-full h-full flex items-center justify-center bg-slate-100">
                         <a
@@ -243,12 +249,14 @@ export default function VideoEmbed({ id, embed, originalUrl, variant = 'feed', o
                                 autoplay: 1,
                                 mute: 1, // Always start muted for autoplay
                                 controls: variant === 'full' ? 0 : 1,
-                                modestbranding: 1,
-                                rel: 0,
+                                modestbranding: 1, // Remove YouTube logo
+                                rel: 0, // Don't show related videos
                                 loop: 1,
                                 playlist: embed.videoId,
-                                iv_load_policy: 3,
-                                fs: 0,
+                                iv_load_policy: 3, // Disable annotations
+                                fs: 0, // Disable fullscreen button
+                                cc_load_policy: 0, // Disable captions by default
+                                disablekb: 1, // Disable keyboard controls
                                 origin: window.location.origin,
                             },
                         }}

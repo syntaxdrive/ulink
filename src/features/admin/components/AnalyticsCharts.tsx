@@ -61,48 +61,48 @@ export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
     return (
         <div className="space-y-6">
             {/* Key Metrics for Investors */}
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-[2rem] p-6 md:p-8 text-white shadow-xl">
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-[2rem] p-6 md:p-8 text-white shadow-xl">
                 <h2 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 md:w-8 md:h-8" />
                     Platform Growth
                 </h2>
-                <p className="text-indigo-100 mb-6 text-sm md:text-base">Real-time user acquisition metrics</p>
+                <p className="text-emerald-100 mb-6 text-sm md:text-base">Real-time user acquisition metrics</p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
                         <div className="flex items-center gap-2 mb-1">
-                            <Activity className="w-4 h-4 text-indigo-200" />
-                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 24h</p>
+                            <Activity className="w-4 h-4 text-emerald-200" />
+                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 24h</p>
                         </div>
                         <p className="text-2xl md:text-4xl font-bold">{growthMetrics.daily}</p>
-                        <p className="text-xs text-indigo-200 mt-1">new users</p>
+                        <p className="text-xs text-emerald-200 mt-1">new users</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
                         <div className="flex items-center gap-2 mb-1">
-                            <Calendar className="w-4 h-4 text-indigo-200" />
-                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 7 days</p>
+                            <Calendar className="w-4 h-4 text-emerald-200" />
+                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 7 days</p>
                         </div>
                         <p className="text-2xl md:text-4xl font-bold">{growthMetrics.weekly}</p>
-                        <p className="text-xs text-indigo-200 mt-1">new users</p>
+                        <p className="text-xs text-emerald-200 mt-1">new users</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
                         <div className="flex items-center gap-2 mb-1">
-                            <Target className="w-4 h-4 text-indigo-200" />
-                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Last 30 days</p>
+                            <Target className="w-4 h-4 text-emerald-200" />
+                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 30 days</p>
                         </div>
                         <p className="text-2xl md:text-4xl font-bold">{growthMetrics.monthly}</p>
-                        <p className="text-xs text-indigo-200 mt-1">new users</p>
+                        <p className="text-xs text-emerald-200 mt-1">new users</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
                         <div className="flex items-center gap-2 mb-1">
-                            <Users className="w-4 h-4 text-indigo-200" />
-                            <p className="text-xs md:text-sm text-indigo-200 font-medium">Total</p>
+                            <Users className="w-4 h-4 text-emerald-200" />
+                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Total</p>
                         </div>
                         <p className="text-2xl md:text-4xl font-bold">{growthMetrics.total}</p>
-                        <p className="text-xs text-indigo-200 mt-1">registered</p>
+                        <p className="text-xs text-emerald-200 mt-1">registered</p>
                     </div>
                 </div>
             </div>
@@ -158,7 +158,7 @@ export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
                         <div key={uni} className="group">
                             <div className="flex justify-between items-center mb-2">
                                 <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                                    <span className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs md:text-sm flex items-center justify-center">
+                                    <span className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald-100 text-emerald-600 font-bold text-xs md:text-sm flex items-center justify-center">
                                         {index + 1}
                                     </span>
                                     <span className="font-medium text-stone-700 text-sm md:text-base truncate">{uni}</span>
@@ -167,7 +167,7 @@ export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
                             </div>
                             <div className="w-full bg-stone-100 h-2 md:h-3 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                                    className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                                     style={{ width: `${(count / users.length) * 100}%` }}
                                 />
                             </div>

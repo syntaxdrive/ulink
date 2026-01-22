@@ -21,6 +21,8 @@ export default function UserProfilePage() {
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
     const [actionLoading, setActionLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'posts' | 'jobs'>('posts');
+    const [orgJobs, setOrgJobs] = useState<any[]>([]);
 
     // Helper to check if profile is organization
     const isOrganization = profile?.role === 'org';
@@ -227,6 +229,21 @@ export default function UserProfilePage() {
         }
     }, [profile?.id]);
 
+    // Fetch organization jobs
+    useEffect(() => {
+        if (profile?.id && isOrganization) {
+            const fetchOrgJobs = async () => {
+                const { data } = await supabase
+                    .from('jobs')
+                    .select('*')
+                    .eq('creator_id', profile.id)
+                    .order('created_at', { ascending: false });
+                if (data) setOrgJobs(data);
+            };
+            fetchOrgJobs();
+        }
+    }, [profile?.id, isOrganization]);
+
     const toggleLike = async (post: any) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -276,7 +293,7 @@ export default function UserProfilePage() {
         );
     }
 
-    const isStudent = profile.role === 'student';
+
 
     return (
         <div className="max-w-5xl mx-auto pb-20">
@@ -335,6 +352,13 @@ export default function UserProfilePage() {
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-semibold mb-3">
                                     <Briefcase className="w-3.5 h-3.5" />
                                     Organization
+                                </div>
+                            )}
+
+                            {/* Industry (Organizations only) */}
+                            {isOrganization && profile.industry && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-xs font-semibold mb-3 ml-2">
+                                    {profile.industry}
                                 </div>
                             )}
 
@@ -758,10 +782,40 @@ export default function UserProfilePage() {
                         </div>
                     )}
 
-                    {/* Recent Activity (Posts) */}
-                    {posts.length > 0 && (
+                    {/* Tabs for Organizations */}
+                    {isOrganization && (
+                        <div className="flex gap-2 border-b border-stone-200 mb-6">
+                            <button
+                                onClick={() => setActiveTab('posts')}
+                                className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'posts'
+                                    ? 'text-emerald-600'
+                                    : 'text-stone-500 hover:text-stone-700'
+                                    }`}
+                            >
+                                Posts
+                                {activeTab === 'posts' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('jobs')}
+                                className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'jobs'
+                                    ? 'text-emerald-600'
+                                    : 'text-stone-500 hover:text-stone-700'
+                                    }`}
+                            >
+                                Jobs ({orgJobs.length})
+                                {activeTab === 'jobs' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                )}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Posts Tab */}
+                    {(!isOrganization || activeTab === 'posts') && posts.length > 0 && (
                         <div className="space-y-6">
-                            <h3 className="text-xl font-bold text-slate-900 px-2">Recent Activity</h3>
+                            {!isOrganization && <h3 className="text-xl font-bold text-slate-900 px-2">Recent Activity</h3>}
                             {posts.map((post) => (
                                 <article key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-stone-100">
                                     <div className="flex justify-between items-start mb-4">
@@ -789,7 +843,7 @@ export default function UserProfilePage() {
                                         )}
                                     </div>
                                     <p className="text-stone-600 leading-relaxed mb-4 text-sm">
-                                        {post.content}
+                                        {post.content || ''}
                                     </p>
                                     <div className="flex items-center gap-4 text-stone-400 text-xs font-medium">
                                         <div className="flex items-center gap-1">
@@ -807,6 +861,64 @@ export default function UserProfilePage() {
                                     </div>
                                 </article>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Jobs Tab (Organizations Only) */}
+                    {isOrganization && activeTab === 'jobs' && (
+                        <div className="space-y-6">
+                            {orgJobs.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {orgJobs.map((job) => (
+                                        <div key={job.id} className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600">
+                                                    <Briefcase className="w-6 h-6" />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {job.status === 'closed' && (
+                                                        <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                                            Closed
+                                                        </span>
+                                                    )}
+                                                    <span className="bg-stone-50 text-stone-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                                        {job.type}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-stone-900 mb-1">{job.title}</h3>
+                                            <p className="text-stone-500 font-medium text-sm mb-3">{job.company}</p>
+                                            {job.location && (
+                                                <div className="flex items-center gap-2 text-stone-500 text-sm mb-2">
+                                                    <MapPin className="w-4 h-4 text-stone-400" />
+                                                    {job.location}
+                                                </div>
+                                            )}
+                                            {job.description && (
+                                                <p className="text-stone-600 text-sm line-clamp-2 leading-relaxed mb-3">
+                                                    {job.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center justify-between pt-3 border-t border-stone-100">
+                                                <span className="text-xs text-stone-400">
+                                                    Posted {new Date(job.created_at).toLocaleDateString()}
+                                                </span>
+                                                <Link
+                                                    to="/app/jobs"
+                                                    className="text-emerald-600 text-sm font-semibold hover:text-emerald-700 transition-colors"
+                                                >
+                                                    View Details →
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-stone-200">
+                                    <Briefcase className="w-12 h-12 text-stone-200 mx-auto mb-4" />
+                                    <p className="text-stone-400 font-medium">No jobs posted yet.</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

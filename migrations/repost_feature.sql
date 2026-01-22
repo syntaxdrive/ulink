@@ -12,6 +12,9 @@ ADD COLUMN IF NOT EXISTS reposts_count INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_posts_original_post_id ON posts(original_post_id);
 CREATE INDEX IF NOT EXISTS idx_posts_is_repost ON posts(is_repost);
 
+-- Make content nullable to support reposts
+ALTER TABLE posts ALTER COLUMN content DROP NOT NULL;
+
 -- Update existing posts to have reposts_count = 0 if null
 UPDATE posts SET reposts_count = 0 WHERE reposts_count IS NULL;
 

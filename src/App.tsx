@@ -25,10 +25,22 @@ import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import LearnPage from './features/learn/LearnPage';
 import UpdateNotification from './components/UpdateNotification';
+import { useUIStore } from './stores/useUIStore';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setDarkMode } = useUIStore();
+
+  // Initialize dark mode on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('darkMode');
+    const shouldBeDark = stored !== null ? stored === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', shouldBeDark);
+    if (stored === null) {
+      setDarkMode(shouldBeDark);
+    }
+  }, [setDarkMode]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,9 +52,29 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      // Clean URL if we have a hash and a session (removes access_token from address bar)
-      if (session && window.location.hash && window.location.hash.includes('access_token')) {
-        window.history.replaceState(null, '', window.location.pathname);
+
+      // Clean URL after OAuth callback to remove sensitive tokens
+      // This handles both PKCE flow (query params) and implicit flow (hash)
+      if (session) {
+        const url = new URL(window.location.href);
+        let shouldClean = false;
+
+        // Check for OAuth callback parameters in hash (implicit flow - legacy)
+        if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'))) {
+          shouldClean = true;
+        }
+
+        // Check for OAuth callback parameters in query string (PKCE flow)
+        if (url.searchParams.has('code') || url.searchParams.has('access_token')) {
+          shouldClean = true;
+        }
+
+        // Clean the URL if OAuth parameters were found
+        if (shouldClean) {
+          // Remove all query params and hash
+          const cleanUrl = `${url.origin}${url.pathname}`;
+          window.history.replaceState(null, '', cleanUrl);
+        }
       }
     });
 
@@ -51,7 +83,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-stone-50 text-emerald-600">
+      <div className="h-screen w-screen flex items-center justify-center bg-stone-50 dark:bg-zinc-950 text-emerald-600">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );

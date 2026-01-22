@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, GraduationCap, ChevronDown, Search, X } from 'lucide-react';
 import { fetchEducationalVideos, formatDuration, formatViewCount, type YouTubeVideo, CATEGORIES, type Category } from '../../services/youtube';
 import { detectVideoEmbed } from '../../utils/videoEmbed';
@@ -17,6 +17,13 @@ export default function LearnPage() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const { setImmersive } = useUIStore();
+
+    const scrollToIndex = useCallback((index: number) => {
+        const element = document.getElementById(`video-${index}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, []);
 
     // Auto-hide UI Logic
     useEffect(() => {
@@ -48,14 +55,9 @@ export default function LearnPage() {
             window.removeEventListener('keydown', showUI);
             window.removeEventListener('touchstart', showUI);
         };
-    }, []);
+    }, [setImmersive]);
 
-    // Fetch initial videos when category or search changes
-    useEffect(() => {
-        loadVideos();
-    }, [selectedCategory, activeSearch]);
-
-    const loadVideos = async () => {
+    const loadVideos = useCallback(async () => {
         try {
             setLoading(true);
             const { videos: newVideos, nextPageToken: token } = await fetchEducationalVideos(
@@ -73,7 +75,12 @@ export default function LearnPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedCategory, activeSearch, scrollToIndex]);
+
+    // Fetch initial videos when category or search changes
+    useEffect(() => {
+        loadVideos();
+    }, [loadVideos]);
 
     const loadMoreVideos = async () => {
         if (loadingMore || !nextPageToken) return;
@@ -132,12 +139,6 @@ export default function LearnPage() {
         }
     };
 
-    const scrollToIndex = (index: number) => {
-        const element = document.getElementById(`video-${index}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
 
     // Intersection Observer to track current video
     useEffect(() => {

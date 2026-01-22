@@ -849,7 +849,7 @@ export default function ProfilePage() {
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-slate-800 text-sm mb-3 whitespace-pre-wrap">{post.content}</p>
+                                        <p className="text-slate-800 text-sm mb-3 whitespace-pre-wrap">{post.content || ''}</p>
                                         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
                                             <div className="flex items-center gap-1">
                                                 <Heart className="w-3.5 h-3.5" />

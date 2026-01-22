@@ -97,16 +97,26 @@ export default function AdminPage() {
         });
 
         if (!error) {
-            setUsers(prev => prev.map(u =>
-                u.id === userId ? { ...u, is_verified: !currentStatus } : u
-            ));
-            // Update stats vaguely
+            // Refresh the entire user list to ensure data consistency
+            const { data: usersData } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (usersData) {
+                setUsers(usersData);
+            }
+
+            // Update stats
             if (stats) {
                 setStats({
                     ...stats,
                     total_verified: currentStatus ? stats.total_verified - 1 : stats.total_verified + 1
                 });
             }
+        } else {
+            console.error('Error toggling verification:', error);
+            alert('Failed to update verification status. Please try again.');
         }
     };
 
@@ -127,18 +137,18 @@ export default function AdminPage() {
         <div className="max-w-6xl mx-auto pb-20 space-y-8">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 bg-stone-900 text-white rounded-2xl">
+                    <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl">
                         <Shield className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-stone-900 font-display">Admin Dashboard</h1>
-                        <p className="text-stone-500">Manage users and view platform analytics</p>
+                        <h1 className="text-3xl font-bold text-stone-900 dark:text-white font-display">Admin Dashboard</h1>
+                        <p className="text-stone-500 dark:text-zinc-400">Manage users and view platform analytics</p>
                     </div>
                 </div>
 
                 <button
                     onClick={() => openEmailModal()}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all"
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all"
                 >
                     <Mail className="w-4 h-4" />
                     Send Broadcast
@@ -147,33 +157,33 @@ export default function AdminPage() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl">
                         <Users className="w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-stone-500 text-sm font-medium">Total Users</p>
-                        <p className="text-3xl font-bold text-stone-900">{stats?.total_users || 0}</p>
+                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Total Users</p>
+                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_users || 0}</p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-500 rounded-2xl">
                         <BadgeCheck className="w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-stone-500 text-sm font-medium">Verified Accounts</p>
-                        <p className="text-3xl font-bold text-stone-900">{stats?.total_verified || 0}</p>
+                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Verified Accounts</p>
+                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_verified || 0}</p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-orange-100 text-orange-600 rounded-2xl">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-500 rounded-2xl">
                         <Building2 className="w-8 h-8" />
                     </div>
                     <div>
-                        <p className="text-stone-500 text-sm font-medium">Organizations</p>
-                        <p className="text-3xl font-bold text-stone-900">{stats?.total_orgs || 0}</p>
+                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Organizations</p>
+                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_orgs || 0}</p>
                     </div>
                 </div>
             </div>
@@ -183,12 +193,12 @@ export default function AdminPage() {
             <AnalyticsCharts users={users} />
 
             {/* User Reports Section */}
-            <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-stone-100 flex items-center gap-3">
-                    <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-stone-100 dark:border-zinc-800 flex items-center gap-3">
+                    <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 rounded-lg">
                         <Flag className="w-5 h-5" />
                     </div>
-                    <h2 className="text-xl font-bold text-stone-900">Flagged Accounts & Reports</h2>
+                    <h2 className="text-xl font-bold text-stone-900 dark:text-white">Flagged Accounts & Reports</h2>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -249,18 +259,18 @@ export default function AdminPage() {
             </div>
 
             {/* User Management */}
-            <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
                 {/* ... existing table ... */}
-                <div className="p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-xl font-bold text-stone-900">User Management</h2>
+                <div className="p-6 border-b border-stone-100 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h2 className="text-xl font-bold text-stone-900 dark:text-white">User Management</h2>
                     <div className="relative">
-                        <Search className="w-5 h-5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className="w-5 h-5 text-stone-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
                             placeholder="Search users..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900 w-full md:w-64"
+                            className="pl-10 pr-4 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900 dark:focus:ring-emerald-500 w-full md:w-64 text-stone-900 dark:text-white"
                         />
                     </div>
                 </div>
@@ -302,7 +312,7 @@ export default function AdminPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.is_admin ? 'bg-purple-100 text-purple-700' : (user.role === 'org' ? 'bg-orange-100 text-orange-700' : 'bg-stone-100 text-stone-600')
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.is_admin ? 'bg-emerald-100 text-emerald-700' : (user.role === 'org' ? 'bg-orange-100 text-orange-700' : 'bg-stone-100 text-stone-600')
                                             }`}>
                                             {user.is_admin ? 'Admin' : (user.role === 'org' ? 'Organization' : 'Student')}
                                         </span>
@@ -324,7 +334,7 @@ export default function AdminPage() {
                                             {/* Email Action */}
                                             <button
                                                 onClick={() => openEmailModal(user)}
-                                                className="p-1.5 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                                 title="Send Email"
                                             >
                                                 <Mail className="w-4 h-4" />
