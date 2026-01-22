@@ -25,6 +25,31 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    // Manual chunk splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase': ['@supabase/supabase-js'],
+          'ui-vendor': ['lucide-react', 'zustand'],
+          // Feature chunks
+          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+        },
+      },
+    },
+    // Minification and optimization
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true,
+      },
+    },
+    // Chunk size warnings
+    chunkSizeWarningLimit: 600,
+  },
   server: {
     host: true,
     allowedHosts: true,

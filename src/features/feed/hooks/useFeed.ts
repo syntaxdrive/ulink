@@ -76,19 +76,39 @@ export function useFeed(communityId?: string) {
     const fetchPosts = async (userId?: string) => {
         setLoading(true);
 
+        // Optimized query with pagination and selective fields
         let query = supabase
             .from('posts')
             .select(`
                 *,
-                profiles:author_id (*),
-                likes (user_id),
-                comments (id),
+                profiles:author_id (
+                    id,
+                    name,
+                    avatar_url,
+                    is_verified,
+                    gold_verified,
+                    headline,
+                    role,
+                    email
+                ),
                 original_post:original_post_id (
-                    *,
-                    profiles:author_id (*)
+                    id,
+                    content,
+                    image_url,
+                    image_urls,
+                    video_url,
+                    created_at,
+                    author_id,
+                    profiles:author_id (
+                        id,
+                        name,
+                        avatar_url,
+                        is_verified
+                    )
                 )
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(20); // Pagination: Load 20 posts at a time
 
         if (communityId) {
             // Community Feed: Only show posts from this specific community
@@ -108,27 +128,99 @@ export function useFeed(communityId?: string) {
             // VIP Users List
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
-            // Safe Poll Vote Fetching
-            let pollVotesMap: Record<string, number> = {};
-            if (userId && data.length > 0) {
-                const postIds = data.map((p: any) => p.id);
-                // Attempt to fetch votes, ignoring errors (e.g. if table missing)
-                const { data: votes } = await supabase
+            // Fetch counts separately for better performance
+            const postIds = data.map((p: any) => p.id);
+
+            // Fetch likes count and user's like status
+            const likesPromise = supabase
+                .from('likes')
+                .select('post_id, user_id')
+                .in('post_id', postIds);
+
+            // Fetch comments count
+            const commentsPromise = supabase
+                .from('comments')
+                .select('post_id')
+                .in('post_id', postIds);
+
+            // Fetch reposts count
+            const repostsPromise = supabase
+                .from('posts')
+                .select('original_post_id')
+                .in('original_post_id', postIds)
+                .eq('is_repost', true);
+
+            // Fetch poll votes
+            let pollVotesPromise = Promise.resolve({ data: null });
+            if (userId) {
+                pollVotesPromise = supabase
                     .from('poll_votes')
                     .select('post_id, option_index')
                     .eq('user_id', userId)
                     .in('post_id', postIds);
+            }
 
-                if (votes) {
-                    votes.forEach((v: any) => { pollVotesMap[v.post_id] = v.option_index; });
-                }
+            // Execute all queries in parallel
+            const [likesResult, commentsResult, repostsResult, pollVotesResult] = await Promise.all([
+                likesPromise,
+                commentsPromise,
+                repostsPromise,
+                pollVotesPromise
+            ]);
+
+            // Build count maps
+            const likesMap: Record<string, { count: number; userLiked: boolean }> = {};
+            const commentsMap: Record<string, number> = {};
+            const repostsMap: Record<string, { count: number; userReposted: boolean }> = {};
+            const pollVotesMap: Record<string, number> = {};
+
+            // Process likes
+            if (likesResult.data) {
+                likesResult.data.forEach((like: any) => {
+                    if (!likesMap[like.post_id]) {
+                        likesMap[like.post_id] = { count: 0, userLiked: false };
+                    }
+                    likesMap[like.post_id].count++;
+                    if (userId && like.user_id === userId) {
+                        likesMap[like.post_id].userLiked = true;
+                    }
+                });
+            }
+
+            // Process comments
+            if (commentsResult.data) {
+                commentsResult.data.forEach((comment: any) => {
+                    commentsMap[comment.post_id] = (commentsMap[comment.post_id] || 0) + 1;
+                });
+            }
+
+            // Process reposts
+            if (repostsResult.data) {
+                repostsResult.data.forEach((repost: any) => {
+                    if (!repostsMap[repost.original_post_id]) {
+                        repostsMap[repost.original_post_id] = { count: 0, userReposted: false };
+                    }
+                    repostsMap[repost.original_post_id].count++;
+                    if (userId && repost.author_id === userId) {
+                        repostsMap[repost.original_post_id].userReposted = true;
+                    }
+                });
+            }
+
+            // Process poll votes
+            if (pollVotesResult.data) {
+                pollVotesResult.data.forEach((v: any) => {
+                    pollVotesMap[v.post_id] = v.option_index;
+                });
             }
 
             let formatted = data.map((post: any) => ({
                 ...post,
-                likes_count: post.likes ? post.likes.length : 0,
-                comments_count: post.comments ? post.comments.length : 0,
-                user_has_liked: userId ? post.likes.some((like: any) => like.user_id === userId) : false,
+                likes_count: likesMap[post.id]?.count || 0,
+                comments_count: commentsMap[post.id] || 0,
+                reposts_count: repostsMap[post.id]?.count || 0,
+                user_has_liked: likesMap[post.id]?.userLiked || false,
+                user_has_reposted: repostsMap[post.id]?.userReposted || false,
                 user_vote: pollVotesMap[post.id] ?? null,
                 is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
@@ -322,19 +414,24 @@ export function useFeed(communityId?: string) {
                 reposts_count: newRepostCount
             });
 
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('posts')
                 .insert({
                     author_id: user.id,
-                    content: comment || post.content,
-                    image_url: post.image_url,
-                    image_urls: post.image_urls,
-                    video_url: post.video_url,
+                    content: comment || null,
+                    image_url: null,
+                    image_urls: null,
+                    video_url: null,
                     is_repost: true,
                     original_post_id: post.id,
                     repost_comment: comment || null,
                     community_id: communityId || null
-                });
+                })
+                .select(`
+                    *,
+                    profiles:author_id (*)
+                `)
+                .single();
 
             if (error) {
                 console.error('Error creating repost:', error);
@@ -345,12 +442,24 @@ export function useFeed(communityId?: string) {
                     reposts_count: (post.reposts_count || 0)
                 });
 
-                // Check if it's a column missing error
                 if (error.message?.includes('column') || error.code === '42703') {
                     alert('Repost feature requires database migration. Please run the SQL migration from REPOST_FEATURE.md');
                 } else {
                     alert('Failed to repost: ' + (error.message || 'Unknown error'));
                 }
+            } else if (data) {
+                // Instant UI Update: Add the new repost to the feed
+                // We construct the full Post object using the returned data and the known original post
+                const newRepostItem: any = {
+                    ...data,
+                    likes_count: 0,
+                    comments_count: 0,
+                    user_has_liked: false,
+                    original_post: post, // Attach the original post object directly
+                    profiles: currentUserProfile || data.profiles // Use local profile or returned one
+                };
+
+                addPost(newRepostItem);
             }
         }
     };

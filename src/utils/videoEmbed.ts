@@ -9,20 +9,24 @@ export interface VideoEmbed {
     videoId: string;
     embedUrl: string;
     thumbnailUrl?: string;
+    isVertical?: boolean;
 }
 
 /**
  * Extract YouTube video ID from various URL formats
  */
-const getYouTubeId = (url: string): string | null => {
+const getYouTubeId = (url: string): { id: string, isShorts: boolean } | null => {
+    const shortsPattern = /youtube\.com\/shorts\/([^&\n?#]+)/;
+    const shortsMatch = url.match(shortsPattern);
+    if (shortsMatch) return { id: shortsMatch[1], isShorts: true };
+
     const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-        /youtube\.com\/shorts\/([^&\n?#]+)/
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/
     ];
 
     for (const pattern of patterns) {
         const match = url.match(pattern);
-        if (match) return match[1];
+        if (match) return { id: match[1], isShorts: false };
     }
     return null;
 };
@@ -66,13 +70,14 @@ export const detectVideoEmbed = (text: string): VideoEmbed | null => {
     if (!text) return null;
 
     // YouTube
-    const youtubeId = getYouTubeId(text);
-    if (youtubeId) {
+    const youtubeData = getYouTubeId(text);
+    if (youtubeData) {
         return {
             platform: 'youtube',
-            videoId: youtubeId,
-            embedUrl: `https://www.youtube.com/embed/${youtubeId}`,
-            thumbnailUrl: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+            videoId: youtubeData.id,
+            embedUrl: `https://www.youtube.com/embed/${youtubeData.id}`,
+            thumbnailUrl: `https://img.youtube.com/vi/${youtubeData.id}/maxresdefault.jpg`,
+            isVertical: youtubeData.isShorts
         };
     }
 
@@ -83,16 +88,19 @@ export const detectVideoEmbed = (text: string): VideoEmbed | null => {
             platform: 'tiktok',
             videoId: tiktokId,
             embedUrl: `https://www.tiktok.com/embed/v2/${tiktokId}`,
+            isVertical: true
         };
     }
 
     // Instagram
     const instagramId = getInstagramId(text);
     if (instagramId) {
+        const isReel = text.includes('/reel/');
         return {
             platform: 'instagram',
             videoId: instagramId,
             embedUrl: `https://www.instagram.com/p/${instagramId}/embed`,
+            isVertical: isReel
         };
     }
 

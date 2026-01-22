@@ -100,7 +100,7 @@ export default function RepostModal({ post, isOpen, onClose, onRepost }: RepostM
                                     />
                                     <span className="font-semibold text-sm text-stone-900">{post.profiles?.name}</span>
                                 </div>
-                                <p className="text-sm text-stone-600 line-clamp-3">{post.content}</p>
+                                <p className="text-sm text-stone-600 line-clamp-3">{post.content || ''}</p>
                                 {post.image_url && (
                                     <img
                                         src={post.image_url}

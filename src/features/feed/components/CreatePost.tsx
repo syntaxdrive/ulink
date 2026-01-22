@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus } from 'lucide-react';
 
 interface CreatePostProps {
     onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;
@@ -169,7 +169,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                     <textarea
                         className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
                         placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
-                        rows={2}
+                        rows={4}
                         value={content}
                         onChange={(e) => {
                             if (e.target.value.length <= MAX_CHARS) {
@@ -279,7 +279,8 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                         >
                             <ImageIcon className="w-5 h-5" />
                         </button>
-                        <button
+                        {/* Video upload temporarily disabled - Cloudinary integration coming soon */}
+                        {/* <button
                             type="button"
                             onClick={() => videoInputRef.current?.click()}
                             disabled={imageFiles.length > 0}
@@ -287,7 +288,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                             title="Add Video"
                         >
                             <Video className="w-5 h-5" />
-                        </button>
+                        </button> */}
                         <button
                             type="button"
                             onClick={() => setShowPoll(!showPoll)}

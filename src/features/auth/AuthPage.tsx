@@ -23,10 +23,6 @@ export default function AuthPage() {
                         ? 'com.syntaxdrive.ulink://app' // Deep link for mobile
                         : `${window.location.origin}/app`, // Web redirect
                     skipBrowserRedirect: isCapacitor, // Don't auto-redirect on mobile
-                    queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                    },
                 }
             });
 

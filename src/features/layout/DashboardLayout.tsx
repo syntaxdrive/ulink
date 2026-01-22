@@ -266,7 +266,7 @@ export default function DashboardLayout() {
     );
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative">
+        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
 
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 

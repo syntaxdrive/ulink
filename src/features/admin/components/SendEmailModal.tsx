@@ -83,7 +83,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                 {/* Header */}
                 <div className="bg-stone-50 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-100 flex-shrink-0">
                     <h2 className="text-base sm:text-lg font-bold text-stone-900 flex items-center gap-2">
-                        <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500" />
+                        <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                         Send Email
                     </h2>
                     <button onClick={onClose} className="p-2 hover:bg-stone-200 rounded-full transition-colors text-stone-500">
@@ -100,7 +100,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                                 <button
                                     type="button"
                                     onClick={() => setAudience('single')}
-                                    className={`flex flex-col items-center p-3 rounded-xl border transition-all ${audience === 'single' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
+                                    className={`flex flex-col items-center p-3 rounded-xl border transition-all ${audience === 'single' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
                                 >
                                     <User className="w-5 h-5 mb-1" />
                                     <span className="text-xs font-medium">Single User</span>
@@ -109,7 +109,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                             <button
                                 type="button"
                                 onClick={() => setAudience('all')}
-                                className={`flex flex-col items-center p-3 rounded-xl border transition-all ${audience === 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
+                                className={`flex flex-col items-center p-3 rounded-xl border transition-all ${audience === 'all' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
                             >
                                 <Users className="w-5 h-5 mb-1" />
                                 <span className="text-xs font-medium">All Users</span>
@@ -156,7 +156,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                                     await navigator.clipboard.writeText(recipients.join(', '));
                                     alert('Copied all emails to clipboard!');
                                 }}
-                                className="text-indigo-600 text-xs hover:underline"
+                                className="text-emerald-600 text-xs hover:underline"
                             >
                                 Copy All
                             </button>
@@ -184,7 +184,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                             <input
                                 id="subject"
                                 type="text"
-                                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                 placeholder="Important update..."
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
@@ -196,7 +196,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                             <textarea
                                 id="message"
                                 rows={4}
-                                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
                                 placeholder="Write your message here..."
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
@@ -216,7 +216,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                         <button
                             type="submit"
                             disabled={sending || getRecipientCount() === 0}
-                            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:shadow-emerald-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
                             {sending ? 'Opening...' : 'Open Mail Client'}
