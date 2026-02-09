@@ -155,14 +155,14 @@ export default function PostItem({
     };
 
     return (
-        <article className="bg-white rounded-[2rem] p-6 shadow-[0_2px_20px_rgb(0,0,0,0.04)] border border-stone-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300">
+        <article className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 transition-all duration-200">
             {/* Repost Banner */}
             {post.is_repost && post.profiles && (
-                <div className="flex items-center gap-2 mb-3 text-sm text-stone-500">
-                    <Repeat className="w-4 h-4 text-green-600" />
+                <div className="flex items-center gap-2 px-4 pt-4 pb-2 text-sm text-stone-500 dark:text-zinc-500">
+                    <Repeat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                     <Link
                         to={`/app/profile/${post.author_id}`}
-                        className="font-semibold text-stone-700 hover:text-green-600 transition-colors"
+                        className="font-semibold text-stone-700 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors"
                     >
                         {post.profiles.name}
                     </Link>
@@ -171,52 +171,52 @@ export default function PostItem({
             )}
 
             {/* Header */}
-            <div className="flex justify-between items-start mb-4">
-                <Link to={`/app/profile/${post.author_id}`} className="flex items-center gap-4 group">
-                    <div className={`w-12 h-12 ${post.profiles?.role === 'org' ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm`}>
+            <div className="flex justify-between items-start px-4 pt-3 pb-2">
+                <Link to={`/app/profile/${post.author_id}`} className="flex items-center gap-3 group">
+                    <div className={`w-10 h-10 ${post.profiles?.role === 'org' ? 'rounded-lg' : 'rounded-full'} overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 dark:from-zinc-800 dark:to-zinc-700`}>
                         <img
                             loading="lazy"
                             src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.name || 'User')}&background=${post.profiles?.role === 'org' ? 'f97316' : 'random'}`}
                             alt={post.profiles?.name}
-                            className={`w-full h-full ${post.profiles?.role === 'org' ? 'object-contain p-1' : 'object-cover'} transition-transform duration-500 group-hover:scale-110`}
+                            className={`w-full h-full ${post.profiles?.role === 'org' ? 'object-contain p-1.5' : 'object-cover'} transition-transform duration-300 group-hover:scale-105`}
                         />
                     </div>
                     <div>
-                        <h3 className="font-bold text-stone-900 leading-tight flex items-center gap-1 group-hover:text-emerald-600 transition-colors">
+                        <h3 className="font-semibold text-[15px] text-stone-900 dark:text-zinc-100 leading-tight flex items-center gap-1.5 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
                             {post.profiles?.name}
                             {post.profiles?.gold_verified && <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50" />}
-                            {post.profiles?.is_verified && !post.profiles?.gold_verified && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50" />}
+                            {post.profiles?.is_verified && !post.profiles?.gold_verified && <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50 dark:fill-blue-950" />}
                         </h3>
-                        <p className="text-xs font-medium text-stone-400">
+                        <p className="text-xs text-stone-500 dark:text-zinc-500 leading-tight mt-0.5">
                             {post.profiles?.headline || (post.profiles?.role === 'org' ? 'Organization' : post.profiles?.university)}
                             {' • '}
-                            {formatTimeAgo(post.created_at)}
+                            <span className="text-stone-400 dark:text-zinc-600">{formatTimeAgo(post.created_at)}</span>
                         </p>
                     </div>
                 </Link>
                 <div className="relative">
                     <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleMenu(post.id); }}
-                        className="text-stone-300 hover:text-stone-600 transition-colors p-2 rounded-xl hover:bg-stone-50"
+                        className="text-stone-400 dark:text-zinc-600 hover:text-stone-600 dark:hover:text-zinc-400 transition-colors p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800"
                     >
                         <MoreHorizontal className="w-5 h-5" />
                     </button>
 
                     {/* Dropdown Menu */}
                     {isActiveMenu && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-stone-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-stone-200 dark:border-zinc-800 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
                             {currentUserId === post.author_id ? (
                                 <>
                                     <button
                                         onClick={handleDelete}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                         Delete Post
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 font-medium transition-colors flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Share2 className="w-4 h-4" />
                                         Copy Link
@@ -226,7 +226,7 @@ export default function PostItem({
                                 <>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 font-medium transition-colors flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Share2 className="w-4 h-4" />
                                         Copy Link
@@ -239,7 +239,7 @@ export default function PostItem({
                                             }
                                             onToggleMenu(post.id);
                                         }}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 font-medium transition-colors flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-orange-600 dark:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Flag className="w-4 h-4" />
                                         Report Post
@@ -252,14 +252,14 @@ export default function PostItem({
             </div>
 
             {/* Content with Hashtags and Read More */}
-            <div className="text-stone-600 leading-relaxed mb-4 font-medium text-[15px] whitespace-pre-wrap">
+            <div className="px-4 py-2 text-stone-900 dark:text-zinc-100 leading-[1.5] text-[15px] whitespace-pre-wrap">
                 {renderContent(contentToRender)}
                 {shouldTruncate && (
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="text-stone-400 text-sm font-semibold hover:text-emerald-600 ml-1 hover:underline"
+                        className="text-stone-500 dark:text-zinc-500 text-sm font-medium hover:text-stone-700 dark:hover:text-zinc-300 ml-1"
                     >
-                        {isExpanded ? 'Show less' : 'Read more'}
+                        {isExpanded ? 'less' : 'more'}
                     </button>
                 )}
             </div>
@@ -321,7 +321,7 @@ export default function PostItem({
 
             {/* Embedded Video from Link */}
             {videoEmbed && (
-                <div className="mb-6">
+                <div className="-mx-0 my-3">
                     <VideoEmbed
                         id={`${post.id}-embed`}
                         embed={videoEmbed}
@@ -333,7 +333,7 @@ export default function PostItem({
 
             {/* Polls */}
             {post.poll_options && post.poll_options.length > 0 && (
-                <div className="mb-4 space-y-2 max-w-lg">
+                <div className="px-4 pb-3 space-y-2">
                     {post.poll_options.map((option, index) => {
                         const counts = post.poll_counts || [];
                         const count = counts[index] || 0;
@@ -385,11 +385,11 @@ export default function PostItem({
                 if (images.length === 0) return null;
 
                 return (
-                    <div className={`mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-stone-50 grid gap-0.5 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <div className={`border-y border-stone-200/80 dark:border-zinc-800 my-3 bg-black grid gap-px ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                         {images.map((url, i) => (
                             <div
                                 key={i}
-                                className={`relative overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${images.length === 3 && i === 0 ? 'col-span-2' : ''}`}
+                                className={`relative overflow-hidden cursor-pointer active:opacity-90 transition-opacity ${images.length === 3 && i === 0 ? 'col-span-2' : ''}`}
                                 onClick={() => {
                                     setFullscreenImage(url);
                                     setCurrentImageIndex(i);
@@ -399,7 +399,7 @@ export default function PostItem({
                                     loading="lazy"
                                     src={url}
                                     alt="Post content"
-                                    className={`w-full object-cover bg-stone-50 ${images.length > 1 ? 'h-48 md:h-64' : 'max-h-[500px] object-contain'}`}
+                                    className={`w-full object-cover bg-stone-900 ${images.length > 1 ? 'h-64 md:h-80' : 'max-h-[600px]'}`}
                                 />
                             </div>
                         ))}
@@ -409,7 +409,7 @@ export default function PostItem({
 
             {/* Post Video */}
             {post.video_url && (
-                <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-stone-100 bg-black">
+                <div className="border-y border-stone-200/80 dark:border-zinc-800 my-3 bg-black">
                     <NativeVideoPlayer
                         src={post.video_url}
                         id={`${post.id}-video`}
@@ -419,50 +419,49 @@ export default function PostItem({
 
 
             {/* Actions */}
-            <div className="flex items-center gap-6 pt-4 border-t border-stone-50">
+            <div className="flex items-center gap-1 px-4 py-2">
                 <button
                     onClick={() => onLike(post)}
-                    className={`flex items-center gap-2 group transition-all ${post.user_has_liked ? 'text-red-500' : 'text-stone-400 hover:text-red-500'}`}
+                    className="flex items-center gap-1.5 group transition-colors p-2 -ml-2"
                 >
-                    <div className={`p-2 rounded-xl group-hover:bg-red-50 transition-colors ${post.user_has_liked ? 'bg-red-50' : ''}`}>
-                        <Heart className={`w-5 h-5 transition-transform group-active:scale-75 ${post.user_has_liked ? 'fill-current' : ''}`} />
-                    </div>
-                    <span className={`text-sm font-semibold transition-all ${post.user_has_liked ? 'text-red-600' : 'text-stone-500'}`}>
-                        {post.likes_count || 0}
-                    </span>
+                    <Heart className={`w-6 h-6 transition-all active:scale-90 ${post.user_has_liked ? 'fill-red-500 text-red-500' : 'text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400'}`} />
+                    {(post.likes_count || 0) > 0 && (
+                        <span className={`text-sm font-medium ${post.user_has_liked ? 'text-red-500' : 'text-stone-600 dark:text-zinc-400'}`}>
+                            {post.likes_count}
+                        </span>
+                    )}
                 </button>
 
                 <button
                     onClick={() => onToggleComments(post.id)}
-                    className="flex items-center gap-2 group text-stone-400 hover:text-blue-500 transition-all"
+                    className="flex items-center gap-1.5 group transition-colors p-2 text-stone-900 dark:text-zinc-100
+ hover:text-stone-600 dark:hover:text-zinc-400"
                 >
-                    <div className="p-2 rounded-xl group-hover:bg-blue-50 transition-colors">
-                        <MessageCircle className="w-5 h-5" />
-                    </div>
-                    <span className="text-sm font-semibold text-stone-500 transition-all">
-                        {post.comments_count || 0}
-                    </span>
+                    <MessageCircle className="w-6 h-6 transition-all active:scale-90" />
+                    {(post.comments_count || 0) > 0 && (
+                        <span className="text-sm font-medium text-stone-600 dark:text-zinc-400">
+                            {post.comments_count}
+                        </span>
+                    )}
                 </button>
 
                 <button
                     onClick={() => setShowRepostModal(true)}
-                    className={`flex items-center gap-2 group transition-all ${post.user_has_reposted ? 'text-green-500' : 'text-stone-400 hover:text-green-500'}`}
+                    className="flex items-center gap-1.5 group transition-colors p-2"
                 >
-                    <div className={`p-2 rounded-xl group-hover:bg-green-50 transition-colors ${post.user_has_reposted ? 'bg-green-50' : ''}`}>
-                        <Repeat className="w-5 h-5 transition-transform group-active:scale-75" />
-                    </div>
-                    <span className={`text-sm font-semibold transition-all ${post.user_has_reposted ? 'text-green-600' : 'text-stone-500'}`}>
-                        {post.reposts_count || 0}
-                    </span>
+                    <Repeat className={`w-6 h-6 transition-all active:scale-90 ${post.user_has_reposted ? 'text-emerald-600 dark:text-emerald-500' : 'text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400'}`} />
+                    {(post.reposts_count || 0) > 0 && (
+                        <span className={`text-sm font-medium ${post.user_has_reposted ? 'text-emerald-600 dark:text-emerald-500' : 'text-stone-600 dark:text-zinc-400'}`}>
+                            {post.reposts_count}
+                        </span>
+                    )}
                 </button>
 
                 <button
                     onClick={copyLink}
-                    className="flex items-center gap-2 group text-stone-400 hover:text-emerald-500 transition-all ml-auto"
+                    className="flex items-center group transition-colors p-2 ml-auto text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400"
                 >
-                    <div className="p-2 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                        <Share2 className="w-5 h-5" />
-                    </div>
+                    <Share2 className="w-[22px] h-[22px] transition-all active:scale-90" />
                 </button>
             </div>
 

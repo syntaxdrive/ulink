@@ -23,7 +23,7 @@ import NotFoundPage from './features/layout/NotFoundPage';
 import OnboardingPage from './features/auth/OnboardingPage';
 import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
-import LearnPage from './features/learn/LearnPage';
+import CoursesPage from './features/learn/CoursesPage';
 import UpdateNotification from './components/UpdateNotification';
 import { useUIStore } from './stores/useUIStore';
 
@@ -114,7 +114,7 @@ function App() {
           <Route path="messages" element={<MessagesPage />} />
           <Route path="jobs" element={<JobsPage />} />
           <Route path="talent" element={<TalentSearchPage />} />
-          <Route path="learn" element={<LearnPage />} />
+          <Route path="learn" element={<CoursesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="profile/:userId" element={<UserProfilePage />} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X } from 'lucide-react';
 import EditProfileModal from './components/EditProfileModal';
 import { useFollow } from './hooks/useFollow';
 
@@ -22,6 +22,8 @@ export default function UserProfilePage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'jobs'>('posts');
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isViewingBackground, setIsViewingBackground] = useState(false);
     const [orgJobs, setOrgJobs] = useState<any[]>([]);
 
     // Helper to check if profile is organization
@@ -244,6 +246,19 @@ export default function UserProfilePage() {
         }
     }, [profile?.id, isOrganization]);
 
+    // Handle ESC key to close full-screen viewer
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (isFullScreen) setIsFullScreen(false);
+                if (isViewingBackground) setIsViewingBackground(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFullScreen, isViewingBackground]);
+
     const toggleLike = async (post: any) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -307,21 +322,35 @@ export default function UserProfilePage() {
                     {/* Identity Card */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
                         {profile.background_image_url ? (
-                            <div className="absolute top-0 left-0 right-0 h-32">
-                                <img src={profile.background_image_url} alt="Background" className="w-full h-full object-cover opacity-90" />
+                            <div
+                                className="absolute top-0 left-0 right-0 h-32 group/bg cursor-pointer"
+                                onClick={() => setIsViewingBackground(true)}
+                                title="Click to view full screen"
+                            >
+                                <img src={profile.background_image_url} alt="Background" className="w-full h-full object-cover opacity-90 group-hover/bg:opacity-100 transition-opacity" />
                                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/90"></div>
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/bg:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Maximize className="w-8 h-8 text-white" />
+                                </div>
                             </div>
                         ) : (
                             <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
                         )}
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
                             <div className="relative mb-4 inline-block group/avatar">
-                                <div className={`w-32 h-32 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white shadow-lg overflow-hidden bg-white relative z-10`}>
+                                <div
+                                    onClick={() => setIsFullScreen(true)}
+                                    className={`w-32 h-32 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white shadow-lg overflow-hidden bg-white relative z-10 cursor-pointer group hover:ring-4 hover:ring-indigo-500/20 transition-all`}
+                                >
                                     <img
                                         src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`}
                                         alt={profile.name}
-                                        className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'}`}
+                                        className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'} group-hover:scale-110 transition-transform duration-300`}
                                     />
+                                    {/* Overlay hint on hover */}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Maximize className="w-8 h-8 text-white" />
+                                    </div>
                                 </div>
                                 <button
                                     onClick={(e) => {
@@ -930,6 +959,95 @@ export default function UserProfilePage() {
                     onClose={() => setIsEditing(false)}
                     onUpdate={(updated) => setProfile(updated)}
                 />
+            )}
+
+            {/* Full-Screen Avatar Viewer */}
+            {isFullScreen && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setIsFullScreen(false)}
+                >
+                    {/* Close Button */}
+                    <button
+                        onClick={() => setIsFullScreen(false)}
+                        className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 z-10"
+                        title="Close (ESC)"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    {/* Profile Info Overlay */}
+                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-3 rounded-xl text-white z-10">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            {profile.name}
+                            {profile.gold_verified ? (
+                                <BadgeCheck className="w-5 h-5 text-yellow-500 fill-yellow-50" />
+                            ) : profile.is_verified ? (
+                                <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
+                            ) : null}
+                        </h3>
+                        <p className="text-sm text-white/70">@{profile.username || profile.id.slice(0, 6)}</p>
+                    </div>
+
+                    {/* Image Container */}
+                    <div
+                        className="relative max-w-4xl max-h-[90vh] animate-in zoom-in duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff&size=1024`}
+                            alt={profile.name}
+                            className={`max-w-full max-h-[90vh] ${isOrganization ? 'rounded-2xl object-contain' : 'rounded-full object-cover'} shadow-2xl`}
+                        />
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                        Click anywhere or press ESC to close
+                    </div>
+                </div>
+            )}
+
+            {/* Full-Screen Background Image Viewer */}
+            {isViewingBackground && profile.background_image_url && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setIsViewingBackground(false)}
+                >
+                    {/* Close Button */}
+                    <button
+                        onClick={() => setIsViewingBackground(false)}
+                        className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 z-10"
+                        title="Close (ESC)"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    {/* Profile Info Overlay */}
+                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-3 rounded-xl text-white z-10">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            {profile.name}'s Background
+                        </h3>
+                        <p className="text-sm text-white/70">@{profile.username || profile.id.slice(0, 6)}</p>
+                    </div>
+
+                    {/* Image Container */}
+                    <div
+                        className="relative max-w-6xl max-h-[90vh] animate-in zoom-in duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={profile.background_image_url}
+                            alt={`${profile.name}'s background`}
+                            className="max-w-full max-h-[90vh] rounded-2xl object-contain shadow-2xl"
+                        />
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                        Click anywhere or press ESC to close
+                    </div>
+                </div>
             )}
         </div>
     );
