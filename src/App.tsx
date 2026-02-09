@@ -25,6 +25,8 @@ import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import CoursesPage from './features/learn/CoursesPage';
 import UpdateNotification from './components/UpdateNotification';
+import { HelmetProvider } from 'react-helmet-async';
+import { SEO } from './components/SEO/SEO';
 import { useUIStore } from './stores/useUIStore';
 
 function App() {
@@ -90,45 +92,53 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <UpdateNotification />
-      <Routes>
-        <Route
-          path="/"
-          element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
+    <HelmetProvider>
+      <BrowserRouter>
+        <UpdateNotification />
+        {/* Default SEO Tags */}
+        <SEO
+          title="Home"
+          description="Join the largest network of Nigerian university students. Collaborate, share resources, and grow your career."
         />
-        <Route path="/about" element={<AboutPage />} />
-        <Route
-          path="/onboarding"
-          element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/app"
-          element={session ? <DashboardLayout /> : <Navigate to="/" replace />}
-        >
-          <Route index element={<FeedPage />} />
-          <Route path="post/:postId" element={<PostPage />} />
-          <Route path="communities" element={<CommunitiesPage />} />
-          <Route path="communities/:slug" element={<CommunityDetailsPage />} />
-          <Route path="network" element={<NetworkPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="jobs" element={<JobsPage />} />
-          <Route path="talent" element={<TalentSearchPage />} />
-          <Route path="learn" element={<CoursesPage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="profile/:userId" element={<UserProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="admin" element={<AdminPage />} />
-          {/* Internal 404: Keeps sidebar */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-        <Route path="/legal/:type" element={<LegalPage />} />
+        <Routes>
+          <Route
+            path="/"
+            element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
+          />
+          <Route path="/about" element={<AboutPage />} />
+          <Route
+            path="/onboarding"
+            /* ... */
+            element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/app"
+            element={session ? <DashboardLayout /> : <Navigate to="/" replace />}
+          >
+            <Route index element={<FeedPage />} />
+            <Route path="post/:postId" element={<PostPage />} />
+            <Route path="communities" element={<CommunitiesPage />} />
+            <Route path="communities/:slug" element={<CommunityDetailsPage />} />
+            <Route path="network" element={<NetworkPage />} />
+            <Route path="messages" element={<MessagesPage />} />
+            <Route path="jobs" element={<JobsPage />} />
+            <Route path="talent" element={<TalentSearchPage />} />
+            <Route path="learn" element={<CoursesPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile/:userId" element={<UserProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="admin" element={<AdminPage />} />
+            {/* Internal 404: Keeps sidebar */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+          <Route path="/legal/:type" element={<LegalPage />} />
 
-        {/* Global 404: Full page */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Global 404: Full page */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
 
