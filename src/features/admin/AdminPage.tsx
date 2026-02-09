@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, BadgeCheck, Search, Building2, Mail, Flag } from 'lucide-react';
+import { Users, Shield, BadgeCheck, Building2, Mail, LayoutDashboard, PenTool } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
 import SponsoredPostsManager from './components/SponsoredPostsManager';
+import ReportsManager from './components/ReportsManager';
+import UserTable from './components/UserTable';
+
+// Lazy load the whiteboard to avoid heavy bundle on initial load
+const CollaborativeWhiteboard = lazy(() => import('./components/CollaborativeWhiteboard'));
 
 interface DashboardStats {
     total_users: number;
@@ -17,14 +22,13 @@ export default function AdminPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'whiteboard'>('dashboard');
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<Profile[]>([]);
-    const [search, setSearch] = useState('');
 
-    // Email Modal State
+    // Email Modal State (Global Broadcast)
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-    const [emailTargetUser, setEmailTargetUser] = useState<Profile | null>(null);
 
     const [reports, setReports] = useState<any[]>([]);
 
@@ -80,295 +84,129 @@ export default function AdminPage() {
         setLoading(false);
     };
 
-    const resolveReport = async (reportId: string) => {
-        const { error } = await supabase
-            .from('reports')
-            .update({ status: 'resolved' })
-            .eq('id', reportId);
-
-        if (!error) {
-            setReports(prev => prev.filter(r => r.id !== reportId));
-        }
-    };
-
-    const toggleVerify = async (userId: string, currentStatus: boolean) => {
-        const { error } = await supabase.rpc('admin_toggle_verify', {
-            target_id: userId,
-            should_verify: !currentStatus
-        });
-
-        if (!error) {
-            // Refresh the entire user list to ensure data consistency
-            const { data: usersData } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (usersData) {
-                setUsers(usersData);
-            }
-
-            // Update stats
-            if (stats) {
-                setStats({
-                    ...stats,
-                    total_verified: currentStatus ? stats.total_verified - 1 : stats.total_verified + 1
-                });
-            }
-        } else {
-            console.error('Error toggling verification:', error);
-            alert('Failed to update verification status. Please try again.');
-        }
-    };
-
-    const openEmailModal = (user?: Profile) => {
-        setEmailTargetUser(user || null);
-        setIsEmailModalOpen(true);
-    };
-
-    const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase())
-    );
-
     if (!isAdmin && loading) return <div className="p-8 text-center text-stone-500">Checking permissions...</div>;
     if (!isAdmin) return null;
 
     return (
         <div className="max-w-6xl mx-auto pb-20 space-y-8">
             <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-900/20">
                         <Shield className="w-6 h-6" />
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold text-stone-900 dark:text-white font-display">Admin Dashboard</h1>
-                        <p className="text-stone-500 dark:text-zinc-400">Manage users and view platform analytics</p>
+                        <p className="text-stone-500 dark:text-zinc-400">Manage users and collaborate</p>
                     </div>
                 </div>
 
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsEmailModalOpen(true)}
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 hover:shadow-emerald-300 transition-all"
+                    >
+                        <Mail className="w-4 h-4" />
+                        Send Broadcast
+                    </button>
+                </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex gap-2 p-1 bg-stone-100 dark:bg-zinc-800 rounded-xl w-fit">
                 <button
-                    onClick={() => openEmailModal()}
-                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all"
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'dashboard'
+                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
                 >
-                    <Mail className="w-4 h-4" />
-                    Send Broadcast
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                </button>
+                <button
+                    onClick={() => setActiveTab('whiteboard')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'whiteboard'
+                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
+                >
+                    <PenTool className="w-4 h-4" />
+                    Whiteboard
                 </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl">
-                        <Users className="w-8 h-8" />
-                    </div>
-                    <div>
-                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Total Users</p>
-                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_users || 0}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-500 rounded-2xl">
-                        <BadgeCheck className="w-8 h-8" />
-                    </div>
-                    <div>
-                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Verified Accounts</p>
-                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_verified || 0}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-500 rounded-2xl">
-                        <Building2 className="w-8 h-8" />
-                    </div>
-                    <div>
-                        <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Organizations</p>
-                        <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_orgs || 0}</p>
-                    </div>
-                </div>
-            </div>
-
-
-            {/* Advanced Analytics Charts */}
-            <AnalyticsCharts users={users} />
-
-            {/* User Reports Section */}
-            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-stone-100 dark:border-zinc-800 flex items-center gap-3">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 rounded-lg">
-                        <Flag className="w-5 h-5" />
-                    </div>
-                    <h2 className="text-xl font-bold text-stone-900 dark:text-white">Flagged Accounts & Reports</h2>
-                </div>
-
-                <div className="overflow-x-auto">
-                    {reports.length === 0 ? (
-                        <div className="p-8 text-center text-stone-500">
-                            <p>No active reports found. All good! 👍</p>
+            {activeTab === 'dashboard' ? (
+                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
+                            <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl">
+                                <Users className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Total Users</p>
+                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_users || 0}</p>
+                            </div>
                         </div>
-                    ) : (
-                        <table className="w-full text-left">
-                            <thead className="bg-red-50 text-red-900 text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th className="px-6 py-4 font-semibold">Reported User</th>
-                                    <th className="px-6 py-4 font-semibold">Reported By</th>
-                                    <th className="px-6 py-4 font-semibold">Reason</th>
-                                    <th className="px-6 py-4 font-semibold text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-red-100">
-                                {reports.map((report) => (
-                                    <tr key={report.id} className="hover:bg-red-50/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-stone-200 overflow-hidden">
-                                                    <img src={report.reported?.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-stone-900 text-sm">{report.reported?.name || 'Unknown'}</p>
-                                                    <p className="text-xs text-stone-500">{report.reported?.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-stone-200 overflow-hidden">
-                                                    <img src={report.reporter?.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                                <span className="text-sm font-medium text-stone-700">{report.reporter?.name || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <p className="text-sm text-stone-700 max-w-xs">{report.reason}</p>
-                                            <p className="text-xs text-stone-400 mt-1">{new Date(report.created_at).toLocaleDateString()}</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => resolveReport(report.id)}
-                                                className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 text-stone-600 text-xs font-semibold rounded-lg shadow-sm"
-                                            >
-                                                Mark Resolved
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
 
-            {/* Sponsored Posts Manager */}
-            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm p-6 overflow-hidden">
-                <SponsoredPostsManager />
-            </div>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
+                            <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-500 rounded-2xl">
+                                <BadgeCheck className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Verified Accounts</p>
+                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_verified || 0}</p>
+                            </div>
+                        </div>
 
-            {/* User Management */}
-            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-                {/* ... existing table ... */}
-                <div className="p-6 border-b border-stone-100 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-xl font-bold text-stone-900 dark:text-white">User Management</h2>
-                    <div className="relative">
-                        <Search className="w-5 h-5 text-stone-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900 dark:focus:ring-emerald-500 w-full md:w-64 text-stone-900 dark:text-white"
-                        />
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
+                            <div className="p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-500 rounded-2xl">
+                                <Building2 className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Organizations</p>
+                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_orgs || 0}</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-stone-50 text-stone-500 text-xs uppercase tracking-wider">
-                            <tr>
-                                <th className="px-6 py-4 font-semibold">User</th>
-                                <th className="px-6 py-4 font-semibold">Role</th>
-                                <th className="px-6 py-4 font-semibold">University</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                            {filteredUsers.map((user) => (
-                                <tr key={user.id} className="hover:bg-stone-50/50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden">
-                                                <img
-                                                    src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`}
-                                                    alt={user.name}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-stone-900 flex items-center gap-1">
-                                                    {user.name}
-                                                    {user.gold_verified ? (
-                                                        <BadgeCheck className="w-4 h-4 text-yellow-500" />
-                                                    ) : user.is_verified ? (
-                                                        <BadgeCheck className="w-4 h-4 text-blue-500" />
-                                                    ) : null}
-                                                </p>
-                                                <p className="text-xs text-stone-500">{user.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.is_admin ? 'bg-emerald-100 text-emerald-700' : (user.role === 'org' ? 'bg-orange-100 text-orange-700' : 'bg-stone-100 text-stone-600')
-                                            }`}>
-                                            {user.is_admin ? 'Admin' : (user.role === 'org' ? 'Organization' : 'Student')}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-stone-600 text-sm">
-                                        {user.university || 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {user.is_verified ? (
-                                            <span className="flex items-center gap-1.5 text-blue-600 text-xs font-medium">
-                                                <BadgeCheck className="w-4 h-4" /> Verified
-                                            </span>
-                                        ) : (
-                                            <span className="text-stone-400 text-xs">Unverified</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end items-center gap-2">
-                                            {/* Email Action */}
-                                            <button
-                                                onClick={() => openEmailModal(user)}
-                                                className="p-1.5 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                                title="Send Email"
-                                            >
-                                                <Mail className="w-4 h-4" />
-                                            </button>
+                    {/* Advanced Analytics Charts */}
+                    <AnalyticsCharts users={users} />
 
-                                            <button
-                                                onClick={() => toggleVerify(user.id, user.is_verified || false)}
-                                                className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${user.is_verified
-                                                    ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                                    : 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                                                    }`}
-                                            >
-                                                {user.is_verified ? 'Remove Badge' : 'Verify User'}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    {/* User Reports Section */}
+                    <ReportsManager reports={reports} setReports={setReports} />
+
+                    {/* Sponsored Posts Manager */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm p-6 overflow-hidden">
+                        <SponsoredPostsManager />
+                    </div>
+
+                    {/* User Management */}
+                    <UserTable
+                        users={users}
+                        setUsers={setUsers}
+                        stats={stats}
+                        setStats={setStats}
+                    />
                 </div>
-            </div>
+            ) : (
+                <div className="animate-in fade-in zoom-in-95 duration-300 h-full">
+                    <Suspense fallback={
+                        <div className="h-[600px] flex flex-col items-center justify-center gap-4 bg-stone-50 dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700">
+                            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-stone-500 font-medium">Loading Whiteboard...</p>
+                        </div>
+                    }>
+                        <CollaborativeWhiteboard />
+                    </Suspense>
+                </div>
+            )}
 
             {/* Email Modal */}
             <SendEmailModal
                 isOpen={isEmailModalOpen}
                 onClose={() => setIsEmailModalOpen(false)}
-                preSelectedUser={emailTargetUser}
+                preSelectedUser={null} // Broadcast mode
                 allUsers={users}
             />
         </div>
