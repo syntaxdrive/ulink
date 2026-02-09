@@ -7,6 +7,8 @@ import WelcomeMessage from './components/WelcomeMessage';
 import EmptyFeedState from './components/EmptyFeedState';
 import { FeedLoadingState } from './components/PostSkeleton';
 import { useFeed } from './hooks/useFeed';
+import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
+import SponsoredPostItem from './components/SponsoredPostItem';
 
 export default function FeedPage() {
     const {
@@ -27,6 +29,8 @@ export default function FeedPage() {
         votePoll,
         currentUserProfile
     } = useFeed();
+
+    const { posts: sponsoredPosts } = useSponsoredPosts();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
@@ -168,35 +172,47 @@ export default function FeedPage() {
                                 <EmptyFeedState onCreatePost={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
                             )
                         ) : (
-                            (searchQuery ? filteredPosts : posts).map((post, index) => (
-                                <div key={post.id}>
-                                    <PostItem
-                                        post={post}
-                                        currentUserId={currentUserId}
-                                        isActiveCommentSection={activeCommentPostId === post.id}
-                                        isActiveMenu={activeMenuPostId === post.id}
-                                        comments={comments[post.id] || []}
-                                        loadingComments={loadingComments && activeCommentPostId === post.id}
-                                        onDelete={deletePost}
-                                        onLike={toggleLike}
-                                        onRepost={toggleRepost}
-                                        onToggleComments={toggleComments}
-                                        onToggleMenu={toggleMenu}
-                                        onPostComment={postComment}
-                                        onSearchTag={setSearchQuery}
-                                        onReport={reportPost}
-                                        onDeleteComment={deleteComment}
-                                        onVotePoll={votePoll}
-                                    />
+                            (searchQuery ? filteredPosts : posts).map((post, index) => {
+                                const showSponsored = (index + 1) % 8 === 0 && sponsoredPosts.length > 0;
+                                const sponsoredPost = showSponsored ? sponsoredPosts[Math.floor(index / 8) % sponsoredPosts.length] : null;
 
-                                    {/* Conditionally render SuggestedConnections */}
-                                    {!searchQuery && sliderPositions.has(index) && (
-                                        <div className="my-4">
-                                            <SuggestedConnections />
-                                        </div>
-                                    )}
-                                </div>
-                            ))
+                                return (
+                                    <div key={post.id}>
+                                        <PostItem
+                                            post={post}
+                                            currentUserId={currentUserId}
+                                            isActiveCommentSection={activeCommentPostId === post.id}
+                                            isActiveMenu={activeMenuPostId === post.id}
+                                            comments={comments[post.id] || []}
+                                            loadingComments={loadingComments && activeCommentPostId === post.id}
+                                            onDelete={deletePost}
+                                            onLike={toggleLike}
+                                            onRepost={toggleRepost}
+                                            onToggleComments={toggleComments}
+                                            onToggleMenu={toggleMenu}
+                                            onPostComment={postComment}
+                                            onSearchTag={setSearchQuery}
+                                            onReport={reportPost}
+                                            onDeleteComment={deleteComment}
+                                            onVotePoll={votePoll}
+                                        />
+
+                                        {/* Sponsored Post Injection */}
+                                        {sponsoredPost && (
+                                            <div className="my-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                                <SponsoredPostItem post={sponsoredPost} />
+                                            </div>
+                                        )}
+
+                                        {/* Conditionally render SuggestedConnections */}
+                                        {!searchQuery && sliderPositions.has(index) && !showSponsored && (
+                                            <div className="my-4">
+                                                <SuggestedConnections />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 </div>

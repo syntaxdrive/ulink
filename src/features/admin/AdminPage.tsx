@@ -5,6 +5,7 @@ import { Users, Shield, BadgeCheck, Search, Building2, Mail, Flag } from 'lucide
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
+import SponsoredPostsManager from './components/SponsoredPostsManager';
 
 interface DashboardStats {
     total_users: number;
@@ -256,6 +257,11 @@ export default function AdminPage() {
                         </table>
                     )}
                 </div>
+            </div>
+
+            {/* Sponsored Posts Manager */}
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm p-6 overflow-hidden">
+                <SponsoredPostsManager />
             </div>
 
             {/* User Management */}
