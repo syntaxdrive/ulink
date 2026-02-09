@@ -151,7 +151,7 @@ export function useFeed(communityId?: string) {
                 .eq('is_repost', true);
 
             // Fetch poll votes
-            let pollVotesPromise = Promise.resolve({ data: null });
+            let pollVotesPromise: PromiseLike<{ data: any[] | null; error?: any }> = Promise.resolve({ data: null });
             if (userId) {
                 pollVotesPromise = supabase
                     .from('poll_votes')

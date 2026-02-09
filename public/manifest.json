@@ -1,7 +1,7 @@
 {
-    "name": "UniLink - Student Network",
+    "name": "UniLink - The #1 Nigerian Student Network",
     "short_name": "UniLink",
-    "description": "Connect with students across Nigerian universities. Network, share opportunities, and build your professional profile.",
+    "description": "Connect with students across Nigerian universities. Network with peers, discover opportunities, share knowledge, and build your professional profile. Join thousands of students networking, learning, and growing together.",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",

@@ -249,7 +249,7 @@ export default function DashboardLayout() {
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
-        { icon: GraduationCap, label: 'Learn', path: '/app/learn' },
+        { icon: GraduationCap, label: 'Courses', path: '#', comingSoon: true },
         { icon: Bell, label: 'Notifications', path: '/app/notifications' },
         { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
         { icon: Settings, label: 'Settings', path: '/app/settings' },

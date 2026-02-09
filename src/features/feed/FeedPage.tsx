@@ -118,20 +118,20 @@ export default function FeedPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-20">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
                 {/* Main Feed Column */}
-                <div className="lg:col-span-8 space-y-8">
+                <div className="lg:col-span-8 space-y-0">
 
                     {/* Search Bar */}
-                    <div className="sticky top-4 z-30">
+                    <div className="sticky top-4 z-30 mb-4 px-4 lg:px-0">
                         <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <Search className="h-5 w-5 text-stone-400 dark:text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-stone-400 dark:text-zinc-600" />
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-11 pr-4 py-3 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-stone-200/50 dark:border-zinc-700/50 rounded-2xl text-stone-900 dark:text-zinc-100 placeholder:text-stone-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 shadow-sm transition-all"
+                                className="block w-full pl-10 pr-4 py-2.5 bg-stone-100/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-stone-200/50 dark:border-zinc-800/50 rounded-lg text-sm text-stone-900 dark:text-zinc-100 placeholder:text-stone-500 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
                                 placeholder="Search posts or people..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -141,21 +141,25 @@ export default function FeedPage() {
 
                     {/* Welcome Message */}
                     {currentUserProfile && (
-                        <WelcomeMessage userName={currentUserProfile.name.split(' ')[0]} />
+                        <div className="px-4 lg:px-0 mb-4">
+                            <WelcomeMessage userName={currentUserProfile.name.split(' ')[0]} />
+                        </div>
                     )}
 
                     {/* Create Post */}
-                    <CreatePost onCreate={createPost} user={currentUserProfile} />
+                    <div className="mb-2">
+                        <CreatePost onCreate={createPost} user={currentUserProfile} />
+                    </div>
 
                     {/* Feed */}
-                    <div className="space-y-6">
+                    <div className="space-y-2">
                         {(searchQuery ? filteredPosts : posts).length === 0 ? (
                             searchQuery ? (
-                                <div className="text-center py-12">
-                                    <p className="text-stone-500 mb-2">No posts found for "{searchQuery}"</p>
+                                <div className="text-center py-12 bg-white dark:bg-zinc-900 border-y border-stone-200/80 dark:border-zinc-800">
+                                    <p className="text-stone-500 dark:text-zinc-500 mb-2">No posts found for "{searchQuery}"</p>
                                     <button
                                         onClick={() => setSearchQuery('')}
-                                        className="text-emerald-600 font-medium hover:underline"
+                                        className="text-emerald-600 dark:text-emerald-500 font-medium hover:underline"
                                     >
                                         Clear search
                                     </button>
@@ -187,7 +191,7 @@ export default function FeedPage() {
 
                                     {/* Conditionally render SuggestedConnections */}
                                     {!searchQuery && sliderPositions.has(index) && (
-                                        <div className="my-6">
+                                        <div className="my-4">
                                             <SuggestedConnections />
                                         </div>
                                     )}
