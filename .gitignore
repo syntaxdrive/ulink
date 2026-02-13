@@ -29,3 +29,14 @@ dist-ssr
 # Netlify
 .netlify
 
+# Large files and build artifacts
+*.apk
+*.aab
+*.zip
+tmptools/
+*.exe
+
+# Mobile app build
+ulink-app/node_modules
+ulink-app/.expo
+ulink-app/dist
