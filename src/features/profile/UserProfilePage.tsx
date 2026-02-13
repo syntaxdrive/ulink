@@ -222,12 +222,42 @@ export default function UserProfilePage() {
             fetchUserPosts(profile.id);
             fetchConnectionStatus(profile.id);
 
-            // Fetch real-time connection count
-            supabase.from('connections')
-                .select('*', { count: 'exact', head: true })
-                .or(`requester_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
-                .eq('status', 'accepted')
-                .then(({ count }) => setConnectionsCount(count || 0));
+            const fetchConnectionsCount = () => {
+                supabase.from('connections')
+                    .select('*', { count: 'exact', head: true })
+                    .or(`requester_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
+                    .eq('status', 'accepted')
+                    .then(({ count }) => setConnectionsCount(count || 0));
+            };
+
+            fetchConnectionsCount();
+
+            // Realtime subscription for connections
+            const channel = supabase
+                .channel(`connections:${profile.id}`)
+                .on('postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'connections',
+                        filter: `recipient_id=eq.${profile.id}`
+                    },
+                    () => fetchConnectionsCount()
+                )
+                .on('postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'connections',
+                        filter: `requester_id=eq.${profile.id}`
+                    },
+                    () => fetchConnectionsCount()
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [profile?.id]);
 

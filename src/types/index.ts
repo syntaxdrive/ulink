@@ -16,6 +16,7 @@ export interface Certificate {
     issue_date?: string;
     credential_url?: string;
     credential_id?: string;
+    certificate_pdf_url?: string; // PDF certificate upload
 }
 
 export interface Profile {
@@ -49,6 +50,8 @@ export interface Profile {
     website_url?: string;
     facebook_url?: string;
     industry?: string; // For organizations
+    resume_url?: string; // Resume PDF URL
+    points?: number; // User points for leaderboard
 }
 
 export interface Project {

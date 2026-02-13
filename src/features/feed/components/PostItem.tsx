@@ -121,36 +121,62 @@ export default function PostItem({
         : contentWithoutVideoLink.slice(0, MAX_LENGTH) + '...';
 
     const renderContent = (text: string) => {
-        return text.split(/([#@][a-z0-9_]+)/gi).map((part, i) => {
-            if (part.match(/^#[a-z0-9_]+$/i)) {
+        // Enhanced regex to detect URLs, hashtags, and mentions
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const hashtagMentionRegex = /([#@][a-z0-9_]+)/gi;
+
+        // First split by URLs
+        const parts = text.split(urlRegex);
+
+        return parts.map((part, i) => {
+            // Check if it's a URL
+            if (part.match(urlRegex)) {
                 return (
-                    <span
+                    <a
                         key={i}
-                        className="text-emerald-600 font-bold cursor-pointer hover:underline"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSearchTag(part);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                    >
-                        {part}
-                    </span>
-                );
-            }
-            if (part.match(/^@[a-z0-9_]+$/i)) {
-                const username = part.substring(1);
-                return (
-                    <Link
-                        key={i}
-                        to={`/app/profile/${username}`}
-                        className="text-blue-600 font-bold hover:underline"
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-600 dark:text-emerald-500 font-medium hover:underline break-all"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {part}
-                    </Link>
+                    </a>
                 );
             }
-            return part;
+
+            // Split by hashtags and mentions
+            return part.split(hashtagMentionRegex).map((subPart, j) => {
+                if (subPart.match(/^#[a-z0-9_]+$/i)) {
+                    return (
+                        <span
+                            key={`${i}-${j}`}
+                            className="text-emerald-600 dark:text-emerald-500 font-bold cursor-pointer hover:underline"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSearchTag(subPart);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                        >
+                            {subPart}
+                        </span>
+                    );
+                }
+                if (subPart.match(/^@[a-z0-9_]+$/i)) {
+                    const username = subPart.substring(1);
+                    return (
+                        <Link
+                            key={`${i}-${j}`}
+                            to={`/app/profile/${username}`}
+                            className="text-blue-600 dark:text-blue-500 font-bold hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {subPart}
+                        </Link>
+                    );
+                }
+                return <span key={`${i}-${j}`}>{subPart}</span>;
+            });
         });
     };
 
@@ -252,7 +278,7 @@ export default function PostItem({
             </div>
 
             {/* Content with Hashtags and Read More */}
-            <div className="px-4 py-2 text-stone-900 dark:text-zinc-100 leading-[1.5] text-[15px] whitespace-pre-wrap">
+            <div className="px-4 py-2 text-stone-900 dark:text-zinc-100 leading-[1.5] text-[15px] whitespace-pre-wrap break-words">
                 {renderContent(contentToRender)}
                 {shouldTruncate && (
                     <button

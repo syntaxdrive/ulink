@@ -27,6 +27,7 @@ export default function FeedPage() {
         deleteComment,
         reportPost,
         votePoll,
+        searchPosts,
         currentUserProfile
     } = useFeed();
 
@@ -42,31 +43,19 @@ export default function FeedPage() {
         return () => document.removeEventListener('click', closeMenu);
     }, []);
 
+    // Server-side Search Debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            searchPosts(searchQuery);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     const toggleMenu = (postId: string) => {
         setActiveMenuPostId(prev => (prev === postId ? null : postId));
     };
 
-    // Filter posts
-    const isHashtagSearch = searchQuery.startsWith('#');
-    const filteredPosts = posts.filter(post => {
-        if (isHashtagSearch) {
-            // Strict hashtag match
-            const regex = new RegExp(`${searchQuery}\\b`, 'i');
-            return regex.test(post.content || '');
-        }
-        return (
-            (post.content || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            post.profiles?.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }).sort((a, b) => {
-        if (isHashtagSearch) {
-            // Engagement First Sorting for Hashtags
-            return (b.likes_count || 0) - (a.likes_count || 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-        return 0; // Default order (chronological, handled by hook)
-    });
-
-    // Hashtag Logic
+    // Hashtag Logic (calculated from currently loaded posts for now)
     const trendingTags = posts.reduce((acc, post) => {
         const tags = (post.content || '').match(/#[a-z0-9_]+/gi) || [];
         tags.forEach(tag => {
@@ -86,6 +75,7 @@ export default function FeedPage() {
         const positions = new Set<number>();
         posts.forEach((post, index) => {
             // Create deterministic but varied intervals (5-7 posts)
+            if (!post.id) return;
             const hash = post.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
             const interval = 5 + (hash % 3); // Results in 5, 6, or 7
             if ((index + 1) % interval === 0 && index < posts.length - 1) {
@@ -136,7 +126,7 @@ export default function FeedPage() {
                             <input
                                 type="text"
                                 className="block w-full pl-10 pr-4 py-2.5 bg-stone-100/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-stone-200/50 dark:border-zinc-800/50 rounded-lg text-sm text-stone-900 dark:text-zinc-100 placeholder:text-stone-500 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
-                                placeholder="Search posts or people..."
+                                placeholder="Search posts (content)..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
@@ -157,7 +147,7 @@ export default function FeedPage() {
 
                     {/* Feed */}
                     <div className="space-y-2">
-                        {(searchQuery ? filteredPosts : posts).length === 0 ? (
+                        {posts.length === 0 ? (
                             searchQuery ? (
                                 <div className="text-center py-12 bg-white dark:bg-zinc-900 border-y border-stone-200/80 dark:border-zinc-800">
                                     <p className="text-stone-500 dark:text-zinc-500 mb-2">No posts found for "{searchQuery}"</p>
@@ -172,7 +162,7 @@ export default function FeedPage() {
                                 <EmptyFeedState onCreatePost={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
                             )
                         ) : (
-                            (searchQuery ? filteredPosts : posts).map((post, index) => {
+                            posts.map((post, index) => {
                                 const showSponsored = (index + 1) % 8 === 0 && sponsoredPosts.length > 0;
                                 const sponsoredPost = showSponsored ? sponsoredPosts[Math.floor(index / 8) % sponsoredPosts.length] : null;
 

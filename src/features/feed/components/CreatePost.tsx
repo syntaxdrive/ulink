@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
+import { compressImage, compressImages, formatFileSize, getVideoMetadata } from '../../../lib/mediaCompression';
 
 interface CreatePostProps {
     onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;
@@ -18,6 +19,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
     const [isPosting, setIsPosting] = useState(false);
     const [showPoll, setShowPoll] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+    const [isCompressing, setIsCompressing] = useState(false);
 
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,7 +28,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
     const handleImageClick = () => fileInputRef.current?.click();
 
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
             // If we have a video, don't allow images and vice versa for MVP simplicity
@@ -48,21 +50,59 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
             const validFiles: File[] = [];
             const newPreviews: string[] = [];
 
-            newFiles.forEach(file => {
+            // Validate files first
+            for (const file of newFiles) {
                 if (file.size > 10 * 1024 * 1024) {
                     alert(`Skipped ${file.name}: Image size must be less than 10MB.`);
-                    return;
+                    continue;
                 }
                 if (!file.type.startsWith('image/')) {
                     alert(`Skipped ${file.name}: Not an image.`);
-                    return;
+                    continue;
                 }
                 validFiles.push(file);
-                newPreviews.push(URL.createObjectURL(file));
-            });
+            }
 
-            setImageFiles(prev => [...prev, ...validFiles]);
-            setPreviews(prev => [...prev, ...newPreviews]);
+            if (validFiles.length === 0) {
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+            }
+
+            // Compress images
+            try {
+                setIsCompressing(true);
+                const compressedBlobs = await compressImages(validFiles, {
+                    maxWidth: 1920,
+                    maxHeight: 1080,
+                    quality: 0.85
+                });
+
+                // Convert blobs to files and create previews
+                const compressedFiles: File[] = [];
+                for (let i = 0; i < compressedBlobs.length; i++) {
+                    const blob = compressedBlobs[i];
+                    const originalFile = validFiles[i];
+                    const compressedFile = new File(
+                        [blob],
+                        originalFile.name,
+                        { type: 'image/jpeg' }
+                    );
+                    compressedFiles.push(compressedFile);
+                    newPreviews.push(URL.createObjectURL(blob));
+
+                    // Log compression ratio
+                    const ratio = Math.round(((originalFile.size - blob.size) / originalFile.size) * 100);
+                    console.log(`Compressed ${originalFile.name}: ${formatFileSize(originalFile.size)} → ${formatFileSize(blob.size)} (${ratio}% reduction)`);
+                }
+
+                setImageFiles(prev => [...prev, ...compressedFiles]);
+                setPreviews(prev => [...prev, ...newPreviews]);
+            } catch (error) {
+                console.error('Error compressing images:', error);
+                alert('Failed to compress images. Please try again.');
+            } finally {
+                setIsCompressing(false);
+            }
         }
         // Reset input so same file can be selected again
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -273,25 +313,25 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                         <button
                             type="button"
                             onClick={handleImageClick}
-                            disabled={!!videoFile}
+                            disabled={!!videoFile || isCompressing}
                             className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
                             title="Add Images"
                         >
                             <ImageIcon className="w-5 h-5" />
                         </button>
-                        {/* Video upload temporarily disabled - Cloudinary integration coming soon */}
-                        {/* <button
+                        <button
                             type="button"
                             onClick={() => videoInputRef.current?.click()}
-                            disabled={imageFiles.length > 0}
+                            disabled={imageFiles.length > 0 || isCompressing}
                             className={`p-2 rounded-xl transition-all ${videoFile ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
                             title="Add Video"
                         >
                             <Video className="w-5 h-5" />
-                        </button> */}
+                        </button>
                         <button
                             type="button"
                             onClick={() => setShowPoll(!showPoll)}
+                            disabled={isCompressing}
                             className={`p-2 rounded-xl transition-all ${showPoll ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}
                             title="Create Poll"
                         >
@@ -300,6 +340,11 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                         <button type="button" className="p-2 text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
                             <Smile className="w-5 h-5" />
                         </button>
+                        {isCompressing && (
+                            <span className="text-xs text-emerald-600 font-medium animate-pulse">
+                                Compressing...
+                            </span>
+                        )}
                     </div>
                     <button
                         type="submit"

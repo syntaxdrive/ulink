@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy } from 'lucide-react';
 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
@@ -244,12 +244,13 @@ export default function DashboardLayout() {
     const navItems = [
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
-        { icon: Globe, label: 'Communities', path: '#', comingSoon: true },
+        { icon: Globe, label: 'Communities', path: '/app/communities' },
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
-        { icon: GraduationCap, label: 'Courses', path: '#', comingSoon: true },
+        { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
+        { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
         { icon: Bell, label: 'Notifications', path: '/app/notifications' },
         { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
         { icon: Settings, label: 'Settings', path: '/app/settings' },

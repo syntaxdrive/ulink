@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowRight, Users, Briefcase, Sparkles, CheckCircle2, Download, X, Star, Shield, Globe } from 'lucide-react';
-import { usePWAInstall } from '../../hooks/usePWAInstall';
-import InstallGuideModal from '../../components/InstallGuideModal';
+// import { usePWAInstall } from '../../hooks/usePWAInstall';
+// import InstallGuideModal from '../../components/InstallGuideModal';
 
 import appMockup from '../../assets/app-mockup.png';
 import campusHero from '../../assets/campus-hero.png';
@@ -19,11 +19,12 @@ export default function LandingPage() {
     const [loading, setLoading] = useState(false);
     // ... existing state ...
     const [scrolled, setScrolled] = useState(false);
-    const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall();
-    const [showInstallHint, setShowInstallHint] = useState(false);
+    // const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall();
+    // const [showInstallHint, setShowInstallHint] = useState(false);
 
     // ... existing useEffects ...
 
+    /*
     useEffect(() => {
         if (isInstallable) {
             const timer = setTimeout(() => setShowInstallHint(true), 2000);
@@ -31,6 +32,7 @@ export default function LandingPage() {
             return () => { clearTimeout(timer); clearTimeout(hideTimer); };
         }
     }, [isInstallable]);
+    */
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -85,35 +87,7 @@ export default function LandingPage() {
                                 About Us
                             </Link>
 
-                            {isInstallable && (
-                                <div className="relative">
-                                    <button
-                                        onClick={install}
-                                        className="bg-slate-900 text-white text-sm font-semibold px-5 py-2.5 rounded-full flex items-center gap-2 hover:bg-slate-800 hover:scale-105 transition-all shadow-lg hover:shadow-xl active:scale-95"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        <span>Get App</span>
-                                    </button>
 
-                                    {showInstallHint && (
-                                        <div className="absolute top-full right-0 mt-4 flex flex-col items-end animate-bounce z-50">
-                                            <div className="relative bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-3 border border-emerald-500">
-                                                <div className="absolute -top-1.5 right-6 w-3 h-3 bg-emerald-600 rotate-45 border-l border-t border-emerald-500"></div>
-                                                <span>Install for the best experience!</span>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowInstallHint(false);
-                                                    }}
-                                                    className="p-1 hover:bg-emerald-700 rounded-full transition-colors"
-                                                >
-                                                    <X className="w-3 h-3 text-emerald-100" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </nav>
@@ -155,10 +129,18 @@ export default function LandingPage() {
                                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.51 6.16-4.51z" fill="#EA4335" />
                                         </svg>
                                         <span className="relative z-10">Continue with Google</span>
-                                        <ArrowRight className="w-5 h-5 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all relative z-10" />
                                     </button>
+                                </div>
 
-
+                                <div className="mt-4 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+                                    <a
+                                        href="/unilink.apk"
+                                        download="unilink.apk"
+                                        className="text-sm font-semibold text-slate-500 hover:text-emerald-600 transition-colors flex items-center gap-2"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download Android App (APK)
+                                    </a>
                                 </div>
                             </div>
 
@@ -315,11 +297,11 @@ export default function LandingPage() {
                     </div>
                 </footer>
 
-                <InstallGuideModal
+                {/* <InstallGuideModal
                     isOpen={showInstallModal}
                     onClose={() => setShowInstallModal(false)}
                     isIOS={isIOs}
-                />
+                /> */}
             </div>
         </>
     );

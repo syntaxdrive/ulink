@@ -245,6 +245,114 @@ export function useFeed(communityId?: string) {
         setLoading(false);
     };
 
+    const searchPosts = async (query: string) => {
+        // If query is empty, reload default feed
+        if (!query.trim()) {
+            fetchPosts();
+            return;
+        }
+
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        let dbQuery = supabase
+            .from('posts')
+            .select(`
+                *,
+                profiles:author_id (
+                    id,
+                    name,
+                    avatar_url,
+                    is_verified,
+                    gold_verified,
+                    headline,
+                    role,
+                    email
+                ),
+                original_post:original_post_id (
+                    id,
+                    content,
+                    image_url,
+                    image_urls,
+                    video_url,
+                    created_at,
+                    author_id,
+                    profiles:author_id (
+                        id,
+                        name,
+                        avatar_url,
+                        is_verified
+                    )
+                )
+            `)
+            .ilike('content', `%${query}%`)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (communityId) {
+            dbQuery = dbQuery.eq('community_id', communityId);
+        } else {
+            // Main feed search also searches global posts? Or just posts.
+            // If searching globally, we might remove the 'community_id is null' filter to find posts inside communities too.
+            // But usually feed implies "public feed". Let's stick to global scope if not in community.
+            // Or maybe search EVERYWHERE?
+            // Let's search everywhere if global.
+            // dbQuery = dbQuery.is('community_id', null); // UNCOMMENT TO RESTRICT
+        }
+
+        const { data, error } = await dbQuery;
+
+        if (error) {
+            console.error('Error searching posts:', error);
+            setLoading(false);
+            return;
+        }
+
+        if (data) {
+            const postIds = data.map((p: any) => p.id);
+
+            // Parallel fetch aux data
+            const likesPromise = supabase.from('likes').select('post_id, user_id').in('post_id', postIds);
+            const commentsPromise = supabase.from('comments').select('post_id').in('post_id', postIds);
+            const repostsPromise = supabase.from('posts').select('original_post_id, author_id').in('original_post_id', postIds).eq('is_repost', true);
+
+            const [likesResult, commentsResult, repostsResult] = await Promise.all([likesPromise, commentsPromise, repostsPromise]);
+
+            const likesMap: Record<string, any> = {};
+            const commentsMap: Record<string, number> = {};
+            const repostsMap: Record<string, { count: number; userReposted: boolean }> = {};
+
+            likesResult.data?.forEach((l: any) => {
+                if (!likesMap[l.post_id]) likesMap[l.post_id] = { count: 0, userLiked: false };
+                likesMap[l.post_id].count++;
+                if (user && l.user_id === user.id) likesMap[l.post_id].userLiked = true;
+            });
+
+            commentsResult.data?.forEach((c: any) => commentsMap[c.post_id] = (commentsMap[c.post_id] || 0) + 1);
+
+            repostsResult.data?.forEach((r: any) => {
+                if (!repostsMap[r.original_post_id]) repostsMap[r.original_post_id] = { count: 0, userReposted: false };
+                repostsMap[r.original_post_id].count++;
+                if (user && r.author_id === user.id) repostsMap[r.original_post_id].userReposted = true;
+            });
+
+            const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
+
+            const formatted = data.map((post: any) => ({
+                ...post,
+                likes_count: likesMap[post.id]?.count || 0,
+                comments_count: commentsMap[post.id] || 0,
+                reposts_count: repostsMap[post.id]?.count || 0,
+                user_has_liked: likesMap[post.id]?.userLiked || false,
+                user_has_reposted: repostsMap[post.id]?.userReposted || false,
+                is_vip: VIP_EMAILS.includes(post.profiles?.email)
+            }));
+
+            setPosts(formatted);
+        }
+        setLoading(false);
+    };
+
     const fetchSinglePost = async (postId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
         const { data } = await supabase
@@ -386,33 +494,64 @@ export function useFeed(communityId?: string) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const hasReposted = post.user_has_reposted;
+        // Determine the target post (always the original content)
+        // If the post is itself a repost, we want to repost the ORIGINAL post, not the repost.
+        const targetPost = post.is_repost && post.original_post ? post.original_post : post;
+        const targetPostId = targetPost.id;
+
+        // Query to check if user has reposted the target
+        const { data: existingRepost } = await supabase
+            .from('posts')
+            .select('id')
+            .eq('author_id', user.id)
+            .eq('original_post_id', targetPostId)
+            .eq('is_repost', true)
+            .maybeSingle();
+
+        const hasReposted = !!existingRepost;
 
         if (hasReposted) {
-            // Undo repost - delete the repost
-            const newRepostCount = Math.max((post.reposts_count || 0) - 1, 0);
+            // Undo repost - delete the repost(s)
+            const newRepostCount = Math.max((targetPost.reposts_count || 0) - 1, 0);
 
+            // Update the target post in store
             updatePost({
-                ...post,
+                ...targetPost,
                 user_has_reposted: false,
                 reposts_count: newRepostCount
             });
+
+            if (post.id !== targetPost.id) {
+                updatePost({
+                    ...post,
+                    user_has_reposted: false,
+                    reposts_count: newRepostCount
+                });
+            }
 
             await supabase
                 .from('posts')
                 .delete()
                 .eq('author_id', user.id)
-                .eq('original_post_id', post.id)
+                .eq('original_post_id', targetPostId)
                 .eq('is_repost', true);
         } else {
-            // Create repost
-            const newRepostCount = (post.reposts_count || 0) + 1;
+            // Create repost of the TARGET
+            const newRepostCount = (targetPost.reposts_count || 0) + 1;
 
             updatePost({
-                ...post,
+                ...targetPost,
                 user_has_reposted: true,
                 reposts_count: newRepostCount
             });
+
+            if (post.id !== targetPost.id) {
+                updatePost({
+                    ...post,
+                    user_has_reposted: true,
+                    reposts_count: newRepostCount
+                });
+            }
 
             const { data, error } = await supabase
                 .from('posts')
@@ -423,7 +562,7 @@ export function useFeed(communityId?: string) {
                     image_urls: null,
                     video_url: null,
                     is_repost: true,
-                    original_post_id: post.id,
+                    original_post_id: targetPostId,
                     repost_comment: comment || null,
                     community_id: communityId || null
                 })
@@ -437,28 +576,28 @@ export function useFeed(communityId?: string) {
                 console.error('Error creating repost:', error);
                 // Revert optimistic update
                 updatePost({
-                    ...post,
+                    ...targetPost,
                     user_has_reposted: false,
-                    reposts_count: (post.reposts_count || 0)
+                    reposts_count: (targetPost.reposts_count || 0)
                 });
-
-                if (error.message?.includes('column') || error.code === '42703') {
-                    alert('Repost feature requires database migration. Please run the SQL migration from REPOST_FEATURE.md');
-                } else {
-                    alert('Failed to repost: ' + (error.message || 'Unknown error'));
+                if (post.id !== targetPost.id) {
+                    updatePost({
+                        ...post,
+                        user_has_reposted: false,
+                        reposts_count: (targetPost.reposts_count || 0)
+                    });
                 }
+                alert('Failed to repost: ' + (error.message || 'Unknown error'));
             } else if (data) {
-                // Instant UI Update: Add the new repost to the feed
-                // We construct the full Post object using the returned data and the known original post
+                // Instant UI Update: Add the nested repost to the feed
                 const newRepostItem: any = {
                     ...data,
                     likes_count: 0,
                     comments_count: 0,
                     user_has_liked: false,
-                    original_post: post, // Attach the original post object directly
-                    profiles: currentUserProfile || data.profiles // Use local profile or returned one
+                    original_post: targetPost,
+                    profiles: currentUserProfile || data.profiles
                 };
-
                 addPost(newRepostItem);
             }
         }
@@ -613,6 +752,7 @@ export function useFeed(communityId?: string) {
         deleteComment,
         reportPost,
         votePoll,
+        searchPosts,
         fetchSinglePost,
         currentUserProfile
     };
