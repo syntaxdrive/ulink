@@ -36,7 +36,5 @@ dist-ssr
 tmptools/
 *.exe
 
-# Mobile app build
-ulink-app/node_modules
-ulink-app/.expo
-ulink-app/dist
+# Mobile app (separate repository)
+ulink-app/
