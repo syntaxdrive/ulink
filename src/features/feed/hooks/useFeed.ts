@@ -86,7 +86,7 @@ export function useFeed(communityId?: string) {
                     role,
                     email
                 ),
-                communities:community_id (
+                community:community_id (
                     id,
                     name,
                     slug,
@@ -365,7 +365,7 @@ export function useFeed(communityId?: string) {
             .select(`
                 *, 
                 profiles:author_id (*), 
-                communities:community_id (
+                community:community_id (
                     id,
                     name,
                     slug,
