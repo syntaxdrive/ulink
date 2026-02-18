@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 
