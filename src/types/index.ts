@@ -88,6 +88,7 @@ export interface Community {
     created_by: string;
     created_at: string;
     updated_at: string;
+    members_count?: number; // Computed in UI
     is_member?: boolean; // UI helper
 }
 

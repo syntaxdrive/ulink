@@ -114,9 +114,9 @@ export default function PostItem({
         e.preventDefault();
         e.stopPropagation();
         
-        if (!post.communities?.id) return;
+        if (!post.community?.id) return;
         
-        const success = await joinCommunity(post.communities.id);
+        const success = await joinCommunity(post.community.id);
         if (success) {
             setIsMember(true);
         }
@@ -213,16 +213,16 @@ export default function PostItem({
             )}
 
             {/* Community Banner */}
-            {post.communities && (
+            {post.community && (
                 <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 dark:border-zinc-800">
                     <Link 
-                        to={`/app/communities/${post.communities.slug}`}
+                        to={`/app/communities/${post.community.slug}`}
                         className="flex items-center gap-2 group"
                     >
-                        {post.communities.icon_url ? (
+                        {post.community.icon_url ? (
                             <img 
-                                src={post.communities.icon_url} 
-                                alt={post.communities.name}
+                                src={post.community.icon_url} 
+                                alt={post.community.name}
                                 className="w-6 h-6 rounded-md object-cover"
                             />
                         ) : (
@@ -231,17 +231,17 @@ export default function PostItem({
                             </div>
                         )}
                         <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
-                            {post.communities.name}
+                            {post.community.name}
                         </p>
                     </Link>
                     
                     {!isMember && currentUserId && (
                         <button
                             onClick={handleJoinCommunity}
-                            disabled={joiningCommunity === post.communities.id}
+                            disabled={joiningCommunity === post.community.id}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition-colors"
                         >
-                            {joiningCommunity === post.communities.id ? (
+                            {joiningCommunity === post.community.id ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                                 <UserPlus className="w-3.5 h-3.5" />
