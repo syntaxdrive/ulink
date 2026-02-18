@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
-import { compressImage, compressImages, formatFileSize, getVideoMetadata } from '../../../lib/mediaCompression';
+import { compressImages, formatFileSize } from '../../../lib/mediaCompression';
 
 interface CreatePostProps {
     onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;

@@ -63,7 +63,6 @@ export default function ProfilePage() {
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bgInputRef = useRef<HTMLInputElement>(null);
     const resumeInputRef = useRef<HTMLInputElement>(null);
-    const certPdfInputRef = useRef<HTMLInputElement>(null);
 
     // Certificate PDF state
     const [uploadingCertId, setUploadingCertId] = useState<string | null>(null);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, Users, Briefcase, Sparkles, CheckCircle2, Download, X, Star, Shield, Globe } from 'lucide-react';
+import { Users, Briefcase, Sparkles, CheckCircle2, Download, Star, Shield, Globe } from 'lucide-react';
 // import { usePWAInstall } from '../../hooks/usePWAInstall';
 // import InstallGuideModal from '../../components/InstallGuideModal';
 
