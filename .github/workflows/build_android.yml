@@ -1,15 +1,16 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch: # Allows manual trigger
-  push:
-    branches:
-      - main
-    paths:
-      - 'android/**'
-      - 'src/**'
-      - 'package.json'
-      - 'capacitor.config.ts'
+  workflow_dispatch: # Manual trigger only
+  # Disabled auto-build on push to save GitHub Actions minutes
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'android/**'
+  #     - 'src/**'
+  #     - 'package.json'
+  #     - 'capacitor.config.ts'
 
 jobs:
   build:
