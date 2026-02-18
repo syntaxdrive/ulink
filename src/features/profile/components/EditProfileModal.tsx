@@ -64,8 +64,8 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Image must be less than 5MB');
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Image must be less than 10MB');
                 return;
             }
             setAvatarFile(file);
@@ -95,8 +95,8 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
     const handleBgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Image must be less than 5MB');
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Image must be less than 10MB');
                 return;
             }
             setBgFile(file);

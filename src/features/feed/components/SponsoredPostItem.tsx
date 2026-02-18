@@ -23,7 +23,7 @@ export default function SponsoredPostItem({ post }: SponsoredPostItemProps) {
         <article className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl overflow-hidden mb-4 hover:border-stone-300 dark:hover:border-zinc-700 transition-all shadow-sm">
             {/* Header */}
             <div className="p-4 flex items-start gap-3">
-                <Link to={`/app/profile/${post.organization?.id}`} className="shrink-0 relative">
+                <Link to={`/app/profile/${post.organization?.username || post.organization?.id}`} className="shrink-0 relative">
                     <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-zinc-800 overflow-hidden ring-2 ring-stone-100 dark:ring-zinc-800">
                         <img
                             src={post.organization?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.organization?.name || 'Org')}`}
@@ -36,7 +36,7 @@ export default function SponsoredPostItem({ post }: SponsoredPostItemProps) {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                            <Link to={`/app/profile/${post.organization?.id}`} className="font-bold text-stone-900 dark:text-white hover:underline truncate">
+                            <Link to={`/app/profile/${post.organization?.username || post.organization?.id}`} className="font-bold text-stone-900 dark:text-white hover:underline truncate">
                                 {post.organization?.name}
                             </Link>
                             {post.organization?.gold_verified ? (

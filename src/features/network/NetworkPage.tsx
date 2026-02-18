@@ -131,7 +131,7 @@ export default function NetworkPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {filteredProfiles.map((profile) => (
                     <div key={profile.id} className="bg-white p-5 rounded-3xl border border-stone-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all flex items-center gap-4 group">
-                        <Link to={`/app/profile/${profile.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                        <Link to={`/app/profile/${profile.username || profile.id}`} className="flex items-center gap-4 flex-1 min-w-0">
                             <div className="w-16 h-16 rounded-2xl overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm shrink-0">
                                 <img
                                     src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=random`}

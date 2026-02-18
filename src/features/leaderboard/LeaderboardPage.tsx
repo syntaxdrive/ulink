@@ -22,6 +22,14 @@ interface UserRank {
     points: number;
 }
 
+const POINT_ACTIVITIES = [
+    { points: 10, title: 'Create a Post', description: 'Share your thoughts' },
+    { points: 2, title: 'Receive a Like', description: 'On your posts' },
+    { points: 5, title: 'Comment', description: 'Engage in discussions' },
+    { points: 15, title: 'Make a Connection', description: 'Both users earn points' },
+    { points: 110, title: 'Complete Your Profile', description: 'One-time bonus for adding avatar, headline, about, skills, and experience', span: true }
+];
+
 export default function LeaderboardPage() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [userRank, setUserRank] = useState<UserRank | null>(null);
@@ -128,7 +136,7 @@ export default function LeaderboardPage() {
                     {leaderboard.map((entry, index) => (
                         <Link
                             key={entry.user_id}
-                            to={`/app/profile/${entry.user_id}`}
+                            to={`/app/profile/${entry.username || entry.user_id}`}
                             className={`flex items-center gap-4 p-5 transition-all hover:bg-stone-50 dark:hover:bg-zinc-800 ${index !== leaderboard.length - 1 ? 'border-b border-stone-200 dark:border-zinc-800' : ''
                                 } ${entry.user_id === currentUserId ? 'bg-emerald-50 dark:bg-emerald-950/20' : ''}`}
                         >
@@ -192,53 +200,17 @@ export default function LeaderboardPage() {
                         How to Earn Points
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-emerald-600 dark:text-emerald-500 font-bold">+10</span>
+                        {POINT_ACTIVITIES.map((activity, index) => (
+                            <div key={index} className={`flex items-start gap-3 ${activity.span ? 'md:col-span-2' : ''}`}>
+                                <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-emerald-600 dark:text-emerald-500 font-bold">+{activity.points}</span>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-stone-900 dark:text-zinc-100">{activity.title}</p>
+                                    <p className="text-sm text-stone-600 dark:text-zinc-400">{activity.description}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Create a Post</p>
-                                <p className="text-sm text-stone-600 dark:text-zinc-400">Share your thoughts</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-emerald-600 dark:text-emerald-500 font-bold">+2</span>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Receive a Like</p>
-                                <p className="text-sm text-stone-600 dark:text-zinc-400">On your posts</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-emerald-600 dark:text-emerald-500 font-bold">+5</span>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Comment</p>
-                                <p className="text-sm text-stone-600 dark:text-zinc-400">Engage in discussions</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-emerald-600 dark:text-emerald-500 font-bold">+15</span>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Make a Connection</p>
-                                <p className="text-sm text-stone-600 dark:text-zinc-400">Both users earn points</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3 md:col-span-2">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-emerald-600 dark:text-emerald-500 font-bold">+110</span>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Complete Your Profile</p>
-                                <p className="text-sm text-stone-600 dark:text-zinc-400">
-                                    One-time bonus for adding avatar, headline, about, skills, and experience
-                                </p>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>

@@ -13,10 +13,10 @@ interface ImageCropperProps {
 export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspectRatio = 1 }: ImageCropperProps) {
     const [crop, setCrop] = useState<Crop>({
         unit: '%',
-        width: 90,
-        height: 90,
-        x: 5,
-        y: 5
+        width: 80,
+        height: aspectRatio === 1 ? 80 : 60,
+        x: 10,
+        y: aspectRatio === 1 ? 10 : 20
     });
     const [completedCrop, setCompletedCrop] = useState<Crop | null>(null);
     const [imgRef, setImgRef] = useState<HTMLImageElement | null>(null);
@@ -79,7 +79,10 @@ export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspec
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
                 <div className="p-6 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-stone-900 dark:text-zinc-100">Crop Image</h2>
+                    <div>
+                        <h2 className="text-xl font-bold text-stone-900 dark:text-zinc-100">Crop Image</h2>
+                        <p className="text-sm text-stone-600 dark:text-zinc-400 mt-1">Drag to reposition • Resize corners to zoom</p>
+                    </div>
                     <button
                         onClick={onCancel}
                         className="p-2 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
@@ -95,7 +98,7 @@ export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspec
                             className="flex items-center gap-2 px-4 py-2 bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
                         >
                             <RotateCw className="w-4 h-4" />
-                            Rotate
+                            Rotate 90°
                         </button>
                     </div>
 

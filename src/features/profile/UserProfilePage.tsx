@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
 import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X } from 'lucide-react';
-import EditProfileModal from './components/EditProfileModal';
 import { useFollow } from './hooks/useFollow';
+import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
@@ -20,7 +20,6 @@ export default function UserProfilePage() {
     // Connection Logic
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
     const [actionLoading, setActionLoading] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'jobs'>('posts');
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isViewingBackground, setIsViewingBackground] = useState(false);
@@ -163,23 +162,36 @@ export default function UserProfilePage() {
     };
 
     const fetchProfile = async (idOrUsername: string) => {
-        let query = supabase.from('profiles').select('*, certificates(*)');
+        try {
+            console.log('Fetching profile for:', idOrUsername);
+            let query = supabase.from('profiles').select('*, certificates(*)');
 
-        // Simple UUID check
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrUsername);
+            // Simple UUID check
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrUsername);
 
-        if (isUUID) {
-            query = query.eq('id', idOrUsername);
-        } else {
-            query = query.eq('username', idOrUsername);
+            if (isUUID) {
+                console.log('Searching by UUID');
+                query = query.eq('id', idOrUsername);
+            } else {
+                console.log('Searching by username');
+                query = query.eq('username', idOrUsername.toLowerCase());
+            }
+
+            const { data, error } = await query.single();
+
+            if (error || !data) {
+                console.error('Profile not found:', { error, idOrUsername, isUUID });
+                setProfile(null);
+            } else {
+                console.log('Profile found:', data.name);
+                setProfile(data);
+            }
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+            setProfile(null);
+        } finally {
+            setLoading(false);
         }
-
-        const { data } = await query.single();
-
-        if (data) {
-            setProfile(data);
-        }
-        setLoading(false);
     };
 
     const fetchUserPosts = async (id: string) => {
@@ -216,6 +228,20 @@ export default function UserProfilePage() {
             fetchProfile(userId);
         }
     }, [userId]);
+
+    // Update meta tags for social sharing
+    useEffect(() => {
+        if (profile) {
+            updateMetaTags({
+                title: profile.name,
+                description: profile.headline || profile.about || `${profile.name} on UniLink - Connect with students across Nigerian universities`,
+                image: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=400&background=random`,
+                url: window.location.href
+            });
+        }
+
+        return () => resetMetaTags();
+    }, [profile]);
 
     useEffect(() => {
         if (profile?.id) {
@@ -324,16 +350,31 @@ export default function UserProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <div className="flex justify-center items-center min-h-screen bg-[#FAFAFA]">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="text-center py-20 text-slate-400">
-                User not found.
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] px-4">
+                <div className="text-center max-w-md">
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
+                        <User className="w-10 h-10 text-slate-400" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-2">Profile Not Found</h1>
+                    <p className="text-slate-600 mb-6">
+                        This user doesn't exist or may have been removed.
+                    </p>
+                    <Link
+                        to="/app"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Home
+                    </Link>
+                </div>
             </div>
         );
     }
@@ -504,12 +545,12 @@ export default function UserProfilePage() {
                         {currentUser && currentUser.id === profile.id ? (
                             <div className="mt-6 px-6 w-full">
                                 <div className="mt-6 px-6 w-full">
-                                    <button
-                                        onClick={() => setIsEditing(true)}
+                                    <Link
+                                        to="/app/profile"
                                         className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300"
                                     >
                                         <Briefcase className="w-4 h-4" /> Edit Profile
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         ) : currentUser && (
@@ -982,14 +1023,6 @@ export default function UserProfilePage() {
                     )}
                 </div>
             </div >
-            {isEditing && profile && (
-                <EditProfileModal
-                    user={profile}
-                    isOpen={isEditing}
-                    onClose={() => setIsEditing(false)}
-                    onUpdate={(updated) => setProfile(updated)}
-                />
-            )}
 
             {/* Full-Screen Avatar Viewer */}
             {isFullScreen && (

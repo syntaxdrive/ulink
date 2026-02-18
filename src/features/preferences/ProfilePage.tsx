@@ -136,8 +136,8 @@ export default function ProfilePage() {
     const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Image must be less than 5MB');
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Image must be less than 10MB');
                 return;
             }
             const reader = new FileReader();
@@ -152,8 +152,8 @@ export default function ProfilePage() {
     const handleBgFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Image must be less than 5MB');
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Image must be less than 10MB');
                 return;
             }
             const reader = new FileReader();
@@ -236,8 +236,8 @@ export default function ProfilePage() {
         const file = e.target.files?.[0];
         if (!file || !profile) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Resume must be less than 5MB');
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Resume must be less than 10MB');
             return;
         }
 
@@ -280,8 +280,8 @@ export default function ProfilePage() {
     const handleCertificatePdfUpload = async (certId: string, file: File) => {
         if (!profile) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Certificate must be less than 5MB');
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Certificate must be less than 10MB');
             return;
         }
 

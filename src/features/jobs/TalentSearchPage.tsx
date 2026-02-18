@@ -110,7 +110,7 @@ export default function TalentSearchPage() {
                                             <p className="text-slate-500 font-medium">{profile.headline || 'Student'}</p>
                                         </div>
                                         <Link
-                                            to={`/app/profile/${profile.id}`}
+                                            to={`/app/profile/${profile.username || profile.id}`}
                                             className="px-4 py-2 bg-slate-50 text-slate-600 font-semibold text-sm rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors flex items-center gap-2"
                                         >
                                             View Profile <ArrowRight className="w-4 h-4" />

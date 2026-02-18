@@ -91,8 +91,8 @@ export default function OnboardingPage() {
 
             <div className="relative z-10 w-full max-w-[420px] bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] p-8 animate-in fade-in zoom-in-95 duration-500">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">Almost there! 🚀</h1>
-                    <p className="text-slate-500 text-sm">Let's set up your profile to customize your experience.</p>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">Welcome back! 👋</h1>
+                    <p className="text-slate-500 text-sm">We've updated our systems. Please set up your profile again to continue.</p>
                 </div>
 
                 {error && (

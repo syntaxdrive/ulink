@@ -187,7 +187,7 @@ export default function PostItem({
                 <div className="flex items-center gap-2 px-4 pt-4 pb-2 text-sm text-stone-500 dark:text-zinc-500">
                     <Repeat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                     <Link
-                        to={`/app/profile/${post.author_id}`}
+                        to={`/app/profile/${post.profiles?.username || post.author_id}`}
                         className="font-semibold text-stone-700 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors"
                     >
                         {post.profiles.name}
@@ -198,7 +198,7 @@ export default function PostItem({
 
             {/* Header */}
             <div className="flex justify-between items-start px-4 pt-3 pb-2">
-                <Link to={`/app/profile/${post.author_id}`} className="flex items-center gap-3 group">
+                <Link to={`/app/profile/${post.profiles?.username || post.author_id}`} className="flex items-center gap-3 group">
                     <div className={`w-10 h-10 ${post.profiles?.role === 'org' ? 'rounded-lg' : 'rounded-full'} overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 dark:from-zinc-800 dark:to-zinc-700`}>
                         <img
                             loading="lazy"
@@ -293,7 +293,7 @@ export default function PostItem({
             {/* Original Post (for reposts) */}
             {post.is_repost && post.original_post && (
                 <div className="mb-4 border-2 border-stone-200 rounded-2xl p-4 bg-stone-50/50">
-                    <Link to={`/app/profile/${post.original_post.author_id}`} className="flex items-center gap-3 mb-3">
+                    <Link to={`/app/profile/${post.original_post.profiles?.username || post.original_post.author_id}`} className="flex items-center gap-3 mb-3">
                         <img
                             loading="lazy"
                             src={post.original_post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.original_post.profiles?.name || 'User')}`}
@@ -506,7 +506,7 @@ export default function PostItem({
                                         <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-8 h-8 rounded-full bg-stone-100 mt-1" />
                                         <div className="bg-stone-50 rounded-2xl rounded-tl-sm p-3 px-4 flex-1 relative group-hover:bg-stone-100 transition-colors">
                                             <div className="flex justify-between items-start">
-                                                <Link to={`/app/profile/${comment.author_id}`} className="font-bold text-stone-900 text-xs mb-1 hover:underline">
+                                                <Link to={`/app/profile/${comment.profiles?.username || comment.author_id}`} className="font-bold text-stone-900 text-xs mb-1 hover:underline">
                                                     {comment.profiles?.name}
                                                 </Link>
                                                 {currentUserId === comment.author_id && (

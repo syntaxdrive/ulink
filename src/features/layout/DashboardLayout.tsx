@@ -263,7 +263,7 @@ export default function DashboardLayout() {
     };
 
     const bottomNavItems = navItems.filter(item =>
-        ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
+        ['Home', 'Network', 'Communities', 'Messages', 'Profile'].includes(item.label)
     );
 
     return (
