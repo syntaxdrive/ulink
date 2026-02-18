@@ -93,8 +93,7 @@ export function useFeed(communityId?: string) {
                     id,
                     name,
                     slug,
-                    icon_url,
-                    members_count
+                    icon_url
                 ),
                 original_post:original_post_id (
                     id,
@@ -367,8 +366,7 @@ export function useFeed(communityId?: string) {
                     id,
                     name,
                     slug,
-                    icon_url,
-                    members_count
+                    icon_url
                 ),
                 likes (user_id), 
                 comments (id)

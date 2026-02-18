@@ -230,16 +230,9 @@ export default function PostItem({
                                 <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                             </div>
                         )}
-                        <div>
-                            <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
-                                {post.communities.name}
-                            </p>
-                            {post.communities.members_count !== undefined && (
-                                <p className="text-xs text-stone-500 dark:text-zinc-500">
-                                    {post.communities.members_count} members
-                                </p>
-                            )}
-                        </div>
+                        <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
+                            {post.communities.name}
+                        </p>
                     </Link>
                     
                     {!isMember && currentUserId && (
