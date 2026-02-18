@@ -48,10 +48,8 @@ export function useFeed(communityId?: string) {
                 if (communityId) {
                     // In community: only show posts from THIS community
                     if (newPost.community_id !== communityId) return;
-                } else {
-                    // In main feed: only show posts NOT in any community
-                    if (newPost.community_id !== null) return;
                 }
+                // In main feed: show ALL posts (both global and community posts)
 
                 fetchSinglePost(newPost.id);
             })
@@ -91,6 +89,13 @@ export function useFeed(communityId?: string) {
                     role,
                     email
                 ),
+                communities:community_id (
+                    id,
+                    name,
+                    slug,
+                    icon_url,
+                    members_count
+                ),
                 original_post:original_post_id (
                     id,
                     content,
@@ -113,10 +118,8 @@ export function useFeed(communityId?: string) {
         if (communityId) {
             // Community Feed: Only show posts from this specific community
             query = query.eq('community_id', communityId);
-        } else {
-            // Main Feed: Only show posts NOT in any community (global posts)
-            query = query.is('community_id', null);
         }
+        // Note: Main feed now shows ALL posts (both global and community posts)
 
         const { data, error } = await query;
 
@@ -357,7 +360,19 @@ export function useFeed(communityId?: string) {
         const { data: { user } } = await supabase.auth.getUser();
         const { data } = await supabase
             .from('posts')
-            .select(`*, profiles:author_id (*), likes (user_id), comments (id)`)
+            .select(`
+                *, 
+                profiles:author_id (*), 
+                communities:community_id (
+                    id,
+                    name,
+                    slug,
+                    icon_url,
+                    members_count
+                ),
+                likes (user_id), 
+                comments (id)
+            `)
             .eq('id', postId)
             .single();
 

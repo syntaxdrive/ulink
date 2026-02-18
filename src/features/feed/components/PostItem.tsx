@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight, Globe, UserPlus } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
 import VideoEmbed from '../../../components/VideoEmbed';
 import { detectVideoEmbed, removeVideoLink } from '../../../utils/videoEmbed';
 import RepostModal from './RepostModal';
 import NativeVideoPlayer from './NativeVideoPlayer';
+import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -63,6 +64,9 @@ export default function PostItem({
     const [showRepostModal, setShowRepostModal] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isMember, setIsMember] = useState(false);
+    
+    const { joinCommunity, joiningCommunity } = useCommunityMembership();
 
     // Detect video embed in post content
     const videoEmbed = useMemo(() => detectVideoEmbed(post.content || ''), [post.content]);
@@ -103,6 +107,18 @@ export default function PostItem({
         } catch (error) {
             console.error(error);
             alert('Failed to post comment');
+        }
+    };
+
+    const handleJoinCommunity = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (!post.communities?.id) return;
+        
+        const success = await joinCommunity(post.communities.id);
+        if (success) {
+            setIsMember(true);
         }
     };
 
@@ -193,6 +209,53 @@ export default function PostItem({
                         {post.profiles.name}
                     </Link>
                     <span>reposted</span>
+                </div>
+            )}
+
+            {/* Community Banner */}
+            {post.communities && (
+                <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 dark:border-zinc-800">
+                    <Link 
+                        to={`/app/communities/${post.communities.slug}`}
+                        className="flex items-center gap-2 group"
+                    >
+                        {post.communities.icon_url ? (
+                            <img 
+                                src={post.communities.icon_url} 
+                                alt={post.communities.name}
+                                className="w-6 h-6 rounded-md object-cover"
+                            />
+                        ) : (
+                            <div className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
+                            </div>
+                        )}
+                        <div>
+                            <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
+                                {post.communities.name}
+                            </p>
+                            {post.communities.members_count !== undefined && (
+                                <p className="text-xs text-stone-500 dark:text-zinc-500">
+                                    {post.communities.members_count} members
+                                </p>
+                            )}
+                        </div>
+                    </Link>
+                    
+                    {!isMember && currentUserId && (
+                        <button
+                            onClick={handleJoinCommunity}
+                            disabled={joiningCommunity === post.communities.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                        >
+                            {joiningCommunity === post.communities.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <UserPlus className="w-3.5 h-3.5" />
+                            )}
+                            Join
+                        </button>
+                    )}
                 </div>
             )}
 
