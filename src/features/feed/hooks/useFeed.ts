@@ -6,7 +6,7 @@ import { notifyMentionedUsers } from '../../../utils/mentions';
 
 export function useFeed(communityId?: string) {
     // 1. Use Global Store
-    const { posts, setPosts, addPost, updatePost, removePost, needsRefresh } = useFeedStore();
+    const { posts, setPosts, addPost, updatePost, removePost } = useFeedStore();
 
     const [loading, setLoading] = useState(true);
     const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
