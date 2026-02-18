@@ -9,7 +9,7 @@ interface VideoEmbedProps {
     className?: string;
 }
 
-export default function VideoEmbed({ id, embed, defaultMuted = false, className = '' }: VideoEmbedProps) {
+export default function VideoEmbed({ id, embed, className = '' }: VideoEmbedProps) {
     if (embed.type === 'youtube') {
         return (
             <div 
