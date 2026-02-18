@@ -30,11 +30,8 @@ export function useFeed(communityId?: string) {
 
             // Always fetch if communityId is present (context switch)
             // or if traditional refresh is needed
-            if (communityId || needsRefresh() || posts.length === 0) {
-                await fetchPosts(user?.id);
-            } else {
-                setLoading(false); // Use cached data
-            }
+            // Force refresh to ensure we get latest data
+            await fetchPosts(user?.id);
         };
         init();
 
@@ -125,7 +122,12 @@ export function useFeed(communityId?: string) {
 
         if (error) {
             console.error('Error fetching posts:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            setLoading(false);
+            return; // Don't set empty posts on error
         }
+
+        console.log(`Fetched ${data?.length || 0} posts from database`);
 
         if (!error && data) {
             // VIP Users List
