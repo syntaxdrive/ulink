@@ -48,10 +48,8 @@ export function useFeed(communityId?: string) {
                 if (communityId) {
                     // In community: only show posts from THIS community
                     if (newPost.community_id !== communityId) return;
-                } else {
-                    // In main feed: only show global posts (not in any community)
-                    if (newPost.community_id !== null) return;
                 }
+                // In main feed: show ALL posts (global + community posts with banner)
 
                 fetchSinglePost(newPost.id);
             })
@@ -119,10 +117,9 @@ export function useFeed(communityId?: string) {
         if (communityId) {
             // Community Feed: Only show posts from this specific community
             query = query.eq('community_id', communityId);
-        } else {
-            // Main Feed: Only show global posts (not in any community)
-            query = query.is('community_id', null);
         }
+        // Main Feed: Shows ALL posts (both global and community posts)
+        // Community posts will show with banner and join button
 
         const { data, error } = await query;
 
