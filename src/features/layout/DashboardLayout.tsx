@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap } from 'lucide-react';
 
 import { supabase } from '../../lib/supabase';
 import type { Profile } from '../../types';
@@ -241,20 +241,26 @@ export default function DashboardLayout() {
         navigate('/');
     };
 
-    const navItems = [
+    const primaryNavItems = [
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
         { icon: Globe, label: 'Communities', path: '/app/communities' },
-        ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
-        ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
+        { icon: Zap, label: 'Challenge', path: '/app/challenge' },
         { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+        { icon: Bell, label: 'Notifications', path: '/app/notifications' },
+        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
+    ];
+
+    const secondaryNavItems = [
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
         { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
-        { icon: Bell, label: 'Notifications', path: '/app/notifications' },
-        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
         { icon: Settings, label: 'Settings', path: '/app/settings' },
+        ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
+        ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
     ];
+
+    const navItems = [...primaryNavItems, ...secondaryNavItems];
 
     const getBadgeCount = (label: string) => {
         if (label === 'Messages') return unreadMessages;
@@ -263,7 +269,7 @@ export default function DashboardLayout() {
     };
 
     const bottomNavItems = navItems.filter(item =>
-        ['Home', 'Network', 'Communities', 'Messages', 'Profile'].includes(item.label)
+        ['Home', 'Network', 'Challenge', 'Messages', 'Profile'].includes(item.label)
     );
 
     return (
@@ -308,8 +314,9 @@ export default function DashboardLayout() {
                             </button>
                         </div>
 
-                        <nav className="flex-1 space-y-2">
-                            {navItems.map((item: any) =>
+                        <nav className="flex-1 overflow-y-auto space-y-1">
+                            {/* Primary items */}
+                            {primaryNavItems.map((item: any) =>
                                 item.comingSoon ? (
                                     <div
                                         key={item.label}
@@ -341,6 +348,39 @@ export default function DashboardLayout() {
                                             )}
                                         </div>
                                         <span className="font-medium">{item.label}</span>
+                                    </NavLink>
+                                )
+                            )}
+
+                            {/* Secondary items */}
+                            <div className="px-4 pt-4 pb-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">More</span>
+                            </div>
+                            {secondaryNavItems.map((item: any) =>
+                                item.comingSoon ? (
+                                    <div
+                                        key={item.label}
+                                        className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-slate-300 cursor-not-allowed"
+                                    >
+                                        <item.icon className="w-4 h-4 opacity-70" />
+                                        <span className="text-sm font-medium">{item.label}</span>
+                                        <span className="ml-auto text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full">Soon</span>
+                                    </div>
+                                ) : (
+                                    <NavLink
+                                        key={item.path}
+                                        to={item.path}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        end={item.path === '/app'}
+                                        className={({ isActive }) =>
+                                            `relative flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive
+                                                ? 'bg-stone-100 text-stone-900'
+                                                : 'text-stone-400 hover:text-stone-700 hover:bg-stone-50'
+                                            }`
+                                        }
+                                    >
+                                        <item.icon className="w-4 h-4" />
+                                        <span className="text-sm font-medium">{item.label}</span>
                                     </NavLink>
                                 )
                             )}
@@ -400,45 +440,55 @@ export default function DashboardLayout() {
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 py-8 space-y-2">
-                    <div className="px-4 mb-4">
-                        <span className="text-xs font-semibold text-slate-400 tracking-wider">MENU</span>
+                <nav className="flex-1 px-4 py-6 overflow-y-auto space-y-1">
+                    <div className="px-4 mb-3">
+                        <span className="text-xs font-semibold text-slate-400 tracking-wider">MAIN</span>
                     </div>
 
-                    {navItems.map((item: any) =>
-                        item.comingSoon ? (
-                            <div
-                                key={item.label}
-                                className="relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-slate-400 cursor-not-allowed bg-slate-50/30"
-                            >
-                                <item.icon className="w-5 h-5 opacity-70" strokeWidth={1.5} />
-                                <span className="font-sans text-sm font-medium">{item.label}</span>
-                                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Soon</span>
+                    {primaryNavItems.map((item: any) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.path === '/app'}
+                            className={({ isActive }) =>
+                                `relative group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${isActive
+                                    ? 'bg-stone-900 text-white shadow-xl shadow-stone-200 ring-1 ring-stone-900'
+                                    : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                                }`
+                            }
+                        >
+                            <div className="relative">
+                                <item.icon className="w-5 h-5" strokeWidth={1.5} />
+                                {getBadgeCount(item.label) > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                        {getBadgeCount(item.label)}
+                                    </span>
+                                )}
                             </div>
-                        ) : (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                end={item.path === '/app'}
-                                className={({ isActive }) =>
-                                    `relative group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
-                                        ? 'bg-stone-900 text-white shadow-xl shadow-stone-200 ring-1 ring-stone-900'
-                                        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
-                                    }`
-                                }
-                            >
-                                <div className="relative">
-                                    <item.icon className="w-5 h-5" strokeWidth={1.5} />
-                                    {getBadgeCount(item.label) > 0 && (
-                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                            {getBadgeCount(item.label)}
-                                        </span>
-                                    )}
-                                </div>
-                                <span className="font-sans text-sm font-medium">{item.label}</span>
-                            </NavLink>
-                        )
-                    )}
+                            <span className="font-sans text-sm font-medium">{item.label}</span>
+                        </NavLink>
+                    ))}
+
+                    <div className="px-4 pt-4 pb-2">
+                        <span className="text-xs font-semibold text-slate-400 tracking-wider">MORE</span>
+                    </div>
+
+                    {secondaryNavItems.map((item: any) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.path === '/app'}
+                            className={({ isActive }) =>
+                                `relative group flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300 ${isActive
+                                    ? 'bg-stone-100 text-stone-900 font-semibold'
+                                    : 'text-stone-400 hover:text-stone-700 hover:bg-stone-50'
+                                }`
+                            }
+                        >
+                            <item.icon className="w-4 h-4" strokeWidth={1.5} />
+                            <span className="font-sans text-xs font-medium">{item.label}</span>
+                        </NavLink>
+                    ))}
                 </nav>
 
                 <div className="p-4 border-t border-slate-100 bg-slate-50/50">

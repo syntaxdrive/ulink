@@ -13,17 +13,7 @@ export function useSponsoredPosts() {
         try {
             const { data, error } = await supabase
                 .from('sponsored_posts')
-                .select(`
-                    *,
-                    organization:organization_id (
-                        id,
-                        name,
-                        avatar_url,
-                        username,
-                        is_verified,
-                        gold_verified
-                    )
-                `)
+                .select('*')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;

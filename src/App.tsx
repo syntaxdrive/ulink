@@ -25,6 +25,7 @@ import CommunitiesPage from './features/communities/CommunitiesPage';
 import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import CoursesPage from './features/learn/CoursesPage';
 import LeaderboardPage from './features/leaderboard/LeaderboardPage';
+import CampusChallengePage from './features/challenge/CampusChallengePage';
 import UpdateNotification from './components/UpdateNotification';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
@@ -126,6 +127,7 @@ function App() {
             <Route path="talent" element={<TalentSearchPage />} />
             <Route path="learn" element={<CoursesPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="challenge" element={<CampusChallengePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/:userId" element={<UserProfilePage />} />

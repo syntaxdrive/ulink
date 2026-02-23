@@ -2,6 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Profile } from '../../../types';
 
+// Seed/test user usernames — always hidden regardless of DB column state
+const TEST_USER_USERNAMES = new Set([
+    'chidi_okonkwo', 'amara_writes', 'tunde_codes', 'ngozi_builders',
+    'emekatech', 'fatima_finance', 'davidosei_art', 'blessings_med',
+    'ibrahim_econ', 'adaeze_fashion', 'seun_sports', 'chisom_biz',
+]);
+const TEST_USER_EMAILS = new Set([
+    'chidiokonkwo@gmail.com', 'amaraeze@gmail.com', 'tundeadeyemi@gmail.com',
+    'ngoziobi@gmail.com', 'emekanwosu@gmail.com', 'fatimabello@gmail.com',
+    'davidosei@gmail.com', 'blessingpeter@gmail.com', 'ibrahimmusa@gmail.com',
+    'adaezenwofor@gmail.com', 'seunadesanya@gmail.com', 'chisomokeke@gmail.com',
+]);
+
+const filterTestUsers = (profiles: Profile[]) =>
+    profiles.filter(p =>
+        !TEST_USER_USERNAMES.has(p.username || '') &&
+        !TEST_USER_EMAILS.has(p.email || '')
+    );
+
 export function useNetwork() {
     const [suggestions, setSuggestions] = useState<Profile[]>([]);
     const [myNetwork, setMyNetwork] = useState<Profile[]>([]);
@@ -61,13 +80,32 @@ export function useNetwork() {
             setMyNetwork([]);
         }
 
-        // 3. Fetch "Suggestions" (Grow) - Using Smart Algorithm
-        const { data: suggestionData } = await supabase.rpc('get_suggested_connections', {
-            current_user_id: user.id
-        });
+        // 3. Fetch all users — filter/sort client-side for reliability
+        const excludeIds = new Set([user.id, ...Array.from(connectedIds), ...Array.from(pendingIds)]);
 
-        if (suggestionData) {
-            setSuggestions(suggestionData);
+        const { data: allProfiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        if (allProfiles) {
+            const myUni = profile?.university?.toLowerCase().trim();
+            const filtered = filterTestUsers(
+                allProfiles.filter((p: Profile) => !excludeIds.has(p.id))
+            );
+            // Sort: same university first, then gold verified, then verified, then newest
+            filtered.sort((a: Profile, b: Profile) => {
+                const aUni = a.university?.toLowerCase().trim();
+                const bUni = b.university?.toLowerCase().trim();
+                const aSameUni = myUni && aUni === myUni ? 0 : 1;
+                const bSameUni = myUni && bUni === myUni ? 0 : 1;
+                if (aSameUni !== bSameUni) return aSameUni - bSameUni;
+                if ((b.gold_verified ? 1 : 0) !== (a.gold_verified ? 1 : 0)) return (b.gold_verified ? 1 : 0) - (a.gold_verified ? 1 : 0);
+                if ((b.is_verified ? 1 : 0) !== (a.is_verified ? 1 : 0)) return (b.is_verified ? 1 : 0) - (a.is_verified ? 1 : 0);
+                return 0;
+            });
+            setSuggestions(filtered);
         }
 
         setLoading(false);
@@ -101,7 +139,7 @@ export function useNetwork() {
                 );
                 setSearchResults(filtered);
             } else if (data) {
-                setSearchResults(data);
+                setSearchResults(filterTestUsers(data));
             }
         } catch (error) {
             console.error('Search failed:', error);

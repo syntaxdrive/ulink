@@ -1,16 +1,15 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, BadgeCheck, Building2, Mail, LayoutDashboard, PenTool } from 'lucide-react';
+import { Users, Shield, BadgeCheck, Building2, Mail, LayoutDashboard, Smile, Zap } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
 import SponsoredPostsManager from './components/SponsoredPostsManager';
 import ReportsManager from './components/ReportsManager';
 import UserTable from './components/UserTable';
-
-// Lazy load the whiteboard to avoid heavy bundle on initial load
-const CollaborativeWhiteboard = lazy(() => import('./components/CollaborativeWhiteboard'));
+import AdminReactionsBoard from './components/AdminReactionsBoard';
+import AdminPollCreator from './components/AdminPollCreator';
 
 interface DashboardStats {
     total_users: number;
@@ -22,7 +21,7 @@ export default function AdminPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'whiteboard'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'board' | 'polls'>('dashboard');
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<Profile[]>([]);
@@ -88,34 +87,34 @@ export default function AdminPage() {
     if (!isAdmin) return null;
 
     return (
-        <div className="max-w-6xl mx-auto pb-20 space-y-8">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
+        <div className="max-w-6xl mx-auto pb-20 space-y-6">
+            {/* Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
                     <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-900/20">
-                        <Shield className="w-6 h-6" />
+                        <Shield className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-stone-900 dark:text-white font-display">Admin Dashboard</h1>
-                        <p className="text-stone-500 dark:text-zinc-400">Manage users and collaborate</p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white font-display">Admin Dashboard</h1>
+                        <p className="text-stone-500 dark:text-zinc-400 text-sm">Manage users and collaborate</p>
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setIsEmailModalOpen(true)}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 hover:shadow-emerald-300 transition-all"
-                    >
-                        <Mail className="w-4 h-4" />
-                        Send Broadcast
-                    </button>
-                </div>
+                <button
+                    onClick={() => setIsEmailModalOpen(true)}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 transition-all text-sm"
+                >
+                    <Mail className="w-4 h-4" />
+                    <span className="hidden sm:inline">Send Broadcast</span>
+                    <span className="sm:hidden">Broadcast</span>
+                </button>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex gap-2 p-1 bg-stone-100 dark:bg-zinc-800 rounded-xl w-fit">
+            <div className="flex gap-2 p-1 bg-stone-100 dark:bg-zinc-800 rounded-xl w-full sm:w-fit">
                 <button
                     onClick={() => setActiveTab('dashboard')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'dashboard'
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'dashboard'
                             ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
                             : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                         }`}
@@ -124,14 +123,24 @@ export default function AdminPage() {
                     Dashboard
                 </button>
                 <button
-                    onClick={() => setActiveTab('whiteboard')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'whiteboard'
+                    onClick={() => setActiveTab('board')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'board'
                             ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
                             : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                         }`}
                 >
-                    <PenTool className="w-4 h-4" />
-                    Whiteboard
+                    <Smile className="w-4 h-4" />
+                    Board
+                </button>
+                <button
+                    onClick={() => setActiveTab('polls')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'polls'
+                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
+                >
+                    <Zap className="w-4 h-4" />
+                    Challenges
                 </button>
             </div>
 
@@ -189,16 +198,13 @@ export default function AdminPage() {
                         setStats={setStats}
                     />
                 </div>
+            ) : activeTab === 'board' ? (
+                <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <AdminReactionsBoard />
+                </div>
             ) : (
-                <div className="animate-in fade-in zoom-in-95 duration-300 h-full">
-                    <Suspense fallback={
-                        <div className="h-[600px] flex flex-col items-center justify-center gap-4 bg-stone-50 dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700">
-                            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-stone-500 font-medium">Loading Whiteboard...</p>
-                        </div>
-                    }>
-                        <CollaborativeWhiteboard />
-                    </Suspense>
+                <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <AdminPollCreator />
                 </div>
             )}
 

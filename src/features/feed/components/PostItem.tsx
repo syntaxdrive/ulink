@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight, Globe, UserPlus } from 'lucide-react';
+import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight, Globe, UserPlus, ExternalLink } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
 import VideoEmbed from '../../../components/VideoEmbed';
 import { detectVideoEmbed, removeVideoLink } from '../../../utils/videoEmbed';
 import RepostModal from './RepostModal';
 import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
+import { supabase } from '../../../lib/supabase';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -40,6 +41,7 @@ interface PostItemProps {
     onReport: (id: string) => void;
     onDeleteComment: (postId: string, commentId: string) => void;
     onVotePoll?: (postId: string, optionIndex: number) => Promise<void>;
+    isInCommunityFeed?: boolean;
 }
 
 export default function PostItem({
@@ -58,11 +60,36 @@ export default function PostItem({
     onSearchTag,
     onReport,
     onDeleteComment,
-    onVotePoll
+    onVotePoll,
+    isInCommunityFeed = false,
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
     const [showRepostModal, setShowRepostModal] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+    const [sharedToFeed, setSharedToFeed] = useState<boolean>(post.shared_to_feed || false);
+    const [sharingToFeed, setSharingToFeed] = useState(false);
+
+    const handleShareToFeed = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (sharingToFeed || sharedToFeed) return;
+        setSharingToFeed(true);
+        const { error } = await supabase
+            .from('posts')
+            .update({ shared_to_feed: true })
+            .eq('id', post.id);
+        if (!error) setSharedToFeed(true);
+        setSharingToFeed(false);
+    };
+
+    const handleUnshare = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('Remove this post from the main feed?')) return;
+        const { error } = await supabase
+            .from('posts')
+            .update({ shared_to_feed: false })
+            .eq('id', post.id);
+        if (!error) setSharedToFeed(false);
+    };
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isMember, setIsMember] = useState(false);
     
@@ -197,7 +224,7 @@ export default function PostItem({
     };
 
     return (
-        <article className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 transition-all duration-200">
+        <article className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 transition-all duration-200 rounded-2xl overflow-hidden">
             {/* Repost Banner */}
             {post.is_repost && post.profiles && (
                 <div className="flex items-center gap-2 px-4 pt-4 pb-2 text-sm text-stone-500 dark:text-zinc-500">
@@ -212,8 +239,8 @@ export default function PostItem({
                 </div>
             )}
 
-            {/* Community Banner */}
-            {post.community && (
+            {/* Community Banner — only on main feed when shared to feed */}
+            {post.community && !isInCommunityFeed && (
                 <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 dark:border-zinc-800">
                     <Link 
                         to={`/app/communities/${post.community.slug}`}
@@ -230,12 +257,17 @@ export default function PostItem({
                                 <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                             </div>
                         )}
-                        <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
-                            {post.community.name}
-                        </p>
+                        <div>
+                            <p className="text-xs text-stone-400 dark:text-zinc-500 leading-none">
+                                {sharedToFeed || post.shared_to_feed ? 'Shared from' : 'Posted in'}
+                            </p>
+                            <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors">
+                                {post.community.name}
+                            </p>
+                        </div>
                     </Link>
                     
-                    {!isMember && currentUserId && (
+                    {!isMember && currentUserId && !sharedToFeed && !post.shared_to_feed && (
                         <button
                             onClick={handleJoinCommunity}
                             disabled={joiningCommunity === post.community.id}
@@ -296,6 +328,15 @@ export default function PostItem({
                                         <Trash2 className="w-4 h-4" />
                                         Delete Post
                                     </button>
+                                    {post.community && (sharedToFeed || post.shared_to_feed) && (
+                                        <button
+                                            onClick={(e) => { onToggleMenu(post.id); handleUnshare(e); }}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30 font-medium transition-colors flex items-center gap-2.5"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                            Unshare from feed
+                                        </button>
+                                    )}
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
                                         className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
@@ -545,12 +586,33 @@ export default function PostItem({
                 >
                     <Share2 className="w-[22px] h-[22px] transition-all active:scale-90" />
                 </button>
+
+                {/* Share to Feed — only for community posts authored by current user */}
+                {post.community && post.author_id === currentUserId && (
+                    <button
+                        onClick={handleShareToFeed}
+                        disabled={sharingToFeed || sharedToFeed}
+                        title={sharedToFeed ? 'Already shared to main feed' : 'Share this post to the main feed'}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            sharedToFeed
+                                ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 cursor-default'
+                                : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800'
+                        }`}
+                    >
+                        {sharingToFeed ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <ExternalLink className="w-3.5 h-3.5" />
+                        )}
+                        {sharedToFeed ? 'Shared to feed' : 'Share to feed'}
+                    </button>
+                )}
             </div>
 
-            {/* Comments Section */}
+            {/* Comments Section — inline on desktop */}
             {isActiveCommentSection && (
-                <div className="mt-6 pt-6 border-t border-dashed border-stone-100 animate-in slide-in-from-top-2">
-                    <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="hidden md:block mt-4 pt-4 border-t border-dashed border-stone-100 dark:border-zinc-800 px-4 pb-4 animate-in slide-in-from-top-2">
+                    <div className="space-y-3 mb-4 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                         {loadingComments ? (
                             <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-stone-300" /></div>
                         ) : (
@@ -559,47 +621,103 @@ export default function PostItem({
                             ) : (
                                 comments.map(comment => (
                                     <div key={comment.id} className="flex gap-3 text-sm group">
-                                        <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-8 h-8 rounded-full bg-stone-100 mt-1" />
-                                        <div className="bg-stone-50 rounded-2xl rounded-tl-sm p-3 px-4 flex-1 relative group-hover:bg-stone-100 transition-colors">
+                                        <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-8 h-8 rounded-full bg-stone-100 mt-0.5 flex-shrink-0" />
+                                        <div className="bg-stone-50 dark:bg-zinc-800 rounded-2xl rounded-tl-sm p-3 px-4 flex-1 relative group-hover:bg-stone-100 dark:group-hover:bg-zinc-700 transition-colors">
                                             <div className="flex justify-between items-start">
-                                                <Link to={`/app/profile/${comment.profiles?.username || comment.author_id}`} className="font-bold text-stone-900 text-xs mb-1 hover:underline">
+                                                <Link to={`/app/profile/${comment.profiles?.username || comment.author_id}`} className="font-bold text-stone-900 dark:text-zinc-100 text-xs mb-1 hover:underline">
                                                     {comment.profiles?.name}
                                                 </Link>
                                                 {currentUserId === comment.author_id && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id);
-                                                        }}
-                                                        className="text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                                    >
+                                                    <button onClick={() => { if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id); }} className="text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1">
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                     </button>
                                                 )}
                                             </div>
-                                            <p className="text-stone-600 leading-relaxed">{comment.content}</p>
+                                            <p className="text-stone-600 dark:text-zinc-400 leading-relaxed text-sm">{comment.content}</p>
                                         </div>
                                     </div>
                                 ))
                             )
                         )}
                     </div>
-
                     <div className="flex gap-3 items-center">
-                        <input
-                            type="text"
-                            placeholder="Write a comment..."
-                            className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
-                            value={commentText}
-                            onChange={(e) => setCommentText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit()}
-                        />
-                        <button
-                            onClick={handleCommentSubmit}
-                            disabled={!commentText.trim()}
-                            className="p-2.5 bg-stone-900 text-white rounded-xl hover:bg-emerald-600 disabled:opacity-50 transition-colors"
-                        >
+                        <input type="text" placeholder="Write a comment..." className="flex-1 bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition-all" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit()} />
+                        <button onClick={handleCommentSubmit} disabled={!commentText.trim()} className="p-2.5 bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl hover:bg-emerald-600 disabled:opacity-50 transition-colors">
                             <Send className="w-4 h-4" />
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Comments Section — bottom drawer on mobile */}
+            {isActiveCommentSection && (
+                <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => onToggleComments(post.id)}
+                    />
+                    {/* Drawer */}
+                    <div className="relative bg-white dark:bg-zinc-900 rounded-t-3xl flex flex-col max-h-[80vh] animate-in slide-in-from-bottom duration-300 shadow-2xl">
+                        {/* Handle */}
+                        <div className="flex flex-col items-center pt-3 pb-2 flex-shrink-0">
+                            <div className="w-10 h-1 bg-stone-200 dark:bg-zinc-700 rounded-full mb-3" />
+                            <div className="flex items-center justify-between w-full px-5 pb-2 border-b border-stone-100 dark:border-zinc-800">
+                                <h3 className="font-bold text-base text-stone-900 dark:text-zinc-100">Comments</h3>
+                                <button onClick={() => onToggleComments(post.id)} className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors">
+                                    <X className="w-5 h-5 text-stone-500" />
+                                </button>
+                            </div>
+                        </div>
+                        {/* Comment list */}
+                        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                            {loadingComments ? (
+                                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-stone-300" /></div>
+                            ) : comments.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-stone-400">
+                                    <MessageCircle className="w-10 h-10 mb-3 opacity-30" />
+                                    <p className="text-sm">No comments yet. Be the first!</p>
+                                </div>
+                            ) : (
+                                comments.map(comment => (
+                                    <div key={comment.id} className="flex gap-3 text-sm group">
+                                        <img src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`} className="w-9 h-9 rounded-full bg-stone-100 mt-0.5 flex-shrink-0" />
+                                        <div className="bg-stone-50 dark:bg-zinc-800 rounded-2xl rounded-tl-sm p-3 px-4 flex-1">
+                                            <div className="flex justify-between items-start">
+                                                <Link to={`/app/profile/${comment.profiles?.username || comment.author_id}`} className="font-bold text-stone-900 dark:text-zinc-100 text-xs mb-1 hover:underline">
+                                                    {comment.profiles?.name}
+                                                </Link>
+                                                {currentUserId === comment.author_id && (
+                                                    <button onClick={() => { if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id); }} className="text-stone-400 hover:text-red-500 p-1">
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-stone-600 dark:text-zinc-400 leading-relaxed">{comment.content}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        {/* Comment input */}
+                        <div className="flex gap-3 items-center px-4 py-3 border-t border-stone-100 dark:border-zinc-800 flex-shrink-0 pb-safe">
+                            <input
+                                type="text"
+                                placeholder="Write a comment..."
+                                className="flex-1 bg-stone-100 dark:bg-zinc-800 border-0 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                                value={commentText}
+                                onChange={(e) => setCommentText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit()}
+                                autoFocus
+                            />
+                            <button
+                                onClick={handleCommentSubmit}
+                                disabled={!commentText.trim()}
+                                className="p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 disabled:opacity-40 transition-colors flex-shrink-0"
+                            >
+                                <Send className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

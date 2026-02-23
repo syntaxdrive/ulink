@@ -36,6 +36,8 @@ export default function CommunityDetailsPage() {
         currentUserProfile
     } = useFeed(community?.id);
 
+    const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+
     useEffect(() => {
         if (slug) fetchCommunityDetails();
     }, [slug]);
@@ -122,10 +124,11 @@ export default function CommunityDetailsPage() {
         <div className="max-w-5xl mx-auto">
             {/* Banner & Header */}
             <div className="bg-white rounded-[2.5rem] overflow-hidden border border-stone-100 shadow-xl shadow-stone-200/40 mb-8">
-                <div className="h-48 bg-gradient-to-r from-indigo-600 to-violet-600 relative">
+                <div className="h-48 bg-gradient-to-br from-stone-700 to-stone-900 relative">
                     {community.cover_image_url && (
-                        <img src={community.cover_image_url} className="w-full h-full object-cover opacity-50" />
+                        <img src={community.cover_image_url} className="w-full h-full object-cover" />
                     )}
+                    <div className="absolute inset-0 bg-black/20" />
                 </div>
 
                 <div className="px-8 pb-8">
@@ -218,19 +221,20 @@ export default function CommunityDetailsPage() {
                                     post={post}
                                     currentUserId={currentUserId}
                                     isActiveCommentSection={activeCommentPostId === post.id}
-                                    isActiveMenu={false}
+                                    isActiveMenu={activeMenuPostId === post.id}
                                     comments={comments[post.id] || []}
                                     loadingComments={loadingComments}
                                     onDelete={() => deletePost(post.id)}
                                     onLike={() => toggleLike(post)}
                                     onRepost={(post, comment) => toggleRepost(post, comment)}
                                     onToggleComments={() => toggleComments(post.id)}
-                                    onToggleMenu={() => { }}
+                                    onToggleMenu={() => setActiveMenuPostId(prev => prev === post.id ? null : post.id)}
                                     onPostComment={(content) => postComment(post.id, content)}
                                     onSearchTag={() => { }}
                                     onReport={() => reportPost(post.id)}
                                     onDeleteComment={deleteComment}
                                     onVotePoll={votePoll}
+                                    isInCommunityFeed={true}
                                 />
                             ))
                         )}

@@ -130,6 +130,10 @@ export interface Post {
     poll_options?: string[];
     poll_counts?: number[];
     user_vote?: number | null;
+
+    // Community sharing
+    shared_to_feed?: boolean; // Community post shared to main feed
+    is_vip?: boolean; // VIP user boosting flag (runtime only)
 }
 
 export interface Connection {

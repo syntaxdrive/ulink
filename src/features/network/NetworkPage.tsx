@@ -73,12 +73,17 @@ export default function NetworkPage() {
                 <div className="flex p-1 bg-white border border-stone-200 rounded-xl w-full sm:w-fit overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('grow')}
-                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'grow'
+                        className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 ${activeTab === 'grow'
                             ? 'bg-stone-900 text-white shadow-md'
                             : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
                             }`}
                     >
                         Grow
+                        {suggestions.length > 0 && (
+                            <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'grow' ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-600'}`}>
+                                {suggestions.length}
+                            </span>
+                        )}
                     </button>
                     <button
                         onClick={() => setActiveTab('network')}
@@ -134,14 +139,14 @@ export default function NetworkPage() {
                         <Link to={`/app/profile/${profile.username || profile.id}`} className="flex items-center gap-4 flex-1 min-w-0">
                             <div className="w-16 h-16 rounded-2xl overflow-hidden bg-stone-100 ring-2 ring-white shadow-sm shrink-0">
                                 <img
-                                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=random`}
-                                    alt={profile.name}
+                                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || profile.email?.split('@')[0] || 'U')}&background=10b981&color=fff`}
+                                    alt={profile.name || 'User'}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-stone-900 truncate flex items-center gap-1">
-                                    {profile.name}
+                                    {profile.name || profile.email?.split('@')[0] || 'New User'}
                                     {profile.gold_verified ? (
                                         <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50 shrink-0" />
                                     ) : profile.is_verified ? (
@@ -149,9 +154,9 @@ export default function NetworkPage() {
                                     ) : null}
                                 </h3>
                                 <p className="text-sm text-stone-500 truncate">
-                                    {profile.role === 'org' ? 'Organization' : profile.university}
+                                    {profile.role === 'org' ? 'Organization' : (profile.university || 'Setting up profile…')}
                                 </p>
-                                <p className="text-xs text-stone-400 mt-0.5 capitalize">{profile.role}</p>
+                                <p className="text-xs text-stone-400 mt-0.5 capitalize">{profile.role || 'student'}</p>
                             </div>
                         </Link>
 
@@ -191,9 +196,11 @@ export default function NetworkPage() {
                 {filteredProfiles.length === 0 && (
                     <div className="col-span-full text-center py-12">
                         <p className="text-stone-400">
-                            {activeTab === 'grow'
-                                ? "No new suggestions found."
-                                : "You haven't connected with anyone yet."}
+                            {searchQuery.trim()
+                                ? 'No users found for your search.'
+                                : activeTab === 'grow'
+                                    ? 'You\u2019ve connected with everyone — impressive!'
+                                    : 'You haven\u2019t connected with anyone yet.'}
                         </p>
                     </div>
                 )}

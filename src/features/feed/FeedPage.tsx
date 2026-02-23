@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, UserRound, Globe, Zap, Trophy, Users } from 'lucide-react';
+import { useNavigate, NavLink } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import CreatePost from './components/CreatePost';
 import PostItem from './components/PostItem';
 import SuggestedConnections from './components/SuggestedConnections';
@@ -11,6 +13,7 @@ import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
 
 export default function FeedPage() {
+    const navigate = useNavigate();
     const {
         posts,
         loading,
@@ -35,6 +38,7 @@ export default function FeedPage() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+    const [peopleResults, setPeopleResults] = useState<any[]>([]);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -45,8 +49,18 @@ export default function FeedPage() {
 
     // Server-side Search Debounce
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             searchPosts(searchQuery);
+            if (searchQuery.trim().length >= 2) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('id, name, username, avatar_url, headline, university, role, is_verified')
+                    .or(`name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,university.ilike.%${searchQuery}%`)
+                    .limit(4);
+                setPeopleResults(data || []);
+            } else {
+                setPeopleResults([]);
+            }
         }, 500);
         return () => clearTimeout(timer);
     }, [searchQuery]);
@@ -115,7 +129,7 @@ export default function FeedPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
                 {/* Main Feed Column */}
-                <div className="lg:col-span-8 space-y-0">
+                <div className="lg:col-span-8 space-y-3">
 
                     {/* Search Bar */}
                     <div className="sticky top-4 z-30 mb-4 px-4 lg:px-0">
@@ -133,6 +147,31 @@ export default function FeedPage() {
                         </div>
                     </div>
 
+                    {/* Quick Nav Chips */}
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 px-4 lg:px-0">
+                        {[
+                            { to: '/app/network',     icon: Users,  label: 'Network'     },
+                            { to: '/app/communities', icon: Globe,  label: 'Communities' },
+                            { to: '/app/challenge',   icon: Zap,    label: 'Challenge'   },
+                            { to: '/app/leaderboard', icon: Trophy, label: 'Leaderboard' },
+                        ].map(({ to, icon: Icon, label }) => (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${
+                                        isActive
+                                            ? 'bg-stone-900 text-white border-stone-900'
+                                            : 'bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-stone-400 dark:hover:border-zinc-500'
+                                    }`
+                                }
+                            >
+                                <Icon className="w-3 h-3" />
+                                {label}
+                            </NavLink>
+                        ))}
+                    </div>
+
                     {/* Welcome Message */}
                     {currentUserProfile && (
                         <div className="px-4 lg:px-0 mb-4">
@@ -144,6 +183,35 @@ export default function FeedPage() {
                     <div className="mb-2">
                         <CreatePost onCreate={createPost} user={currentUserProfile} />
                     </div>
+
+                    {/* People Results */}
+                    {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (
+                        <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="px-4 pt-3 pb-1">
+                                <p className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <UserRound className="w-3.5 h-3.5" /> People
+                                </p>
+                            </div>
+                            {peopleResults.map(person => (
+                                <button
+                                    key={person.id}
+                                    onClick={() => navigate(`/app/profile/${person.username || person.id}`)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    <img
+                                        src={person.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=random`}
+                                        alt={person.name}
+                                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 truncate">{person.name}</p>
+                                        <p className="text-xs text-stone-400 dark:text-zinc-500 truncate">{person.headline || person.university || person.role}</p>
+                                    </div>
+                                    {person.is_verified && <span className="text-emerald-500 text-xs">✓</span>}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Feed */}
                     <div className="space-y-2">

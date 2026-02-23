@@ -196,7 +196,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
     return (
         <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="flex gap-4">
+                <div className="flex gap-4 items-start">
                     {user && (
                         <div className={`w-12 h-12 flex-shrink-0 bg-stone-100 overflow-hidden border-2 border-white shadow-sm ${user.role === 'org' ? 'rounded-xl' : 'rounded-full'}`}>
                             <img
@@ -206,21 +206,54 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                             />
                         </div>
                     )}
-                    <textarea
-                        className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
-                        placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
-                        rows={4}
-                        value={content}
-                        onChange={(e) => {
-                            if (e.target.value.length <= MAX_CHARS) {
-                                setContent(e.target.value);
-                            }
-                        }}
-                    />
-                    <div className="text-right text-xs text-stone-400 mt-1 mr-2 font-medium">
-                        {content.length}/{MAX_CHARS}
+                    <div className="flex-1 min-w-0">
+                        <textarea
+                            className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
+                            placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
+                            rows={4}
+                            value={content}
+                            onChange={(e) => {
+                                if (e.target.value.length <= MAX_CHARS) {
+                                    setContent(e.target.value);
+                                }
+                            }}
+                        />
+                        <div className="text-right text-xs text-stone-400 mt-1 mr-2 font-medium">
+                            {content.length}/{MAX_CHARS}
+                        </div>
                     </div>
                 </div>
+
+                {/* Post prompt suggestions — below the textarea, full width */}
+                {!content && (
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
+                        {(user?.role === 'org'
+                            ? [
+                                { label: '📣 Share an announcement', text: 'Exciting news from us! ' },
+                                { label: '💼 Post a job opening', text: "We're hiring! 🚀\n\nRole: \nLocation: \nHow to apply: " },
+                                { label: '🤝 Partnership update', text: "We're thrilled to partner with " },
+                                { label: '📊 Share a milestone', text: "We just hit " },
+                            ]
+                            : [
+                                { label: '😂 Campus story', text: "This just happened on campus and I can't stop laughing 😂\n\n" },
+                                { label: '📚 Need study help', text: "Does anyone have good resources for " },
+                                { label: '🔥 Hot take', text: "Unpopular opinion: " },
+                                { label: '💼 Share an opportunity', text: "PSA: " },
+                                { label: '🎓 Advice for freshers', text: "Things I wish I knew before coming to uni:\n\n1. " },
+                                { label: '😤 Campus rant', text: "Can someone explain why " },
+                            ]
+                        ).map((prompt) => (
+                            <button
+                                key={prompt.label}
+                                type="button"
+                                onClick={() => setContent(prompt.text)}
+                                className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-700 text-stone-500 font-medium transition-all border border-transparent hover:border-emerald-200 whitespace-nowrap"
+                            >
+                                {prompt.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Image Grid Preview */}
                 {previews.length > 0 && (

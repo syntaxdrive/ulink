@@ -64,8 +64,8 @@ export default function CollaborativeWhiteboard() {
     }, []);
 
     const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase())
+        (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (u.email || '').toLowerCase().includes(search.toLowerCase())
     );
 
     const handleMount = useCallback((editor: Editor) => {
@@ -172,9 +172,9 @@ export default function CollaborativeWhiteboard() {
     if (loading) return <div className="p-10 text-center animate-pulse">Loading Room...</div>;
 
     return (
-        <div className="flex h-[calc(100vh-200px)] w-full gap-4">
+        <div className="flex flex-col md:flex-row h-[calc(100dvh-200px)] md:h-[calc(100vh-200px)] w-full gap-3">
             {/* Sidebar */}
-            <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-0'} bg-white dark:bg-zinc-800 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden flex flex-col`}>
+            <div className={`transition-all duration-300 flex-shrink-0 ${isSidebarOpen ? 'h-48 md:h-auto md:w-64 w-full' : 'h-0 md:h-auto md:w-0 w-full'} bg-white dark:bg-zinc-800 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden flex flex-col`}>
                 <div className="p-4 border-b border-stone-100 dark:border-zinc-700">
                     <h3 className="font-bold text-stone-900 dark:text-white mb-2">Drag Users</h3>
                     <div className="relative">
@@ -213,40 +213,41 @@ export default function CollaborativeWhiteboard() {
                 onDrop={handleDrop}
             >
                 {/* Toolbar */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-xl border border-stone-200 dark:border-zinc-700">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-xl border border-stone-200 dark:border-zinc-700 max-w-[calc(100%-1rem)]">
                     {/* Sidebar Toggle Button */}
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className={`p-2 rounded-xl transition-colors ${isSidebarOpen ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-stone-100 dark:hover:bg-zinc-700'}`}
+                        className={`p-2 rounded-xl transition-colors flex-shrink-0 ${isSidebarOpen ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-stone-100 dark:hover:bg-zinc-700'}`}
                         title="Toggle User List"
                     >
                         <Users className="w-5 h-5" />
                     </button>
 
-                    <div className="w-px h-6 bg-stone-200 dark:bg-zinc-700 mx-1" />
+                    <div className="w-px h-6 bg-stone-200 dark:bg-zinc-700 mx-1 flex-shrink-0" />
 
-                    <div className="flex gap-1 pr-4 border-r border-stone-200 dark:border-zinc-700">
+                    {/* Stickers — scrollable on mobile */}
+                    <div className="flex gap-1 pr-3 border-r border-stone-200 dark:border-zinc-700 overflow-x-auto no-scrollbar">
                         {STICKERS.map(emoji => (
                             <button
                                 key={emoji}
                                 onClick={() => addSticker(emoji)}
-                                className="w-10 h-10 flex items-center justify-center text-xl hover:bg-stone-100 dark:hover:bg-zinc-700 rounded-xl transition-colors active:scale-90"
+                                className="w-9 h-9 flex-shrink-0 flex items-center justify-center text-lg hover:bg-stone-100 dark:hover:bg-zinc-700 rounded-xl transition-colors active:scale-90"
                             >
                                 {emoji}
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex gap-2 pl-2">
-                        <button onClick={saveBoard} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg active:scale-95 transition-all">
-                            <Save className="w-4 h-4" /> Save
+                    <div className="flex gap-1.5 pl-1 flex-shrink-0">
+                        <button onClick={saveBoard} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-bold shadow-lg active:scale-95 transition-all text-sm">
+                            <Save className="w-4 h-4" /> <span className="hidden sm:inline">Save</span>
                         </button>
                         <button onClick={() => {
                             if (window.confirm('Clear board?')) {
                                 editorRef.current?.selectAll();
                                 editorRef.current?.deleteShapes(editorRef.current?.getSelectedShapeIds());
                             }
-                        }} className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                        }} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
                             <Trash2 className="w-4 h-4" />
                         </button>
                     </div>

@@ -34,7 +34,65 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
     // Avatar State
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
+    const [selectedPresetAvatar, setSelectedPresetAvatar] = useState<string | null>(null);
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+
+    const PRESET_AVATARS = [
+        // avataaars style — same seeds as test users
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=chidi&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=amara&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=tunde&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=ngozi&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=emeka&backgroundColor=ffd5dc',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=fatima&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=david&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=blessing&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=ibrahim&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=adaeze&backgroundColor=ffd5dc',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=seun&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=chisom&backgroundColor=b6e3f4',
+        // avataaars — more variety
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Sam&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Jordan&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Casey&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Morgan&backgroundColor=ffd5dc',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Taylor&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Riley&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Quinn&backgroundColor=c0aede',
+        // lorelei style
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Hassan&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Kemi&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Bisi&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Tolu&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Ola&backgroundColor=ffd5dc',
+        'https://api.dicebear.com/7.x/lorelei/svg?seed=Dele&backgroundColor=b6e3f4',
+        // micah style
+        'https://api.dicebear.com/7.x/micah/svg?seed=Ada&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/micah/svg?seed=Chukwu&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/micah/svg?seed=Ife&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/micah/svg?seed=Nne&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/micah/svg?seed=Funke&backgroundColor=ffd5dc',
+        'https://api.dicebear.com/7.x/micah/svg?seed=Yemi&backgroundColor=b6e3f4',
+        // thumbs style
+        'https://api.dicebear.com/7.x/thumbs/svg?seed=Zara&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/thumbs/svg?seed=Kofi&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/thumbs/svg?seed=Amina&backgroundColor=c0aede',
+        'https://api.dicebear.com/7.x/thumbs/svg?seed=Tobi&backgroundColor=d1d4f9',
+        // fun / playful
+        'https://api.dicebear.com/7.x/bottts/svg?seed=spark&backgroundColor=b6e3f4',
+        'https://api.dicebear.com/7.x/bottts/svg?seed=nova&backgroundColor=d1d4f9',
+        'https://api.dicebear.com/7.x/fun-emoji/svg?seed=star&backgroundColor=ffdfbf',
+        'https://api.dicebear.com/7.x/fun-emoji/svg?seed=moon&backgroundColor=ffd5dc',
+    ];
+
+    const handleSelectPresetAvatar = (url: string) => {
+        setAvatarPreview(url);
+        setAvatarFile(null);
+        setSelectedPresetAvatar(url);
+        setShowAvatarPicker(false);
+    };
 
     // Skills State
     const [skills, setSkills] = useState<string[]>(user.skills || []);
@@ -58,6 +116,9 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
         });
         setBgPreview(user.background_image_url || null);
         setAvatarPreview(user.avatar_url || null);
+        setSelectedPresetAvatar(null);
+        setShowAvatarPicker(false);
+        setAvatarFile(null);
         setSkills(user.skills || []);
     }, [user, isOpen]);
 
@@ -117,33 +178,45 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
             let bgUrl = user.background_image_url;
 
             if (bgFile) {
-                const fileExt = bgFile.name.split('.').pop();
-                const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('uploads')
-                    .upload(fileName, bgFile, { upsert: true });
+                try {
+                    const fileExt = bgFile.name.split('.').pop();
+                    const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('uploads')
+                        .upload(fileName, bgFile, { upsert: true });
 
-                if (uploadError) throw uploadError;
+                    if (uploadError) throw uploadError;
 
-                const { data: { publicUrl } } = supabase.storage
-                    .from('uploads')
-                    .getPublicUrl(fileName);
-                bgUrl = publicUrl;
-                bgUrl = publicUrl;
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('uploads')
+                        .getPublicUrl(fileName);
+                    bgUrl = publicUrl;
+                } catch (uploadErr: any) {
+                    console.error('Background upload failed:', uploadErr.message);
+                    // Continue saving profile data even if image upload fails
+                }
             }
 
             let avatarUrl = user.avatar_url;
             if (avatarFile) {
-                const fileExt = avatarFile.name.split('.').pop();
-                const fileName = `avatars/${user.id}_${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('uploads') // Or 'avatars' if separated, keeping as uploads for consistency with bg
-                    .upload(fileName, avatarFile, { upsert: true });
+                try {
+                    const fileExt = avatarFile.name.split('.').pop();
+                    const fileName = `avatars/${user.id}_${Date.now()}.${fileExt}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('uploads')
+                        .upload(fileName, avatarFile, { upsert: true });
 
-                if (uploadError) throw uploadError;
+                    if (uploadError) throw uploadError;
 
-                const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
-                avatarUrl = publicUrl;
+                    const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
+                    avatarUrl = publicUrl;
+                } catch (uploadErr: any) {
+                    console.error('Avatar upload failed:', uploadErr.message);
+                    // Continue saving profile data even if image upload fails
+                }
+            } else if (selectedPresetAvatar) {
+                // Use preset avatar URL directly — no upload needed
+                avatarUrl = selectedPresetAvatar;
             }
 
             const updates: any = {
@@ -280,6 +353,48 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                         </div>
                     </div>
                 </div>
+
+                {/* Avatar actions — rendered in normal flow so they're never clipped */}
+                <div className="pt-14 flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
+                    >
+                        Upload photo
+                    </button>
+                    <span className="text-stone-300 dark:text-zinc-700">·</span>
+                    <button
+                        type="button"
+                        onClick={() => setShowAvatarPicker(v => !v)}
+                        className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
+                    >
+                        {showAvatarPicker ? 'Hide avatars' : 'Choose avatar'}
+                    </button>
+                </div>
+
+                {/* Avatar Picker — inline, never clipped */}
+                {showAvatarPicker && (
+                    <div className="bg-stone-50 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-700 rounded-2xl p-3">
+                        <p className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Pick an avatar</p>
+                        <div className="grid grid-cols-8 gap-2">
+                            {PRESET_AVATARS.map((url, i) => (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => handleSelectPresetAvatar(url)}
+                                    className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${
+                                        avatarPreview === url
+                                            ? 'border-stone-900 dark:border-zinc-100 ring-2 ring-stone-400 dark:ring-zinc-500'
+                                            : 'border-stone-200 dark:border-zinc-700 hover:border-stone-400'
+                                    }`}
+                                >
+                                    <img src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="space-y-1 pt-4">
                     <label className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
