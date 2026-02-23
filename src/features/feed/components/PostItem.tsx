@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Send, Heart, MessageCircle, Share2, MoreHorizontal, BadgeCheck, Trash2, Flag, Repeat, X, ChevronLeft, ChevronRight, Globe, UserPlus, ExternalLink } from 'lucide-react';
 import type { Post, Comment } from '../../../types';
@@ -68,6 +68,35 @@ export default function PostItem({
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const [sharedToFeed, setSharedToFeed] = useState<boolean>(post.shared_to_feed || false);
     const [sharingToFeed, setSharingToFeed] = useState(false);
+    const [likeAnim, setLikeAnim] = useState(false);
+    const [particles, setParticles] = useState<{ id: number; x: number; y: number }[]>([]);
+    const particleRef = useRef(0);
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsVisible(true), 50);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleLikeWithAnim = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Trigger heart bounce
+        setLikeAnim(false);
+        requestAnimationFrame(() => requestAnimationFrame(() => setLikeAnim(true)));
+        // Trigger particle burst only when liking (not unliking)
+        if (!post.user_has_liked) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const newParticles = Array.from({ length: 6 }, (_, i) => ({
+                id: ++particleRef.current * 10 + i,
+                x: Math.random() * 40 - 20,
+                y: Math.random() * -40 - 10,
+            }));
+            setParticles(newParticles);
+            setTimeout(() => setParticles([]), 700);
+        }
+        onLike(post);
+    };
 
     const handleShareToFeed = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -92,7 +121,7 @@ export default function PostItem({
     };
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isMember, setIsMember] = useState(false);
-    
+
     const { joinCommunity, joiningCommunity } = useCommunityMembership();
 
     // Detect video embed in post content
@@ -140,9 +169,9 @@ export default function PostItem({
     const handleJoinCommunity = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (!post.community?.id) return;
-        
+
         const success = await joinCommunity(post.community.id);
         if (success) {
             setIsMember(true);
@@ -223,8 +252,30 @@ export default function PostItem({
         });
     };
 
+    const isHot = (post.likes_count || 0) >= 10;
+    const isViral = (post.likes_count || 0) >= 25;
+
     return (
-        <article className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 transition-all duration-200 rounded-2xl overflow-hidden">
+        <article
+            className={`bg-white dark:bg-zinc-900 border transition-all duration-300 rounded-2xl overflow-hidden ${isViral
+                    ? 'border-orange-300/60 dark:border-orange-500/30 shadow-md shadow-orange-100/50 dark:shadow-orange-500/5'
+                    : isHot
+                        ? 'border-emerald-200/60 dark:border-emerald-700/30'
+                        : 'border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700'
+                } ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            style={{ transition: 'opacity 0.35s ease, transform 0.35s ease, border-color 0.2s' }}
+        >
+            {/* Hot / Viral badge */}
+            {(isHot || isViral) && (
+                <div className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold ${isViral
+                        ? 'bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 text-orange-600 dark:text-orange-400'
+                        : 'bg-emerald-50/60 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400'
+                    }`}>
+                    <span>{isViral ? '🔥' : '⚡'}</span>
+                    <span>{isViral ? 'Trending on campus' : 'Popular post'}</span>
+                </div>
+            )}
+
             {/* Repost Banner */}
             {post.is_repost && post.profiles && (
                 <div className="flex items-center gap-2 px-4 pt-4 pb-2 text-sm text-stone-500 dark:text-zinc-500">
@@ -242,13 +293,13 @@ export default function PostItem({
             {/* Community Banner — only on main feed when shared to feed */}
             {post.community && !isInCommunityFeed && (
                 <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 dark:border-zinc-800">
-                    <Link 
+                    <Link
                         to={`/app/communities/${post.community.slug}`}
                         className="flex items-center gap-2 group"
                     >
                         {post.community.icon_url ? (
-                            <img 
-                                src={post.community.icon_url} 
+                            <img
+                                src={post.community.icon_url}
                                 alt={post.community.name}
                                 className="w-6 h-6 rounded-md object-cover"
                             />
@@ -266,7 +317,7 @@ export default function PostItem({
                             </p>
                         </div>
                     </Link>
-                    
+
                     {!isMember && currentUserId && !sharedToFeed && !post.shared_to_feed && (
                         <button
                             onClick={handleJoinCommunity}
@@ -543,13 +594,35 @@ export default function PostItem({
 
             {/* Actions */}
             <div className="flex items-center gap-1 px-4 py-2">
+                {/* Like Button with animation */}
                 <button
-                    onClick={() => onLike(post)}
-                    className="flex items-center gap-1.5 group transition-colors p-2 -ml-2"
+                    onClick={handleLikeWithAnim}
+                    className="flex items-center gap-1.5 group transition-colors p-2 -ml-2 relative"
                 >
-                    <Heart className={`w-6 h-6 transition-all active:scale-90 ${post.user_has_liked ? 'fill-red-500 text-red-500' : 'text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400'}`} />
+                    {/* Particle burst */}
+                    {particles.map(p => (
+                        <span
+                            key={p.id}
+                            className="absolute w-1.5 h-1.5 rounded-full bg-red-400 pointer-events-none"
+                            style={{
+                                left: '50%', top: '50%',
+                                animation: 'particleBurst 0.6s ease-out forwards',
+                                '--tx': `${p.x}px`,
+                                '--ty': `${p.y}px`,
+                            } as React.CSSProperties}
+                        />
+                    ))}
+                    <Heart
+                        className={`w-6 h-6 transition-all ${likeAnim ? 'scale-125' : 'scale-100'
+                            } ${post.user_has_liked
+                                ? 'fill-red-500 text-red-500'
+                                : 'text-stone-900 dark:text-zinc-100 hover:text-red-400'
+                            }`}
+                        style={{ transition: likeAnim ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.2s ease' }}
+                    />
                     {(post.likes_count || 0) > 0 && (
-                        <span className={`text-sm font-medium ${post.user_has_liked ? 'text-red-500' : 'text-stone-600 dark:text-zinc-400'}`}>
+                        <span className={`text-sm font-medium tabular-nums ${post.user_has_liked ? 'text-red-500' : 'text-stone-600 dark:text-zinc-400'
+                            }`}>
                             {post.likes_count}
                         </span>
                     )}
@@ -557,13 +630,16 @@ export default function PostItem({
 
                 <button
                     onClick={() => onToggleComments(post.id)}
-                    className="flex items-center gap-1.5 group transition-colors p-2 text-stone-900 dark:text-zinc-100
- hover:text-stone-600 dark:hover:text-zinc-400"
+                    className="flex items-center gap-1.5 group transition-colors p-2 text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100"
                 >
-                    <MessageCircle className="w-6 h-6 transition-all active:scale-90" />
-                    {(post.comments_count || 0) > 0 && (
+                    <MessageCircle className="w-6 h-6 transition-all group-hover:scale-110" />
+                    {(post.comments_count || 0) > 0 ? (
                         <span className="text-sm font-medium text-stone-600 dark:text-zinc-400">
                             {post.comments_count}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-stone-400 dark:text-zinc-600 hidden group-hover:inline transition-all">
+                            Reply
                         </span>
                     )}
                 </button>
@@ -593,11 +669,10 @@ export default function PostItem({
                         onClick={handleShareToFeed}
                         disabled={sharingToFeed || sharedToFeed}
                         title={sharedToFeed ? 'Already shared to main feed' : 'Share this post to the main feed'}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            sharedToFeed
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sharedToFeed
                                 ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 cursor-default'
                                 : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800'
-                        }`}
+                            }`}
                     >
                         {sharingToFeed ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />

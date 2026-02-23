@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Golden Lillies — Classical Instrumentals</title>
+<meta name="description" content="A gathering place for lovers of modern classical music.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#070710;--panel:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.07);
+  --gold:#c9a84c;--gold2:#e8c96d;--text:#e8e4dc;--muted:#6a6660;
+  --active:rgba(201,168,76,0.12);--hover:rgba(255,255,255,0.05);
+  --radius:16px;--player-h:80px;
+}
+html{height:100%;font-size:16px}
+body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden}
+#canvas-bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ====== HERO ====== */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:32px 20px 120px;text-align:center;z-index:1}
+.logo{position:absolute;top:20px;left:24px;display:flex;align-items:center;gap:10px}
+.logo-dot{width:10px;height:10px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 12px var(--gold);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px var(--gold)}50%{box-shadow:0 0 20px var(--gold2)}}
+.logo-name{font-family:'Cormorant Garamond',serif;font-size:17px;letter-spacing:1px;color:var(--gold2)}
+.hero-tag{font-size:11px;letter-spacing:3.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.hero-title{font-family:'Cormorant Garamond',serif;font-size:clamp(44px,9vw,90px);
+  font-weight:300;line-height:1;letter-spacing:-1px;color:var(--text)}
+.hero-title em{font-style:italic;color:var(--gold2);display:block}
+.hero-sub{font-size:clamp(13px,2.5vw,15px);color:var(--muted);margin-top:16px;
+  max-width:480px;line-height:1.7}
+
+/* ====== LISTENER COUNT ====== */
+.listener-pill{display:inline-flex;align-items:center;gap:8px;
+  background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);
+  border-radius:999px;padding:6px 16px;margin-top:24px;font-size:12px;color:var(--gold)}
+.listener-dot{width:6px;height:6px;border-radius:50%;background:#4caf50;animation:pulse 1.5s infinite}
+
+/* ====== NOW PLAYING CARD ====== */
+.np-card{position:relative;margin-top:36px;background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:var(--radius);padding:28px 28px 20px;
+  width:100%;max-width:420px;backdrop-filter:blur(20px);cursor:pointer;
+  transition:border-color 0.3s,transform 0.2s}
+.np-card:hover{border-color:rgba(201,168,76,0.3);transform:translateY(-2px)}
+.np-card:active{transform:scale(0.98)}
+.np-label{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.np-track-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;
+  font-style:italic;color:var(--gold2);line-height:1.2}
+.np-track-by{font-size:12px;color:var(--muted);margin-top:4px}
+.waveform{display:flex;align-items:flex-end;gap:2px;height:32px;margin-top:16px}
+.wbar{width:3px;border-radius:2px;background:var(--gold);opacity:0.5;transition:height 0.1s}
+.play-row{display:flex;align-items:center;gap:16px;margin-top:16px}
+.big-play{width:52px;height:52px;border-radius:50%;background:var(--gold);
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;flex-shrink:0}
+.big-play:hover{background:var(--gold2);transform:scale(1.06)}
+.big-play:active{transform:scale(0.95)}
+.progress-wrap{flex:1}
+.prog-bar{width:100%;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;
+  cursor:pointer;margin-top:6px}
+.prog-fill{height:100%;border-radius:2px;background:var(--gold);width:0%}
+.prog-times{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px}
+
+/* ====== COMMUNITY SECTION ====== */
+.section{position:relative;z-index:1;padding:0 20px 40px;max-width:900px;margin:0 auto}
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.section-head h2{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;color:var(--text)}
+.section-head .line{flex:1;height:1px;background:var(--border)}
+
+/* Community cards */
+.community-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.c-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;transition:all 0.2s;cursor:pointer}
+.c-card:hover{border-color:rgba(201,168,76,0.25);background:rgba(255,255,255,0.06);transform:translateY(-2px)}
+.c-card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.c-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0}
+.c-name{font-size:14px;font-weight:500}
+.c-handle{font-size:11px;color:var(--muted)}
+.c-comment{font-size:13px;color:rgba(232,228,220,0.7);line-height:1.6;font-style:italic}
+.c-emotion{display:inline-block;margin-top:10px;font-size:11px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--gold);padding:3px 10px;
+  border:1px solid rgba(201,168,76,0.2);border-radius:999px}
+
+/* Track list */
+.track-list{display:flex;flex-direction:column;gap:4px}
+.t-row{display:flex;align-items:center;gap:16px;padding:14px 16px;border-radius:12px;
+  cursor:pointer;transition:background 0.15s;border:1px solid transparent}
+.t-row:hover{background:var(--hover)}
+.t-row.active{background:var(--active);border-color:rgba(201,168,76,0.15)}
+.t-num{width:24px;text-align:center;font-size:12px;color:var(--muted);flex-shrink:0}
+.t-row.active .t-num{color:var(--gold)}
+.t-info{flex:1;min-width:0}
+.t-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-row.active .t-name{color:var(--gold2)}
+.t-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.t-dur{font-size:12px;color:var(--muted)}
+.bars-wrap{display:none;gap:2px;align-items:flex-end;height:14px}
+.t-row.active.playing .t-num span{display:none}
+.t-row.active.playing .bars-wrap{display:flex}
+.abar{width:3px;border-radius:2px;background:var(--gold);animation:ab 0.7s ease infinite alternate}
+.abar:nth-child(2){animation-delay:.15s;height:10px}
+.abar:nth-child(3){animation-delay:.3s;height:13px}
+.abar:nth-child(1){height:6px}
+@keyframes ab{from{transform:scaleY(0.3)}to{transform:scaleY(1)}}
+
+/* ====== FOOTER / FIXED PLAYER (mobile-friendly) ====== */
+.fixed-player{position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(7,7,16,0.92);backdrop-filter:blur(30px);
+  border-top:1px solid var(--border);padding:12px 20px;
+  display:flex;align-items:center;gap:16px;min-height:var(--player-h)}
+.fp-info{flex:1;min-width:0}
+.fp-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gold2)}
+.fp-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.fp-prog{position:absolute;top:0;left:0;right:0;height:2px;cursor:pointer}
+.fp-prog-fill{height:100%;background:var(--gold);width:0%;transition:width 0.1s linear}
+.ctrl-wrap{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.cp-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+  padding:8px;display:flex;align-items:center;justify-content:center;transition:color 0.2s;border-radius:50%}
+.cp-btn:hover{color:var(--text);background:var(--hover)}
+.cp-btn.on{color:var(--gold)}
+.cp-play{background:var(--gold);color:#07070d;width:42px;height:42px;border-radius:50%;
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.cp-play:hover{background:var(--gold2);transform:scale(1.05)}
+.cp-play:active{transform:scale(0.95)}
+.vol-wrap{display:flex;align-items:center;gap:8px}
+.vol-bar{width:60px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;cursor:pointer}
+.vol-fill{height:100%;background:rgba(255,255,255,0.35);border-radius:2px;width:80%}
+
+/* ====== SHARE TOAST ====== */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  background:var(--gold);color:#07070d;padding:10px 24px;border-radius:999px;
+  font-size:13px;font-weight:500;opacity:0;transition:opacity 0.3s;
+  pointer-events:none;z-index:200;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* ====== MOBILE ====== */
+@media(max-width:640px){
+  .hero{padding:80px 16px 100px}
+  .np-card{padding:20px 20px 16px;max-width:100%}
+  .section{padding:0 16px 40px}
+  .community-grid{grid-template-columns:1fr}
+  .vol-wrap{display:none}
+  .ctrl-wrap .cp-btn:first-child,.ctrl-wrap .cp-btn:last-child{display:none}
+}
+body{padding-bottom:var(--player-h)}
+</style>
+</head>
+<body>
+<canvas id="canvas-bg"></canvas>
+<div class="toast" id="toast">Link copied!</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <span class="logo-name">Golden Lillies</span>
+  </div>
+  <div class="hero-tag">Modern Classical</div>
+  <h1 class="hero-title">Music for <em>quiet minds.</em></h1>
+  <p class="hero-sub">A gathering place for those who find meaning in silence between the notes. Stream, feel, share.</p>
+  <div class="listener-pill">
+    <div class="listener-dot"></div>
+    <span id="listenerCount">247 people listening now</span>
+  </div>
+
+  <!-- NOW PLAYING CARD -->
+  <div class="np-card" onclick="togglePlay()">
+    <div class="np-label">Now Playing</div>
+    <div class="np-track-title" id="npTitle">Golden Lillies</div>
+    <div class="np-track-by">Original Instrumental</div>
+    <div class="waveform" id="waveform"></div>
+    <div class="play-row">
+      <button class="big-play" id="bigPlay" onclick="event.stopPropagation();togglePlay()">
+        <svg id="bpPlay" width="20" height="20" viewBox="0 0 24 24" fill="#07070d"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <svg id="bpPause" width="20" height="20" viewBox="0 0 24 24" fill="#07070d" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <div class="progress-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--muted)" id="npTime">0:00</span>
+          <button onclick="event.stopPropagation();share()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;letter-spacing:0.5px;font-family:Inter,sans-serif">Share ↗</button>
+        </div>
+        <div class="prog-bar" id="npBar" onclick="event.stopPropagation();seekHero(event)">
+          <div class="prog-fill" id="npFill"></div>
+        </div>
+        <div class="prog-times">
+          <span id="npCur">0:00</span><span id="npDur">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY REACTIONS -->
+<section class="section">
+  <div class="section-head">
+    <h2>The Community</h2>
+    <div class="line"></div>
+  </div>
+  <div class="community-grid">
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(201,168,76,0.15)">🎹</div>
+        <div><div class="c-name">Amara K.</div><div class="c-handle">@amara.keys</div></div>
+      </div>
+      <div class="c-comment">"Golden Lillies plays and I stop whatever I'm doing. It feels like a memory I never lived."</div>
+      <span class="c-emotion">Nostalgic</span>
+    </div>
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(100,140,200,0.15)">🌙</div>
+        <div><div class="c-name">Daniel O.</div><div class="c-handle">@danielo.writes</div></div>
+      </div>
+      <div class="c-comment">"I write my best work with this on loop. Something about the space it creates — everything slows down."</div>
+      <span class="c-emotion">Focused</span>
+    </div>
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(180,100,150,0.15)">🌸</div>
+        <div><div class="c-name">Yara M.</div><div class="c-handle">@yaramusic_</div></div>
+      </div>
+      <div class="c-comment">"As a pianist myself, what strikes me most is the restraint. The notes not played matter as much as the ones that are."</div>
+      <span class="c-emotion">Moved</span>
+    </div>
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(100,200,150,0.15)">✨</div>
+        <div><div class="c-name">Chidi E.</div><div class="c-handle">@chidi.listens</div></div>
+      </div>
+      <div class="c-comment">"I shared this with my mum who doesn't speak English — she cried. Music without borders."</div>
+      <span class="c-emotion">Universal</span>
+    </div>
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(200,150,80,0.15)">🍂</div>
+        <div><div class="c-name">Lena F.</div><div class="c-handle">@lena.fogel</div></div>
+      </div>
+      <div class="c-comment">"Found this at 2am when I couldn't sleep. Three hours later I was still here, just... breathing."</div>
+      <span class="c-emotion">Peaceful</span>
+    </div>
+    <div class="c-card">
+      <div class="c-card-top">
+        <div class="c-avatar" style="background:rgba(160,120,220,0.15)">🎻</div>
+        <div><div class="c-name">Kofi A.</div><div class="c-handle">@kofi.composes</div></div>
+      </div>
+      <div class="c-comment">"Reminds me of Gibran Alcocer but with its own soul. This composer has something rare — restraint with emotion."</div>
+      <span class="c-emotion">Inspired</span>
+    </div>
+  </div>
+</section>
+
+<!-- TRACKLIST -->
+<section class="section">
+  <div class="section-head">
+    <h2>Compositions</h2>
+    <div class="line"></div>
+  </div>
+  <div class="track-list" id="trackList"></div>
+</section>
+
+<!-- JOIN COMMUNITY -->
+<section class="section" style="padding-bottom:80px">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:32px;text-align:center">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-style:italic;color:var(--gold2);margin-bottom:8px">
+      Join the conversation
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+      Leave your name and email to get notified when new pieces drop.
+    </div>
+    <div style="display:flex;gap:8px;max-width:360px;margin:0 auto;flex-wrap:wrap">
+      <input id="emailInput" placeholder="your@email.com" style="flex:1;min-width:0;padding:11px 16px;
+        background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;
+        color:var(--text);font-size:13px;font-family:Inter,sans-serif;outline:none;min-width:180px">
+      <button onclick="joinCommunity()" style="padding:11px 20px;background:var(--gold);color:#07070d;
+        border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;
+        font-family:Inter,sans-serif;white-space:nowrap;transition:background 0.2s"
+        onmouseover="this.style.background='#e8c96d'" onmouseout="this.style.background='#c9a84c'">
+        Notify me
+      </button>
+    </div>
+    <div id="joinMsg" style="font-size:12px;color:var(--gold);margin-top:12px;opacity:0;transition:opacity 0.3s"></div>
+  </div>
+</section>
+
+<!-- FIXED PLAYER -->
+<div class="fixed-player">
+  <div class="fp-prog" id="fpProg" onclick="seekFP(event)">
+    <div class="fp-prog-fill" id="fpFill"></div>
+  </div>
+  <div class="fp-info">
+    <div class="fp-title" id="fpTitle">Golden Lillies</div>
+    <div class="fp-sub" id="fpSub">Tap play to begin</div>
+  </div>
+  <div class="ctrl-wrap">
+    <button class="cp-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+        <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+        <line x1="4" y1="4" x2="9" y2="9"/>
+      </svg>
+    </button>
+    <button class="cp-btn" onclick="prevTrack()" title="Prev">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="19 20 9 12 19 4 19 20"/><rect x="5" y="4" width="2" height="16"/>
+      </svg>
+    </button>
+    <button class="cp-play" id="fpPlay" onclick="togglePlay()">
+      <svg id="fp_iPlay" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <svg id="fp_iPause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    <button class="cp-btn" onclick="nextTrack()" title="Next">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="5 4 15 12 5 20 5 4"/><rect x="17" y="4" width="2" height="16"/>
+      </svg>
+    </button>
+    <button class="cp-btn" id="btnRepeat" onclick="toggleRepeat()" title="Repeat">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    </button>
+  </div>
+  <div class="vol-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    </svg>
+    <div class="vol-bar" onclick="setVol(event)"><div class="vol-fill" id="volFill"></div></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ═══════════════════ TRACKS ═══════════════════
+const TRACKS = [
+  { title:"Golden Lillies", meta:"Original Instrumental", src:"Golden-Lillies.mp3", color:"#c9a84c" },
+  { title:"Untitled II", meta:"Coming soon", src:"", color:"#84afc9" },
+  { title:"Untitled III", meta:"Coming soon", src:"", color:"#c984a8" },
+];
+
+// ═══════════════════ THREE.JS ═══════════════════
+const canvas = document.getElementById('canvas-bg');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x070710, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x070710, 0.04);
+const cam = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+cam.position.z = 5;
+
+// Lights
+const amb = new THREE.AmbientLight(0xffffff, 0.08); scene.add(amb);
+const pl1 = new THREE.PointLight(0xc9a84c, 4, 18); pl1.position.set(3,3,3); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x4a7fcc, 2, 18); pl2.position.set(-3,-2,2); scene.add(pl2);
+const pl3 = new THREE.PointLight(0xcc4a7f, 1.5, 14); pl3.position.set(0,-3,-2); scene.add(pl3);
+
+// Stars
+const sg = new THREE.BufferGeometry();
+const sp = new Float32Array(2000*3);
+for(let i=0;i<2000*3;i++) sp[i]=(Math.random()-.5)*60;
+sg.setAttribute('position', new THREE.BufferAttribute(sp,3));
+scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xffffff,size:0.05,transparent:true,opacity:0.5})));
+
+// Main orb
+const orbGeo = new THREE.IcosahedronGeometry(1.5, 6);
+const origPos = new Float32Array(orbGeo.getAttribute('position').array);
+const orbMat = new THREE.MeshPhongMaterial({color:0xc9a84c,emissive:0x1a0f00,specular:0xffffff,shininess:90,transparent:true,opacity:0.9});
+const orb = new THREE.Mesh(orbGeo, orbMat); scene.add(orb);
+
+// Wire overlay
+const wireMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.51,6),
+  new THREE.MeshBasicMaterial({color:0xc9a84c,wireframe:true,transparent:true,opacity:0.05}));
+scene.add(wireMesh);
+
+// Rings
+const mk = (r,t,c,o,rx,ry)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,t,2,120),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o}));if(rx)m.rotation.x=rx;if(ry)m.rotation.y=ry;scene.add(m);return m;};
+const ring1=mk(2.3,0.004,0xc9a84c,0.2,Math.PI/3);
+const ring2=mk(3.0,0.003,0x4a7fcc,0.13,-Math.PI/4,Math.PI/6);
+const ring3=mk(1.8,0.003,0xcc84a8,0.12,Math.PI/2.5,-Math.PI/5);
+
+// Glow
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.45,32,32),new THREE.MeshBasicMaterial({color:0xc9a84c,transparent:true,opacity:0.07,side:THREE.BackSide})));
+
+// Noise
+function fhash(n){return Math.sin(n)*43758.5453}
+function noise3(x,y,z){
+  const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);
+  const fx=x-ix,fy=y-iy,fz=z-iz;
+  const ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy),uz=fz*fz*(3-2*fz);
+  const n000=fhash(ix+iy*57+iz*113),n100=fhash(ix+1+iy*57+iz*113);
+  const n010=fhash(ix+(iy+1)*57+iz*113),n110=fhash(ix+1+(iy+1)*57+iz*113);
+  const n001=fhash(ix+iy*57+(iz+1)*113),n101=fhash(ix+1+iy*57+(iz+1)*113);
+  const n011=fhash(ix+(iy+1)*57+(iz+1)*113),n111=fhash(ix+1+(iy+1)*57+(iz+1)*113);
+  return n000*(1-ux)*(1-uy)*(1-uz)+n100*ux*(1-uy)*(1-uz)+n010*(1-ux)*uy*(1-uz)+n110*ux*uy*(1-uz)+
+         n001*(1-ux)*(1-uy)*uz+n101*ux*(1-uy)*uz+n011*(1-ux)*uy*uz+n111*ux*uy*uz;
+}
+
+// Audio
+let actx, analyser, src, dataArr;
+const audioEl = new Audio();
+audioEl.crossOrigin='anonymous';
+
+function initAudio(){
+  if(actx) return;
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  analyser = actx.createAnalyser(); analyser.fftSize=256;
+  dataArr = new Uint8Array(analyser.frequencyBinCount);
+  src = actx.createMediaElementSource(audioEl);
+  src.connect(analyser); analyser.connect(actx.destination);
+}
+function getAudio(){
+  if(!analyser){return{bass:0,mid:0,avg:0}}
+  analyser.getByteFrequencyData(dataArr);
+  let b=0,m=0;
+  for(let i=0;i<8;i++) b+=dataArr[i];
+  for(let i=8;i<50;i++) m+=dataArr[i];
+  b=b/(8*255); m=m/(42*255);
+  return{bass:b,mid:m,avg:(b+m)/2};
+}
+
+// Waveform bars
+const waveEl = document.getElementById('waveform');
+for(let i=0;i<40;i++){const d=document.createElement('div');d.className='wbar';d.style.height='4px';waveEl.appendChild(d);}
+const wbars = waveEl.querySelectorAll('.wbar');
+function updateWave(audio){
+  if(!analyser){wbars.forEach(b=>{b.style.height=(4+Math.random()*3)+'px';b.style.opacity='0.2'});return}
+  analyser.getByteTimeDomainData(dataArr);
+  const step = Math.floor(dataArr.length/wbars.length);
+  wbars.forEach((b,i)=>{
+    const v = Math.abs(dataArr[i*step]-128)/128;
+    const h = 4+v*28;
+    b.style.height=h+'px';
+    b.style.opacity= isPlaying ? (0.3+v*0.7).toString() : '0.2';
+  });
+}
+
+// Color lerp
+const tColor = new THREE.Color(0xc9a84c);
+const cColor = new THREE.Color(0xc9a84c);
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const au = getAudio();
+  const bb = 1+au.bass*1.5;
+
+  // Morph
+  const pa = orbGeo.getAttribute('position');
+  for(let i=0;i<pa.count;i++){
+    const ox=origPos[i*3],oy=origPos[i*3+1],oz=origPos[i*3+2];
+    const len=Math.sqrt(ox*ox+oy*oy+oz*oz);
+    const nx=ox/len,ny=oy/len,nz=oz/len;
+    const n=noise3(nx*1.8+t*0.35,ny*1.8+t*0.28,nz*1.8+t*0.32);
+    const d=0.2*n+au.bass*0.45+au.mid*0.12;
+    const s=1+d;
+    pa.setXYZ(i,ox*s*bb*0.92+bb*0.08,oy*s*bb*0.92+bb*0.08,oz*s);
+  }
+  pa.needsUpdate=true; orbGeo.computeVertexNormals();
+
+  cColor.lerp(tColor, 0.03);
+  orbMat.color.copy(cColor);
+  orbMat.emissive.set(cColor).multiplyScalar(0.07+au.bass*0.18);
+  pl1.color.copy(cColor); pl1.intensity=2.5+au.bass*5;
+
+  ring1.rotation.z+=0.003+au.avg*0.02;
+  ring2.rotation.z-=0.002; ring2.rotation.x+=0.001;
+  ring3.rotation.y+=0.0025; ring3.rotation.z-=0.001;
+
+  orb.rotation.y+=0.003+au.mid*0.008; orb.rotation.x+=0.001;
+  wireMesh.rotation.y=orb.rotation.y; wireMesh.rotation.x=orb.rotation.x;
+
+  cam.position.x=Math.sin(t*0.18)*0.25;
+  cam.position.y=Math.cos(t*0.13)*0.18;
+  cam.lookAt(0,0,0);
+
+  updateWave(au);
+  renderer.render(scene, cam);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  cam.aspect=window.innerWidth/window.innerHeight;
+  cam.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ═══════════════════ PLAYER ═══════════════════
+let cidx=0, isPlaying=false, isShuffle=false, isRepeat=false, vol=0.8;
+audioEl.volume=vol;
+
+function buildList(){
+  const el=document.getElementById('trackList');
+  el.innerHTML=TRACKS.map((t,i)=>`
+    <div class="t-row${i===0?' active':''}" id="tr${i}" onclick="selectTrack(${i})">
+      <div class="t-num">
+        <span>${i+1}</span>
+        <div class="bars-wrap">
+          <div class="abar"></div><div class="abar"></div><div class="abar"></div>
+        </div>
+      </div>
+      <div class="t-info">
+        <div class="t-name">${t.title}</div>
+        <div class="t-meta">${t.meta}</div>
+      </div>
+      <div class="t-dur">${t.src?'—':'Soon'}</div>
+    </div>`).join('');
+}
+
+function selectTrack(i){
+  initAudio();
+  if(actx.state==='suspended') actx.resume();
+  cidx=i;
+  const t=TRACKS[i];
+  audioEl.src=t.src||'';
+  if(t.src) audioEl.load();
+  document.getElementById('npTitle').textContent=t.title;
+  document.getElementById('fpTitle').textContent=t.title;
+  document.getElementById('fpSub').textContent=t.meta;
+  document.querySelectorAll('.t-row').forEach((el,j)=>{
+    el.classList.toggle('active',j===i);
+    el.classList.remove('playing');
+  });
+  tColor.set(t.color);
+  if(t.src){
+    audioEl.play().then(()=>{isPlaying=true;updateUI();document.getElementById(`tr${i}`).classList.add('playing')}).catch(()=>{});
+  }
+}
+
+function togglePlay(){
+  if(!actx) initAudio();
+  if(actx.state==='suspended') actx.resume();
+  if(isPlaying){
+    audioEl.pause(); isPlaying=false; updateUI();
+    document.getElementById(`tr${cidx}`)?.classList.remove('playing');
+  } else {
+    if(audioEl.src){
+      audioEl.play().then(()=>{isPlaying=true;updateUI();document.getElementById(`tr${cidx}`)?.classList.add('playing')}).catch(()=>{});
+    } else { selectTrack(cidx); }
+  }
+}
+
+function prevTrack(){
+  if(audioEl.currentTime>3){audioEl.currentTime=0;return}
+  selectTrack(cidx<=0?TRACKS.length-1:cidx-1);
+}
+function nextTrack(){
+  selectTrack(isShuffle?Math.floor(Math.random()*TRACKS.length):(cidx+1)%TRACKS.length);
+}
+function toggleShuffle(){isShuffle=!isShuffle;document.getElementById('btnShuffle').classList.toggle('on',isShuffle)}
+function toggleRepeat(){isRepeat=!isRepeat;audioEl.loop=isRepeat;document.getElementById('btnRepeat').classList.toggle('on',isRepeat)}
+
+function updateUI(){
+  ['bpPlay','fp_iPlay'].forEach(id=>document.getElementById(id).style.display=isPlaying?'none':'block');
+  ['bpPause','fp_iPause'].forEach(id=>document.getElementById(id).style.display=isPlaying?'block':'none');
+}
+
+audioEl.addEventListener('timeupdate',()=>{
+  if(!audioEl.duration) return;
+  const p=(audioEl.currentTime/audioEl.duration)*100;
+  document.getElementById('npFill').style.width=p+'%';
+  document.getElementById('fpFill').style.width=p+'%';
+  document.getElementById('npCur').textContent=fmt(audioEl.currentTime);
+  document.getElementById('npDur').textContent=fmt(audioEl.duration);
+  document.getElementById('npTime').textContent=fmt(audioEl.currentTime);
+});
+audioEl.addEventListener('ended',()=>{if(!isRepeat) nextTrack()});
+
+function seekHero(e){
+  const bar=document.getElementById('npBar');
+  audioEl.currentTime=(e.offsetX/bar.offsetWidth)*audioEl.duration;
+}
+function seekFP(e){
+  const bar=document.getElementById('fpProg');
+  audioEl.currentTime=(e.offsetX/bar.offsetWidth)*audioEl.duration;
+}
+function setVol(e){
+  const bar=document.getElementById('volBar')||e.currentTarget;
+  const rect=e.currentTarget.getBoundingClientRect();
+  vol=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  audioEl.volume=vol;
+  document.getElementById('volFill').style.width=(vol*100)+'%';
+}
+// fix vol-bar onclick
+document.querySelector('.vol-bar').addEventListener('click',setVol);
+
+function fmt(s){
+  if(!s||isNaN(s)) return '0:00';
+  return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+}
+
+function share(){
+  const url=window.location.href;
+  if(navigator.share){navigator.share({title:'Golden Lillies',text:'Listen to this.',url})}
+  else{navigator.clipboard.writeText(url).then(()=>{showToast('Link copied!')})}
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function joinCommunity(){
+  const v=document.getElementById('emailInput').value.trim();
+  if(!v||!v.includes('@')){showToast('Enter a valid email');return}
+  const m=document.getElementById('joinMsg');
+  m.textContent='You\'re on the list. We\'ll be in touch.';
+  m.style.opacity='1';
+  document.getElementById('emailInput').value='';
+}
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.code==='Space'){e.preventDefault();togglePlay()}
+  if(e.code==='ArrowRight') nextTrack();
+  if(e.code==='ArrowLeft') prevTrack();
+});
+
+// Listener count shimmer
+setInterval(()=>{
+  const n=240+Math.floor(Math.random()*20);
+  document.getElementById('listenerCount').textContent=n+' people listening now';
+},8000);
+
+buildList();
+// Auto-load first track
+audioEl.src = TRACKS[0].src;
+</script>
+</body>
+</html>
