@@ -17,9 +17,45 @@
             android:launchMode="singleTask"
             android:exported="true">
 
+            <!-- Standard launcher intent -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Deep link: https://unilink.ng/* — opens app when installed -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="unilink.ng" />
+            </intent-filter>
+
+            <!-- Deep link: https://www.unilink.ng/* -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.unilink.ng" />
+            </intent-filter>
+
+            <!-- Custom scheme deep link: com.syntaxdrive.ulink:// -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.syntaxdrive.ulink" />
+            </intent-filter>
+
+            <!-- Supabase OAuth redirect (auth deep link) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="unilink.ng"
+                    android:pathPrefix="/auth" />
             </intent-filter>
 
         </activity>
@@ -36,6 +72,6 @@
     </application>
 
     <!-- Permissions -->
-
     <uses-permission android:name="android.permission.INTERNET" />
+
 </manifest>

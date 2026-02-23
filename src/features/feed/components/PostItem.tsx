@@ -86,7 +86,6 @@ export default function PostItem({
         requestAnimationFrame(() => requestAnimationFrame(() => setLikeAnim(true)));
         // Trigger particle burst only when liking (not unliking)
         if (!post.user_has_liked) {
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             const newParticles = Array.from({ length: 6 }, (_, i) => ({
                 id: ++particleRef.current * 10 + i,
                 x: Math.random() * 40 - 20,
@@ -258,18 +257,18 @@ export default function PostItem({
     return (
         <article
             className={`bg-white dark:bg-zinc-900 border transition-all duration-300 rounded-2xl overflow-hidden ${isViral
-                    ? 'border-orange-300/60 dark:border-orange-500/30 shadow-md shadow-orange-100/50 dark:shadow-orange-500/5'
-                    : isHot
-                        ? 'border-emerald-200/60 dark:border-emerald-700/30'
-                        : 'border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700'
+                ? 'border-orange-300/60 dark:border-orange-500/30 shadow-md shadow-orange-100/50 dark:shadow-orange-500/5'
+                : isHot
+                    ? 'border-emerald-200/60 dark:border-emerald-700/30'
+                    : 'border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700'
                 } ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
             style={{ transition: 'opacity 0.35s ease, transform 0.35s ease, border-color 0.2s' }}
         >
             {/* Hot / Viral badge */}
             {(isHot || isViral) && (
                 <div className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold ${isViral
-                        ? 'bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 text-orange-600 dark:text-orange-400'
-                        : 'bg-emerald-50/60 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400'
+                    ? 'bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 text-orange-600 dark:text-orange-400'
+                    : 'bg-emerald-50/60 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400'
                     }`}>
                     <span>{isViral ? '🔥' : '⚡'}</span>
                     <span>{isViral ? 'Trending on campus' : 'Popular post'}</span>
@@ -670,8 +669,8 @@ export default function PostItem({
                         disabled={sharingToFeed || sharedToFeed}
                         title={sharedToFeed ? 'Already shared to main feed' : 'Share this post to the main feed'}
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sharedToFeed
-                                ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 cursor-default'
-                                : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800'
+                            ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 cursor-default'
+                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800'
                             }`}
                     >
                         {sharingToFeed ? (
