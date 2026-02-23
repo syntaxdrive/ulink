@@ -50,6 +50,11 @@ export default function ProfilePage() {
     const [tiktok, setTiktok] = useState('');
     const [whatsapp, setWhatsapp] = useState('');
 
+    // Industry (orgs)
+    const [industry, setIndustry] = useState('');
+    const [role, setRole] = useState<'student' | 'org'>('student');
+    const [showRoleSwitchConfirm, setShowRoleSwitchConfirm] = useState(false);
+
     // Resume
     const [resumeUrl, setResumeUrl] = useState('');
     const [resumeUploading, setResumeUploading] = useState(false);
@@ -90,6 +95,8 @@ export default function ProfilePage() {
         setYoutube((data as any).youtube_url || '');
         setTiktok((data as any).tiktok_url || '');
         setWhatsapp((data as any).whatsapp_url || '');
+        setIndustry((data as any).industry || '');
+        setRole((data.role as 'student' | 'org') || 'student');
     };
 
     const fetchProfile = async () => {
@@ -110,7 +117,7 @@ export default function ProfilePage() {
                         id: user.id,
                         email: user.email!,
                         name: user.user_metadata.name || user.email?.split('@')[0] || 'User',
-                        role: 'student',
+                        role: (user.user_metadata?.role as 'student' | 'org') || 'student',
                         avatar_url: `https://ui-avatars.com/api/?name=${user.email}&background=random`
                     })
                     .select()
@@ -337,12 +344,11 @@ export default function ProfilePage() {
                 youtube_url: youtube,
                 tiktok_url: tiktok,
                 whatsapp_url: whatsapp,
+                role,
+                industry: role === 'org' ? industry : null,
+                university: role === 'student' ? university : null,
                 updated_at: new Date().toISOString(),
             };
-
-            if (profile.role === 'student') {
-                updates.university = university;
-            }
 
             const { error } = await supabase
                 .from('profiles')
@@ -352,10 +358,11 @@ export default function ProfilePage() {
             if (error) throw error;
 
             setProfile({ ...profile, ...updates });
-            alert('Profile updated successfully!');
 
-            // Award profile completion bonus if applicable
-            await supabase.rpc('award_profile_completion_bonus', { p_user_id: profile.id });
+            // Award profile completion bonus — fire-and-forget, never block the save
+            Promise.resolve(supabase.rpc('award_profile_completion_bonus', { p_user_id: profile.id })).catch(() => {});
+
+            alert('Profile updated successfully!');
         } catch (error) {
             console.error('Error updating profile:', error);
             alert('Failed to update profile.');
@@ -420,10 +427,31 @@ export default function ProfilePage() {
     }
 
     if (!profile) return null;
-    const isStudent = profile.role === 'student';
+    const isStudent = role === 'student';
 
     return (
         <div className="max-w-6xl mx-auto pb-20 px-4">
+            {/* Role Switch Confirmation Modal */}
+            {showRoleSwitchConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 p-6 max-w-sm w-full shadow-2xl">
+                        <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100 mb-2">Switch Account Type?</h3>
+                        <p className="text-sm text-stone-500 dark:text-zinc-400 mb-5">
+                            Switching from <strong>{role === 'student' ? 'Student' : 'Organization'}</strong> to <strong>{role === 'student' ? 'Organization' : 'Student'}</strong> will update how your profile appears across the app. You can switch back any time.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowRoleSwitchConfirm(false)}
+                                className="flex-1 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-400 text-sm font-medium hover:bg-stone-50 dark:hover:bg-zinc-800 transition-all"
+                            >Cancel</button>
+                            <button
+                                onClick={() => { setRole(role === 'student' ? 'org' : 'student'); setShowRoleSwitchConfirm(false); }}
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all"
+                            >Confirm Switch</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold text-stone-900 dark:text-zinc-100">Edit Profile</h1>
@@ -548,7 +576,36 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
 
-                                    {isStudent && (
+                                    {/* Role Switcher */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">Account Type</label>
+                                        <div className="grid grid-cols-2 gap-2 mt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => { if (role !== 'student') setShowRoleSwitchConfirm(true); else setRole('student'); }}
+                                                className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                                    role === 'student'
+                                                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                                                        : 'bg-stone-50 dark:bg-zinc-800 text-stone-500 dark:text-zinc-500 border border-stone-200 dark:border-zinc-700 hover:bg-stone-100 dark:hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                <School className="w-3.5 h-3.5" /> Student
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { if (role !== 'org') setShowRoleSwitchConfirm(true); else setRole('org'); }}
+                                                className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                                    role === 'org'
+                                                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700'
+                                                        : 'bg-stone-50 dark:bg-zinc-800 text-stone-500 dark:text-zinc-500 border border-stone-200 dark:border-zinc-700 hover:bg-stone-100 dark:hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                <Briefcase className="w-3.5 h-3.5" /> Organization
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {isStudent ? (
                                         <div>
                                             <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">University</label>
                                             <div className="relative mt-1">
@@ -559,6 +616,20 @@ export default function ProfilePage() {
                                                     onChange={(e) => setUniversity(e.target.value)}
                                                     className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
                                                     placeholder="University Name"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">Industry</label>
+                                            <div className="relative mt-1">
+                                                <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 dark:text-zinc-600" />
+                                                <input
+                                                    type="text"
+                                                    value={industry}
+                                                    onChange={(e) => setIndustry(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
+                                                    placeholder="e.g. FinTech, EdTech, Healthcare"
                                                 />
                                             </div>
                                         </div>
