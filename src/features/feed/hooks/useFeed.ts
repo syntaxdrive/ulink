@@ -4,6 +4,22 @@ import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
 
+// Seed/test user usernames — always hidden from feed regardless of DB column state
+const TEST_USER_USERNAMES = new Set([
+    'chidi_okonkwo', 'amara_writes', 'tunde_codes', 'ngozi_builders',
+    'emekatech', 'fatima_finance', 'davidosei_art', 'blessings_med',
+    'ibrahim_econ', 'adaeze_fashion', 'seun_sports', 'chisom_biz',
+]);
+const TEST_USER_EMAILS = new Set([
+    'chidiokonkwo@gmail.com', 'amaraeze@gmail.com', 'tundeadeyemi@gmail.com',
+    'ngoziobi@gmail.com', 'emekanwosu@gmail.com', 'fatimabello@gmail.com',
+    'davidosei@gmail.com', 'blessingpeter@gmail.com', 'ibrahimmusa@gmail.com',
+    'adaezenwofor@gmail.com', 'seunadesanya@gmail.com', 'chisomokeke@gmail.com',
+]);
+const isTestUserPost = (post: any) =>
+    TEST_USER_USERNAMES.has(post.profiles?.username) ||
+    TEST_USER_EMAILS.has(post.profiles?.email);
+
 export function useFeed(communityId?: string) {
     // 1. Use Global Store
     const { posts, setPosts, addPost, updatePost, removePost } = useFeedStore();
@@ -45,8 +61,10 @@ export function useFeed(communityId?: string) {
                 if (communityId) {
                     // In community: only show posts from THIS community
                     if (newPost.community_id !== communityId) return;
+                } else {
+                    // In main feed: only show posts with no community, or ones shared to feed
+                    if (newPost.community_id && !newPost.shared_to_feed) return;
                 }
-                // In main feed: show ALL posts (global + community posts with banner)
 
                 fetchSinglePost(newPost.id);
             })
@@ -71,7 +89,7 @@ export function useFeed(communityId?: string) {
     const fetchPosts = async (userId?: string) => {
         setLoading(true);
 
-        // Optimized query with pagination and selective fields
+        // Simple, safe query — no self-referential or potentially unregistered FK joins
         let query = supabase
             .from('posts')
             .select(`
@@ -79,6 +97,7 @@ export function useFeed(communityId?: string) {
                 profiles:author_id (
                     id,
                     name,
+                    username,
                     avatar_url,
                     is_verified,
                     gold_verified,
@@ -91,40 +110,44 @@ export function useFeed(communityId?: string) {
                     name,
                     slug,
                     icon_url
-                ),
-                original_post:original_post_id (
-                    id,
-                    content,
-                    image_url,
-                    image_urls,
-                    video_url,
-                    created_at,
-                    author_id,
-                    profiles:author_id (
-                        id,
-                        name,
-                        avatar_url,
-                        is_verified
-                    )
                 )
             `)
             .order('created_at', { ascending: false })
-            .limit(20); // Pagination: Load 20 posts at a time
+            .limit(60);
 
         if (communityId) {
-            // Community Feed: Only show posts from this specific community
             query = query.eq('community_id', communityId);
+        } else {
+            // Main feed: exclude community-only posts unless explicitly shared to feed
+            query = query.or('community_id.is.null,shared_to_feed.eq.true');
         }
-        // Main Feed: Shows ALL posts (both global and community posts)
-        // Community posts will show with banner and join button
 
-        const { data, error } = await query;
+        let { data, error } = await query;
 
         if (error) {
             console.error('Error fetching posts:', error);
-            console.error('Error details:', JSON.stringify(error, null, 2));
-            setLoading(false);
-            return; // Don't set empty posts on error
+            // Fallback: minimal select without gold_verified in case column doesn't exist
+            const fallback = communityId
+                ? await supabase
+                    .from('posts')
+                    .select(`*, profiles:author_id (id, name, username, avatar_url, is_verified, headline, role, email), community:community_id (id, name, slug, icon_url)`)
+                    .eq('community_id', communityId)
+                    .order('created_at', { ascending: false })
+                    .limit(20)
+                : await supabase
+                    .from('posts')
+                    .select(`*, profiles:author_id (id, name, username, avatar_url, is_verified, headline, role, email), community:community_id (id, name, slug, icon_url)`)
+                    .or('community_id.is.null,shared_to_feed.eq.true')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+            if (fallback.error) {
+                console.error('Fallback fetch also failed:', fallback.error);
+                setLoading(false);
+                return;
+            }
+            data = fallback.data;
+            error = null;
         }
 
         console.log(`Fetched ${data?.length || 0} posts from database`);
@@ -230,6 +253,9 @@ export function useFeed(communityId?: string) {
                 is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
 
+            // Remove test user posts (by email — always fetched; also by username as fallback)
+            formatted = formatted.filter((p: any) => !isTestUserPost(p));
+
             // SMART ALGORITHM
             const ONE_DAY = 24 * 60 * 60 * 1000;
             formatted.sort((a: any, b: any) => {
@@ -267,6 +293,7 @@ export function useFeed(communityId?: string) {
                 profiles:author_id (
                     id,
                     name,
+                    username,
                     avatar_url,
                     is_verified,
                     gold_verified,
@@ -343,15 +370,17 @@ export function useFeed(communityId?: string) {
 
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
-            const formatted = data.map((post: any) => ({
-                ...post,
-                likes_count: likesMap[post.id]?.count || 0,
-                comments_count: commentsMap[post.id] || 0,
-                reposts_count: repostsMap[post.id]?.count || 0,
-                user_has_liked: likesMap[post.id]?.userLiked || false,
-                user_has_reposted: repostsMap[post.id]?.userReposted || false,
-                is_vip: VIP_EMAILS.includes(post.profiles?.email)
-            }));
+            const formatted = data
+                .filter((post: any) => !isTestUserPost(post))
+                .map((post: any) => ({
+                    ...post,
+                    likes_count: likesMap[post.id]?.count || 0,
+                    comments_count: commentsMap[post.id] || 0,
+                    reposts_count: repostsMap[post.id]?.count || 0,
+                    user_has_liked: likesMap[post.id]?.userLiked || false,
+                    user_has_reposted: repostsMap[post.id]?.userReposted || false,
+                    is_vip: VIP_EMAILS.includes(post.profiles?.email)
+                }));
 
             setPosts(formatted);
         }
@@ -364,13 +393,7 @@ export function useFeed(communityId?: string) {
             .from('posts')
             .select(`
                 *, 
-                profiles:author_id (*), 
-                community:community_id (
-                    id,
-                    name,
-                    slug,
-                    icon_url
-                ),
+                profiles:author_id (id, name, username, avatar_url, is_verified, gold_verified, headline, role, email), 
                 likes (user_id), 
                 comments (id)
             `)
