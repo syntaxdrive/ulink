@@ -138,8 +138,9 @@ export default function LandingPage() {
 
                                     {/* Android Download Button */}
                                     <a
-                                        href="/UniLink.apk"
-                                        download="UniLink.apk"
+                                        href="https://github.com/syntaxdrive/ulink/releases/download/untagged-86923a4d7e91a8540e43/UniLink-Nigeria.apk"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
@@ -302,8 +303,9 @@ export default function LandingPage() {
                                     </div>
 
                                     <a
-                                        href="/UniLink.apk"
-                                        download="UniLink.apk"
+                                        href="https://github.com/syntaxdrive/ulink/releases/download/untagged-86923a4d7e91a8540e43/UniLink-Nigeria.apk"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-emerald-900/30 group w-full sm:w-auto justify-center sm:justify-start"
                                     >
                                         <Download className="w-5 h-5 group-hover:animate-bounce" />
