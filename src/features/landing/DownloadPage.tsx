@@ -1,10 +1,12 @@
-import { Download, ChevronLeft, ShieldCheck, Zap, ArrowRight, CheckCircle2, Moon, Sun } from 'lucide-react';
+import { Download, ChevronLeft, ShieldCheck, Zap, ArrowRight, CheckCircle2, Moon, Sun, Smartphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useUIStore } from '../../stores/useUIStore';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 export default function DownloadPage() {
     const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk";
     const { isDarkMode, toggleDarkMode } = useUIStore();
+    const { isInstallable, install } = usePWAInstall();
 
     const handleDownload = () => {
         const link = document.createElement('a');
@@ -54,19 +56,36 @@ export default function DownloadPage() {
                             Ready to join your campus?
                         </h1>
                         <p className="text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed">
-                            Get the latest version of UniLink. Connect with peers, find internships, and stay updated with your campus community.
+                            Install UniLink as an app or download the APK for Android devices.
                         </p>
 
-                        <button
-                            onClick={handleDownload}
-                            className="w-full h-16 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-[0.98] group"
-                        >
-                            <Download className="w-6 h-6 group-hover:animate-bounce" />
-                            <div className="text-left">
-                                <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Version v1.0.0</div>
-                                <div className="text-lg">Download UniLink.apk</div>
-                            </div>
-                        </button>
+                        <div className="space-y-4">
+                            {/* Option 1: PWA (Easiest) */}
+                            {isInstallable && (
+                                <button
+                                    onClick={install}
+                                    className="w-full h-16 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+                                >
+                                    <Smartphone className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                    <div className="text-left">
+                                        <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Recommended</div>
+                                        <div className="text-lg">Install UniLink App</div>
+                                    </div>
+                                </button>
+                            )}
+
+                            {/* Option 2: APK (Alternative) */}
+                            <button
+                                onClick={handleDownload}
+                                className={`w-full h-16 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold rounded-2xl flex items-center justify-center gap-3 transition-all hover:bg-slate-200 dark:hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] group ${!isInstallable ? 'bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-500 dark:hover:bg-emerald-400' : ''}`}
+                            >
+                                <Download className={`w-6 h-6 group-hover:animate-bounce ${!isInstallable ? 'text-white' : 'text-emerald-600 dark:text-emerald-500'}`} />
+                                <div className="text-left">
+                                    <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Android APK</div>
+                                    <div className="text-lg">Download UniLink.apk</div>
+                                </div>
+                            </button>
+                        </div>
 
                         <p className="text-center text-xs text-slate-400 dark:text-zinc-500 mt-6">
                             Size: ~24.0 MB • Requires Android 7.0+
