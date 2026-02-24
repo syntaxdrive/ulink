@@ -82,7 +82,7 @@ export default function DownloadPage() {
                                 <Download className={`w-6 h-6 group-hover:animate-bounce ${!isInstallable ? 'text-white' : 'text-emerald-600 dark:text-emerald-500'}`} />
                                 <div className="text-left">
                                     <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Android APK</div>
-                                    <div className="text-lg">Download UniLink.apk</div>
+                                    <div className="text-lg">Download UniLink-Nigeria.apk</div>
                                 </div>
                             </button>
                         </div>

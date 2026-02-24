@@ -10,6 +10,7 @@ import ReportsManager from './components/ReportsManager';
 import UserTable from './components/UserTable';
 import AdminReactionsBoard from './components/AdminReactionsBoard';
 import AdminPollCreator from './components/AdminPollCreator';
+import AdminIntercom from './components/AdminIntercom';
 
 interface DashboardStats {
     total_users: number;
@@ -115,8 +116,8 @@ export default function AdminPage() {
                 <button
                     onClick={() => setActiveTab('dashboard')}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'dashboard'
-                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
-                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                         }`}
                 >
                     <LayoutDashboard className="w-4 h-4" />
@@ -125,8 +126,8 @@ export default function AdminPage() {
                 <button
                     onClick={() => setActiveTab('board')}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'board'
-                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
-                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                         }`}
                 >
                     <Smile className="w-4 h-4" />
@@ -135,8 +136,8 @@ export default function AdminPage() {
                 <button
                     onClick={() => setActiveTab('polls')}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'polls'
-                            ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
-                            : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                         }`}
                 >
                     <Zap className="w-4 h-4" />
@@ -215,6 +216,9 @@ export default function AdminPage() {
                 preSelectedUser={null} // Broadcast mode
                 allUsers={users}
             />
+
+            {/* Live Mission Control Intercom */}
+            <AdminIntercom />
         </div>
     );
 }

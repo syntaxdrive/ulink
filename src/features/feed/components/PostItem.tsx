@@ -8,6 +8,7 @@ import RepostModal from './RepostModal';
 import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 import { supabase } from '../../../lib/supabase';
+import { signInWithGoogle } from '../../../lib/auth-helpers';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -78,9 +79,21 @@ export default function PostItem({
         return () => clearTimeout(timer);
     }, []);
 
+    const ensureAuth = () => {
+        if (!currentUserId) {
+            if (confirm('Please sign in to interact with posts.')) {
+                signInWithGoogle();
+            }
+            return false;
+        }
+        return true;
+    };
+
     const handleLikeWithAnim = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!ensureAuth()) return;
+
         // Trigger heart bounce
         setLikeAnim(false);
         requestAnimationFrame(() => requestAnimationFrame(() => setLikeAnim(true)));
@@ -99,6 +112,7 @@ export default function PostItem({
 
     const handleShareToFeed = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!ensureAuth()) return;
         if (sharingToFeed || sharedToFeed) return;
         setSharingToFeed(true);
         const { error } = await supabase
@@ -111,6 +125,7 @@ export default function PostItem({
 
     const handleUnshare = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!ensureAuth()) return;
         if (!confirm('Remove this post from the main feed?')) return;
         const { error } = await supabase
             .from('posts')
@@ -149,12 +164,14 @@ export default function PostItem({
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!ensureAuth()) return;
         if (confirm('Are you sure you want to delete this post?')) {
             onDelete(post.id);
         }
     };
 
     const handleCommentSubmit = async () => {
+        if (!ensureAuth()) return;
         if (!commentText.trim()) return;
         try {
             await onPostComment(post.id, commentText);
@@ -168,6 +185,7 @@ export default function PostItem({
     const handleJoinCommunity = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!ensureAuth()) return;
 
         if (!post.community?.id) return;
 
@@ -520,6 +538,7 @@ export default function PostItem({
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    if (!ensureAuth()) return;
                                     if (onVotePoll) onVotePoll(post.id, index);
                                 }}
                                 className={`w-full relative overflow-hidden rounded-xl border transition-all ${isSelected
@@ -644,7 +663,9 @@ export default function PostItem({
                 </button>
 
                 <button
-                    onClick={() => setShowRepostModal(true)}
+                    onClick={() => {
+                        if (ensureAuth()) setShowRepostModal(true);
+                    }}
                     className="flex items-center gap-1.5 group transition-colors p-2"
                 >
                     <Repeat className={`w-6 h-6 transition-all active:scale-90 ${post.user_has_reposted ? 'text-emerald-600 dark:text-emerald-500' : 'text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400'}`} />

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 import { supabase } from '../../lib/supabase';
+import { signInWithGoogle } from '../../lib/auth-helpers';
 import type { Profile } from '../../types';
 import NotificationToast from '../../components/ui/NotificationToast';
 import UsernameSetupModal from '../auth/components/UsernameSetupModal';
@@ -29,6 +31,9 @@ export default function DashboardLayout() {
     const unreadNotifications = requests.length + generalNotifications.filter(n => !n.read).length;
 
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
+    const [isGuest, setIsGuest] = useState(false);
+    const isNative = Capacitor.isNativePlatform();
+
     const [notificationPermission, setNotificationPermission] = useState(() =>
         'Notification' in window ? Notification.permission : 'denied'
     );
@@ -135,10 +140,16 @@ export default function DashboardLayout() {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
+                if (isNative) {
+                    setIsGuest(true);
+                    return;
+                }
                 await supabase.auth.signOut();
                 navigate('/');
                 return;
             }
+
+            setIsGuest(false);
 
             // Fetch User Profile
             const { data: profile } = await supabase
@@ -250,16 +261,18 @@ export default function DashboardLayout() {
         { icon: Users, label: 'Network', path: '/app/network' },
         { icon: Globe, label: 'Communities', path: '/app/communities' },
         { icon: Zap, label: 'Challenge', path: '/app/challenge' },
-        { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
-        { icon: Bell, label: 'Notifications', path: '/app/notifications' },
-        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
+        ...(!isGuest ? [
+            { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+            { icon: Bell, label: 'Notifications', path: '/app/notifications' },
+            { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' }
+        ] : []),
     ];
 
     const secondaryNavItems = [
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
         { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
-        { icon: Settings, label: 'Settings', path: '/app/settings' },
+        ...(!isGuest ? [{ icon: Settings, label: 'Settings', path: '/app/settings' }] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
     ];
@@ -294,8 +307,24 @@ export default function DashboardLayout() {
                         )}
                     </button>
                     <div className="flex items-center gap-2">
-                        <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
-                        <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                        {isGuest ? (
+                            <button
+                                onClick={async () => {
+                                    await supabase.auth.signInWithOAuth({
+                                        provider: 'google',
+                                        options: { redirectTo: window.location.origin + '/app' }
+                                    });
+                                }}
+                                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-full shadow-md active:scale-95 transition-all flex items-center gap-2"
+                            >
+                                <Globe className="w-3 h-3" /> Sign In with Google
+                            </button>
+                        ) : (
+                            <>
+                                <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
+                                <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                            </>
+                        )}
                     </div>
                 </header>
             )}
@@ -391,21 +420,30 @@ export default function DashboardLayout() {
                         </nav>
 
                         <div className="pt-6 border-t border-slate-100">
-                            <div className="flex items-center gap-3 mb-4 px-2">
-                                <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
-                                    <img
-                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
-                                        alt={userProfile?.name}
-                                        className="w-full h-full object-cover"
-                                    />
+                            {isGuest ? (
+                                <button
+                                    onClick={signInWithGoogle}
+                                    className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                                >
+                                    <Globe className="w-4 h-4" /> Sign In with Google
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-3 mb-4 px-2">
+                                    <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
+                                        <img
+                                            src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                            alt={userProfile?.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
+                                        <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
+                                            {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="overflow-hidden">
-                                    <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
-                                    <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
-                                        {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
-                                    </p>
-                                </div>
-                            </div>
+                            )}
 
                             {isInstallable && (
                                 <button
@@ -496,47 +534,59 @@ export default function DashboardLayout() {
                 </nav>
 
                 <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
-                            <img
-                                src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
-                                alt={userProfile?.name}
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
-                            <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
-                                {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
-                            </p>
-                        </div>
-                    </div>
-                    {notificationPermission === 'default' && (
+                    {isGuest ? (
                         <button
-                            onClick={requestNotificationPermission}
-                            className="w-full mb-3 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                            onClick={signInWithGoogle}
+                            className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all mb-4"
                         >
-                            <Bell className="w-3 h-3" /> Enable Notifications
+                            <Globe className="w-4 h-4" /> Sign In with Google
                         </button>
-                    )}
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3 mb-4 px-2">
+                                <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
+                                    <img
+                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                        alt={userProfile?.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
+                                    <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
+                                        {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
+                                    </p>
+                                </div>
+                            </div>
 
-                    {isInstallable && (
-                        <button
-                            onClick={install}
-                            className="flex items-center gap-3 px-4 py-2.5 w-full text-emerald-600 hover:bg-emerald-50 border border-transparent rounded-xl transition-all duration-300 group mb-2"
-                        >
-                            <Download className="w-4 h-4" />
-                            <span className="font-sans text-xs font-semibold">Install App</span>
-                        </button>
-                    )}
+                            {notificationPermission === 'default' && (
+                                <button
+                                    onClick={requestNotificationPermission}
+                                    className="w-full mb-3 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Bell className="w-3 h-3" /> Enable Notifications
+                                </button>
+                            )}
 
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent rounded-xl transition-all duration-300 group"
-                    >
-                        <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
-                        <span className="font-sans text-xs font-semibold">Log Out</span>
-                    </button>
+                            {isInstallable && (
+                                <button
+                                    onClick={install}
+                                    className="flex items-center gap-3 px-4 py-2.5 w-full text-emerald-600 hover:bg-emerald-50 border border-transparent rounded-xl transition-all duration-300 group mb-2"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span className="font-sans text-xs font-semibold">Install App</span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent rounded-xl transition-all duration-300 group"
+                            >
+                                <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
+                                <span className="font-sans text-xs font-semibold">Log Out</span>
+                            </button>
+                        </>
+                    )}
 
                     <div className="mt-6 px-2 text-[10px] text-slate-400 font-medium space-y-2 border-t border-slate-100 pt-4">
                         <p className="opacity-70">&copy; {new Date().getFullYear()} UniLink Nigeria. All rights reserved.</p>

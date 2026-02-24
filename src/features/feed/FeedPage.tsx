@@ -232,9 +232,11 @@ export default function FeedPage() {
                     )}
 
                     {/* Create Post */}
-                    <div className="mb-1">
-                        <CreatePost onCreate={createPost} user={currentUserProfile} />
-                    </div>
+                    {currentUserId && (
+                        <div className="mb-1">
+                            <CreatePost onCreate={createPost} user={currentUserProfile} />
+                        </div>
+                    )}
 
                     {/* People Search Results */}
                     {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (

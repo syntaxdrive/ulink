@@ -32,10 +32,19 @@ import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
 import { useUIStore } from './stores/useUIStore';
 
+import { Capacitor } from '@capacitor/core';
+import { initializeNativeAuth } from './lib/auth-helpers';
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { setDarkMode } = useUIStore();
+  const isNative = Capacitor.isNativePlatform();
+
+  // Handle native deep links for auth
+  useEffect(() => {
+    initializeNativeAuth();
+  }, []);
 
   // Initialize dark mode on mount
   useEffect(() => {
@@ -59,24 +68,19 @@ function App() {
       setSession(session);
 
       // Clean URL after OAuth callback to remove sensitive tokens
-      // This handles both PKCE flow (query params) and implicit flow (hash)
       if (session) {
         const url = new URL(window.location.href);
         let shouldClean = false;
 
-        // Check for OAuth callback parameters in hash (implicit flow - legacy)
         if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'))) {
           shouldClean = true;
         }
 
-        // Check for OAuth callback parameters in query string (PKCE flow)
         if (url.searchParams.has('code') || url.searchParams.has('access_token')) {
           shouldClean = true;
         }
 
-        // Clean the URL if OAuth parameters were found
         if (shouldClean) {
-          // Remove all query params and hash
           const cleanUrl = `${url.origin}${url.pathname}`;
           window.history.replaceState(null, '', cleanUrl);
         }
@@ -107,34 +111,37 @@ function App() {
           <Route path="/download" element={<Suspense fallback={null}><DownloadPage /></Suspense>} />
           <Route
             path="/"
-            element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
+            element={
+              session
+                ? <Navigate to="/app" replace />
+                : (isNative ? <Navigate to="/app" replace /> : <LandingPage />)
+            }
           />
           <Route path="/about" element={<AboutPage />} />
           <Route
             path="/onboarding"
-            /* ... */
             element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
           />
           <Route
             path="/app"
-            element={session ? <DashboardLayout /> : <Navigate to="/" replace />}
+            element={(session || isNative) ? <DashboardLayout /> : <Navigate to="/" replace />}
           >
             <Route index element={<FeedPage />} />
             <Route path="post/:postId" element={<PostPage />} />
             <Route path="communities" element={<CommunitiesPage />} />
             <Route path="communities/:slug" element={<CommunityDetailsPage />} />
             <Route path="network" element={<NetworkPage />} />
-            <Route path="messages" element={<MessagesPage />} />
+            <Route path="messages" element={session ? <MessagesPage /> : <Navigate to="/app" replace />} />
             <Route path="jobs" element={<JobsPage />} />
             <Route path="talent" element={<TalentSearchPage />} />
             <Route path="learn" element={<CoursesPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="challenge" element={<CampusChallengePage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
+            <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
+            <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
             <Route path="profile/:userId" element={<UserProfilePage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="admin" element={<AdminPage />} />
+            <Route path="settings" element={session ? <SettingsPage /> : <Navigate to="/app" replace />} />
+            <Route path="admin" element={session ? <AdminPage /> : <Navigate to="/app" replace />} />
             {/* Internal 404: Keeps sidebar */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

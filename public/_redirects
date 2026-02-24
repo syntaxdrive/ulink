@@ -1,6 +1,2 @@
-# Serve APK directly as static file — do NOT redirect to GitHub
-# Cloudflare Workers Static Assets will serve dist/UniLink.apk with headers from _headers file
-/unilink.apk /UniLink.apk 301
-
 # SPA fallback for everything else
 /* /index.html 200

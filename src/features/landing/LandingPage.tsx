@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { signInWithGoogle } from '../../lib/auth-helpers';
 import { Users, Briefcase, Sparkles, CheckCircle2, Download, Star, Shield, Globe } from 'lucide-react';
 // import { usePWAInstall } from '../../hooks/usePWAInstall';
 // import InstallGuideModal from '../../components/InstallGuideModal';
@@ -41,15 +41,9 @@ export default function LandingPage() {
     }, []);
 
     const handleGoogleLogin = async () => {
-        // ... existing login logic ...
         setLoading(true);
         try {
-            await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: `${window.location.origin}/app`,
-                },
-            });
+            await signInWithGoogle();
         } catch (error) {
             console.error('Error logging in:', error);
             alert('Failed to sign in with Google');
@@ -327,9 +321,9 @@ export default function LandingPage() {
                                     <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">How to install</h4>
                                     <div className="space-y-5">
                                         {[
-                                            { step: '1', title: 'Download the APK', desc: 'Tap the download button and save UniLink.apk to your phone.' },
+                                            { step: '1', title: 'Download the APK', desc: 'Tap the download button and save UniLink-Nigeria.apk to your phone.' },
                                             { step: '2', title: 'Allow unknown sources', desc: 'Go to Settings → Security → "Install unknown apps" and enable it for your browser or file manager.' },
-                                            { step: '3', title: 'Open the APK', desc: 'Find UniLink.apk in your Downloads folder and tap it to install.' },
+                                            { step: '3', title: 'Open the APK', desc: 'Find UniLink-Nigeria.apk in your Downloads folder and tap it to install.' },
                                             { step: '4', title: 'Sign in & connect', desc: 'Open the app, sign in with Google, and join your campus network!' },
                                         ].map(({ step, title, desc }) => (
                                             <div key={step} className="flex items-start gap-4">
