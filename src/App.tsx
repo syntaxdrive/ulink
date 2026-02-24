@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './features/landing/LandingPage';
 import AboutPage from './features/landing/AboutPage';
 import DashboardLayout from './features/layout/DashboardLayout';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from './lib/supabase';
 import { type Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
@@ -26,7 +26,7 @@ import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import CoursesPage from './features/learn/CoursesPage';
 import LeaderboardPage from './features/leaderboard/LeaderboardPage';
 import CampusChallengePage from './features/challenge/CampusChallengePage';
-import DownloadPage from './features/landing/DownloadPage';
+const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
@@ -104,12 +104,12 @@ function App() {
           description="Join the largest network of Nigerian university students. Collaborate, share resources, and grow your career."
         />
         <Routes>
+          <Route path="/download" element={<Suspense fallback={null}><DownloadPage /></Suspense>} />
           <Route
             path="/"
             element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
           />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/download" element={<DownloadPage />} />
           <Route
             path="/onboarding"
             /* ... */
