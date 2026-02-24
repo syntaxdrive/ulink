@@ -12,6 +12,7 @@ import InstallGuideModal from '../../components/InstallGuideModal';
 import { useNotifications } from '../notifications/hooks/useNotifications';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useUIStore } from '../../stores/useUIStore';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
@@ -19,6 +20,9 @@ export default function DashboardLayout() {
     const { isImmersive } = useUIStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
+
+    // Register for FCM push notifications on native (Android/iOS)
+    usePushNotifications();
 
     // Use Global Notifications Data
     const { requests, generalNotifications } = useNotifications();
