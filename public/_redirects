@@ -1,1 +1,5 @@
-# Cloudflare Pages handles SPA routing via wrangler.jsonc not_found_handling
+# Pass APK file through directly — do NOT let SPA routing intercept it
+/UniLink.apk /UniLink.apk 200
+
+# SPA fallback for everything else
+/* /index.html 200
