@@ -4,14 +4,14 @@ import { useUIStore } from '../../stores/useUIStore';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 export default function DownloadPage() {
-    const APK_URL = "/UniLink.apk";
+    const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk";
     const { isDarkMode, toggleDarkMode } = useUIStore();
     const { isInstallable, install } = usePWAInstall();
 
     const handleDownload = () => {
         const link = document.createElement('a');
         link.href = APK_URL;
-        link.download = 'UniLink.apk';
+        link.download = 'UniLink-Nigeria.apk';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
