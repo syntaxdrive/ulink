@@ -138,17 +138,23 @@ export default function LandingPage() {
 
                                     {/* Android Download Button */}
                                     <a
-                                        href="https://github.com/syntaxdrive/ulink/releases/download/untagged-86923a4d7e91a8540e43/UniLink-Nigeria.apk"
+                                        href="https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                        <svg className="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M17.523 15.341a.5.5 0 0 1-.848.35l-2.13-2.168v5.477a.5.5 0 0 1-1 0v-5.477l-2.13 2.168a.5.5 0 0 1-.717-.697l2.974-3.03a.5.5 0 0 1 .717 0l2.974 3.03a.5.5 0 0 1 .16.347zM4 2.5A1.5 1.5 0 0 1 5.5 1h13A1.5 1.5 0 0 1 20 2.5v19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 21.5v-19z" opacity="0" />
-                                            <path d="M6 18h12M6 6h12M8.5 3.5 12 .5l3.5 3M12 .5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-                                            <rect x="3" y="11" width="18" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                                            <path d="M12 14v4M9.5 16.5 12 14l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                        {/* Official Android Robot Logo */}
+                                        <svg className="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M17.523 15.3414C17.2597 15.3414 17.0459 15.1276 17.0459 14.8643V9.2571C17.0459 8.99378 17.2597 8.78 17.523 8.78C17.7863 8.78 18.0001 8.99378 18.0001 9.2571V14.8643C18.0001 15.1276 17.7863 15.3414 17.523 15.3414Z" />
+                                            <path d="M6.47741 15.3414C6.21409 15.3414 6.00031 15.1276 6.00031 14.8643V9.2571C6.00031 8.99378 6.21409 8.78 6.47741 8.78C6.74072 8.78 6.9545 8.99378 6.9545 9.2571V14.8643C6.9545 15.1276 6.74072 15.3414 6.47741 15.3414Z" />
+                                            <path d="M9.64471 18.9716C9.38139 18.9716 9.16761 18.7579 9.16761 18.4945V13.4133C9.16761 13.15 9.38139 12.9362 9.64471 12.9362C9.90802 12.9362 10.1218 13.15 10.1218 13.4133V18.4945C10.1218 18.7579 9.90802 18.9716 9.64471 18.9716Z" />
+                                            <path d="M14.3553 18.9716C14.092 18.9716 13.8782 18.7579 13.8782 18.4945V13.4133C13.8782 13.15 14.092 12.9362 14.3553 12.9362C14.6186 12.9362 14.8324 13.15 14.8324 13.4133V18.4945C14.8324 18.7579 14.6186 18.9716 14.3553 18.9716Z" />
+                                            <path d="M15.5834 8.78005H8.41659C8.28605 8.78005 8.18042 8.67442 8.18042 8.54388V8.01636C8.18042 5.80796 9.97065 4.0177 12.1791 4.0177C14.3875 4.0177 16.1777 5.80796 16.1777 8.01636V8.54388C16.1777 8.67442 16.072 8.78005 15.9415 8.78005H15.5834Z" />
+                                            <path d="M8.41659 8.78H15.5834C16.1053 8.78 16.5265 9.20117 16.5265 9.72311V15.5636C16.5265 16.8607 15.4728 17.9144 14.1757 17.9144H9.82428C8.52718 17.9144 7.47351 16.8607 7.47351 15.5636V9.72311C7.47351 9.20117 7.89468 8.78 8.41659 8.78Z" />
+                                            <path d="M10.2899 6.39993L9.50462 5.05423C9.43787 4.93804 9.47704 4.79001 9.59323 4.72326C9.70942 4.65651 9.85745 4.69568 9.9242 4.81187L10.7225 6.17729C11.1374 6.03855 11.5804 5.96309 12.0408 5.96309C12.4821 5.96309 12.9071 6.03344 13.3082 6.16321L14.1005 4.81187C14.1673 4.69568 14.3153 4.65651 14.4315 4.72326C14.5477 4.79001 14.5869 4.93804 14.5201 5.05423L13.7469 6.38405C14.8268 6.87636 15.5834 7.96777 15.5834 9.23558H8.41659C8.41659 7.97956 9.1561 6.89743 10.2899 6.39993Z" />
+                                            <circle cx="10.2" cy="7.8" r="0.6" fill="white" />
+                                            <circle cx="13.8" cy="7.8" r="0.6" fill="white" />
                                         </svg>
                                         <div className="relative z-10 text-left">
                                             <div className="text-[10px] leading-none opacity-80 font-normal">Download for</div>
@@ -303,7 +309,7 @@ export default function LandingPage() {
                                     </div>
 
                                     <a
-                                        href="https://github.com/syntaxdrive/ulink/releases/download/untagged-86923a4d7e91a8540e43/UniLink-Nigeria.apk"
+                                        href="https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-emerald-900/30 group w-full sm:w-auto justify-center sm:justify-start"
