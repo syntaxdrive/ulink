@@ -1,8 +1,10 @@
-import { Download, ChevronLeft, ShieldCheck, Zap, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Download, ChevronLeft, ShieldCheck, Zap, ArrowRight, CheckCircle2, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useUIStore } from '../../stores/useUIStore';
 
 export default function DownloadPage() {
     const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk";
+    const { isDarkMode, toggleDarkMode } = useUIStore();
 
     const handleDownload = () => {
         const link = document.createElement('a');
@@ -14,40 +16,50 @@ export default function DownloadPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans selection:bg-emerald-500/10 selection:text-emerald-600">
+        <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 font-sans selection:bg-emerald-500/10 selection:text-emerald-600 transition-colors duration-300">
             {/* Minimal Header */}
-            <nav className="h-16 bg-white border-b border-slate-200 sticky top-0 z-50">
+            <nav className="h-16 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-6 h-full flex items-center justify-between">
-                    <Link to="/" className="flex items-center gap-2 group text-slate-600 hover:text-emerald-600 transition-colors">
+                    <Link to="/" className="flex items-center gap-2 group text-slate-600 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors">
                         <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-medium">Back to Home</span>
+                        <span className="font-medium text-sm">Back to Home</span>
                     </Link>
-                    <div className="flex items-center gap-2">
-                        <span className="font-display font-bold text-slate-900">UniLink</span>
-                        <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={toggleDarkMode}
+                            className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                            aria-label="Toggle theme"
+                        >
+                            {isDarkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-indigo-600" />}
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <span className="font-display font-bold text-slate-900 dark:text-white">UniLink</span>
+                            <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                        </div>
                     </div>
                 </div>
             </nav>
 
-            <main className="max-w-5xl mx-auto px-6 py-12">
+            <main className="max-w-5xl mx-auto px-6 py-12 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                     {/* Left: Action Card */}
-                    <div className="bg-white p-8 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-bold uppercase tracking-wider mb-6">
+                    <div className="bg-white dark:bg-zinc-900 p-8 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-6">
                             <ShieldCheck className="w-4 h-4" />
                             Verified Secure Build
                         </div>
 
-                        <h1 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
+                        <h1 className="text-3xl md:text-4xl font-display font-bold text-slate-900 dark:text-white mb-4">
                             Ready to join your campus?
                         </h1>
-                        <p className="text-slate-600 mb-8 leading-relaxed">
+                        <p className="text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed">
                             Get the latest version of UniLink. Connect with peers, find internships, and stay updated with your campus community.
                         </p>
 
                         <button
                             onClick={handleDownload}
-                            className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+                            className="w-full h-16 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-[0.98] group"
                         >
                             <Download className="w-6 h-6 group-hover:animate-bounce" />
                             <div className="text-left">
@@ -56,19 +68,19 @@ export default function DownloadPage() {
                             </div>
                         </button>
 
-                        <p className="text-center text-xs text-slate-400 mt-6">
+                        <p className="text-center text-xs text-slate-400 dark:text-zinc-500 mt-6">
                             Size: ~24.0 MB • Requires Android 7.0+
                         </p>
 
-                        <div className="mt-10 pt-8 border-t border-slate-100 grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-3 text-slate-600">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <div className="mt-10 pt-8 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-3 text-slate-600 dark:text-zinc-400">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                     <Zap className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-medium uppercase tracking-tight">Fast Install</span>
                             </div>
-                            <div className="flex items-center gap-3 text-slate-600">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                            <div className="flex items-center gap-3 text-slate-600 dark:text-zinc-400">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
                                     <ShieldCheck className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-medium uppercase tracking-tight">No Spam</span>
@@ -78,7 +90,7 @@ export default function DownloadPage() {
 
                     {/* Right: Installation Guide */}
                     <div className="animate-in fade-in slide-in-from-right-8 duration-700 delay-200">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-8 flex items-center gap-3">
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3">
                             Installation Guide
                             <ArrowRight className="w-5 h-5 text-emerald-500" />
                         </h2>
@@ -107,20 +119,20 @@ export default function DownloadPage() {
                                 }
                             ].map((s) => (
                                 <div key={s.step} className="flex gap-5 group">
-                                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-400 group-hover:border-emerald-200 group-hover:text-emerald-500 group-hover:bg-emerald-50 transition-all flex-shrink-0">
+                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center font-bold text-slate-400 dark:text-zinc-600 group-hover:border-emerald-200 dark:group-hover:border-emerald-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 transition-all flex-shrink-0">
                                         {s.step}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-800 mb-1">{s.title}</h3>
-                                        <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
+                                        <h3 className="font-bold text-slate-800 dark:text-zinc-200 mb-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{s.title}</h3>
+                                        <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{s.desc}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="mt-12 p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex gap-4">
-                            <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
-                            <p className="text-sm text-emerald-800 leading-relaxed">
+                        <div className="mt-12 p-6 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex gap-4">
+                            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                            <p className="text-sm text-emerald-800 dark:text-emerald-300 leading-relaxed">
                                 <strong>Tip:</strong> If you see a "Harmful App Blocked" warning, tap "More details" and then "Install anyway". This is common for apps not yet in the Play Store.
                             </p>
                         </div>
