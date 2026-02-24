@@ -86,8 +86,13 @@ export default function LandingPage() {
                             <Link to="/about" className="hidden md:block text-sm font-medium text-slate-600 hover:text-emerald-700 transition-colors">
                                 About Us
                             </Link>
-
-
+                            <a
+                                href="#download"
+                                className="hidden md:flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                Download App
+                            </a>
                         </div>
                     </div>
                 </nav>
@@ -115,7 +120,7 @@ export default function LandingPage() {
                                     Join the professional community built for Nigerian universities. Connect with peers, find internships, and launch your career—all in one place.
                                 </p>
 
-                                <div className="flex flex-col sm:flex-row items-center gap-5 justify-center lg:justify-start animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+                                <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
                                     <button
                                         onClick={handleGoogleLogin}
                                         disabled={loading}
@@ -130,18 +135,30 @@ export default function LandingPage() {
                                         </svg>
                                         <span className="relative z-10">Continue with Google</span>
                                     </button>
-                                </div>
 
-                                <div className="mt-4 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+                                    {/* Android Download Button */}
                                     <a
-                                        href="/unilink.apk"
-                                        download="unilink.apk"
-                                        className="text-sm font-semibold text-slate-500 hover:text-emerald-600 transition-colors flex items-center gap-2"
+                                        href="/UniLink.apk"
+                                        download="UniLink.apk"
+                                        className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
                                     >
-                                        <Download className="w-4 h-4" />
-                                        Download Android App (APK)
+                                        <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                        <svg className="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M17.523 15.341a.5.5 0 0 1-.848.35l-2.13-2.168v5.477a.5.5 0 0 1-1 0v-5.477l-2.13 2.168a.5.5 0 0 1-.717-.697l2.974-3.03a.5.5 0 0 1 .717 0l2.974 3.03a.5.5 0 0 1 .16.347zM4 2.5A1.5 1.5 0 0 1 5.5 1h13A1.5 1.5 0 0 1 20 2.5v19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 21.5v-19z" opacity="0" />
+                                            <path d="M6 18h12M6 6h12M8.5 3.5 12 .5l3.5 3M12 .5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+                                            <rect x="3" y="11" width="18" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                                            <path d="M12 14v4M9.5 16.5 12 14l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                        </svg>
+                                        <div className="relative z-10 text-left">
+                                            <div className="text-[10px] leading-none opacity-80 font-normal">Download for</div>
+                                            <div className="text-sm font-bold leading-tight">Android APK</div>
+                                        </div>
                                     </a>
                                 </div>
+
+                                <p className="mt-3 text-xs text-slate-400 text-center lg:text-left animate-in fade-in duration-1000 delay-500">
+                                    Free · No Play Store needed · Enable "Install unknown apps" to install
+                                </p>
                             </div>
 
                             {/* Right Visual */}
@@ -240,6 +257,99 @@ export default function LandingPage() {
                     </div>
                 </section>
 
+                {/* Download Section */}
+                <section id="download" className="py-24 bg-white relative overflow-hidden">
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute -top-32 -right-32 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-60" />
+                        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-50 rounded-full blur-3xl opacity-60" />
+                    </div>
+
+                    <div className="max-w-5xl mx-auto px-6 md:px-8 relative">
+                        {/* Header */}
+                        <div className="text-center mb-14">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold mb-6">
+                                <Download className="w-4 h-4" />
+                                Get the App
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+                                UniLink in your pocket
+                            </h2>
+                            <p className="text-lg text-slate-500 max-w-xl mx-auto">
+                                Download the Android app and stay connected with your campus community anywhere, anytime.
+                            </p>
+                        </div>
+
+                        {/* Download card */}
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                                {/* Left: info */}
+                                <div className="p-10 flex flex-col justify-center">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <img src="/icon-512.png" alt="UniLink" className="w-14 h-14 rounded-2xl shadow-lg" />
+                                        <div>
+                                            <h3 className="text-white font-bold text-xl">UniLink</h3>
+                                            <p className="text-slate-400 text-sm">Campus Network · Nigeria</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 mb-8">
+                                        <div className="flex gap-0.5">
+                                            {[1, 2, 3, 4, 5].map(i => (
+                                                <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                            ))}
+                                        </div>
+                                        <span className="text-slate-400 text-sm">Free to download</span>
+                                    </div>
+
+                                    <a
+                                        href="/UniLink.apk"
+                                        download="UniLink.apk"
+                                        className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-emerald-900/30 group w-full sm:w-auto justify-center sm:justify-start"
+                                    >
+                                        <Download className="w-5 h-5 group-hover:animate-bounce" />
+                                        <div className="text-left">
+                                            <div className="text-[10px] opacity-75 font-normal leading-none">TAP TO DOWNLOAD</div>
+                                            <div className="text-base leading-tight">UniLink.apk · 8.8MB</div>
+                                        </div>
+                                    </a>
+
+                                    <p className="text-slate-500 text-xs mt-4">
+                                        Android 7.0+ required
+                                    </p>
+                                </div>
+
+                                {/* Right: install steps */}
+                                <div className="bg-slate-800/50 p-10 border-t md:border-t-0 md:border-l border-slate-700/50">
+                                    <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">How to install</h4>
+                                    <div className="space-y-5">
+                                        {[
+                                            { step: '1', title: 'Download the APK', desc: 'Tap the download button and save UniLink.apk to your phone.' },
+                                            { step: '2', title: 'Allow unknown sources', desc: 'Go to Settings → Security → "Install unknown apps" and enable it for your browser/file manager.' },
+                                            { step: '3', title: 'Open the file', desc: 'Find UniLink.apk in your Downloads folder and tap it to install.' },
+                                            { step: '4', title: 'Sign in & connect', desc: 'Open the app, sign in with Google, and join your campus network!' },
+                                        ].map(({ step, title, desc }) => (
+                                            <div key={step} className="flex items-start gap-4">
+                                                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                                                    {step}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-semibold text-sm">{title}</p>
+                                                    <p className="text-slate-400 text-xs leading-relaxed mt-0.5">{desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Share nudge */}
+                        <p className="text-center text-slate-400 text-sm mt-8">
+                            📲 No Play Store needed — just download & install. Share with your classmates!
+                        </p>
+                    </div>
+                </section>
+
                 {/* Footer */}
                 <footer className="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
                     <div className="max-w-7xl mx-auto px-6 md:px-8">
@@ -264,6 +374,7 @@ export default function LandingPage() {
                                 <h4 className="text-white font-bold mb-6">Platform</h4>
                                 <ul className="space-y-4 text-sm">
                                     <li><Link to="/about" className="hover:text-emerald-400 transition-colors">About Us</Link></li>
+                                    <li><a href="#download" className="hover:text-emerald-400 transition-colors flex items-center gap-1.5"><Download className="w-3 h-3" /> Download App</a></li>
                                     <li><a href="#" className="hover:text-emerald-400 transition-colors">Careers</a></li>
                                     <li><a href="#" className="hover:text-emerald-400 transition-colors">Press</a></li>
                                 </ul>

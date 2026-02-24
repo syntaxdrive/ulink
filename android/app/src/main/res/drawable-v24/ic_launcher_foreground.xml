@@ -1,33 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- UniLink branded icon foreground: white "U" link-chain mark on transparent background -->
+<!-- UniLink branded icon foreground: white "U" connecting two circles (link metaphor) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Outer ring accent -->
-    <path
-        android:fillColor="#33FFFFFF"
-        android:pathData="M54,18 C34.12,18 18,34.12 18,54 C18,73.88 34.12,90 54,90 C73.88,90 90,73.88 90,54 C90,34.12 73.88,18 54,18 Z M54,84 C37.43,84 24,70.57 24,54 C24,37.43 37.43,24 54,24 C70.57,24 84,37.43 84,54 C84,70.57 70.57,84 54,84 Z" />
-
     <!-- Letter U — bold white -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M36,34 L36,58 C36,67.94 44.06,76 54,76 C63.94,76 72,67.94 72,58 L72,34 L64,34 L64,58 C64,63.52 59.52,68 54,68 C48.48,68 44,63.52 44,58 L44,34 Z" />
+        android:pathData="M34,30 L34,58 C34,69.05 42.95,78 54,78 C65.05,78 74,69.05 74,58 L74,30 L64,30 L64,58 C64,63.52 59.52,68 54,68 C48.48,68 44,63.52 44,58 L44,30 Z" />
 
-    <!-- Link chain dot left -->
-    <circle
+    <!-- Left accent dot — draw a circle using path arcs -->
+    <path
         android:fillColor="#A7F3D0"
-        android:cx="38"
-        android:cy="54"
-        android:r="4" />
+        android:pathData="M34,54 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
 
-    <!-- Link chain dot right -->
-    <circle
+    <!-- Right accent dot -->
+    <path
         android:fillColor="#A7F3D0"
-        android:cx="70"
-        android:cy="54"
-        android:r="4" />
+        android:pathData="M74,54 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
 
 </vector>
