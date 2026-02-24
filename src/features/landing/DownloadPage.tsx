@@ -4,14 +4,14 @@ import { useUIStore } from '../../stores/useUIStore';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 export default function DownloadPage() {
-    const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk";
+    const APK_URL = "/UniLink.apk";
     const { isDarkMode, toggleDarkMode } = useUIStore();
     const { isInstallable, install } = usePWAInstall();
 
     const handleDownload = () => {
         const link = document.createElement('a');
         link.href = APK_URL;
-        link.download = 'UniLink-Nigeria.apk';
+        link.download = 'UniLink.apk';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -88,7 +88,7 @@ export default function DownloadPage() {
                         </div>
 
                         <p className="text-center text-xs text-slate-400 dark:text-zinc-500 mt-6">
-                            Size: ~24.0 MB • Requires Android 7.0+
+                            Size: ~41.0 MB • Requires Android 7.0+
                         </p>
 
                         <div className="mt-10 pt-8 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-2 gap-4">
