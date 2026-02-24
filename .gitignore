@@ -31,6 +31,7 @@ dist-ssr
 
 # Large files and build artifacts
 *.apk
+!public/UniLink.apk
 *.aab
 *.zip
 tmptools/
