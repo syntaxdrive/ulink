@@ -138,7 +138,7 @@ export default function LandingPage() {
 
                                     {/* Android Download Button */}
                                     <a
-                                        href="https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk"
+                                        href="https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.zip"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
@@ -317,7 +317,7 @@ export default function LandingPage() {
                                         <Download className="w-5 h-5 group-hover:animate-bounce" />
                                         <div className="text-left">
                                             <div className="text-[10px] opacity-75 font-normal leading-none">TAP TO DOWNLOAD</div>
-                                            <div className="text-base leading-tight">UniLink.apk · 8.8MB</div>
+                                            <div className="text-base leading-tight">UniLink-Nigeria.zip · 9.6MB</div>
                                         </div>
                                     </a>
 
@@ -331,9 +331,9 @@ export default function LandingPage() {
                                     <h4 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">How to install</h4>
                                     <div className="space-y-5">
                                         {[
-                                            { step: '1', title: 'Download the APK', desc: 'Tap the download button and save UniLink.apk to your phone.' },
-                                            { step: '2', title: 'Allow unknown sources', desc: 'Go to Settings → Security → "Install unknown apps" and enable it for your browser/file manager.' },
-                                            { step: '3', title: 'Open the file', desc: 'Find UniLink.apk in your Downloads folder and tap it to install.' },
+                                            { step: '1', title: 'Download the ZIP', desc: 'Tap the download button and save UniLink-Nigeria.zip to your phone.' },
+                                            { step: '2', title: 'Extract the APK', desc: 'Open the zip file in your file manager and extract UniLink-Nigeria.apk.' },
+                                            { step: '3', title: 'Allow & install', desc: 'Go to Settings → Security → "Install unknown apps", enable it, then tap the APK to install.' },
                                             { step: '4', title: 'Sign in & connect', desc: 'Open the app, sign in with Google, and join your campus network!' },
                                         ].map(({ step, title, desc }) => (
                                             <div key={step} className="flex items-start gap-4">

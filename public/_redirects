@@ -1,7 +1,7 @@
-# Redirect all APK requests straight to GitHub Releases
-# This works regardless of what URL the built code uses
-/unilink.apk https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk 301
-/UniLink.apk https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.apk 301
+# Redirect all APK/ZIP requests straight to GitHub Releases
+/unilink.apk https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.zip 301
+/UniLink.apk https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.zip 301
+/UniLink.zip https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria.zip 301
 
 # SPA fallback for everything else
 /* /index.html 200
