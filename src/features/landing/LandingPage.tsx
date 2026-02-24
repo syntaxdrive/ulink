@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Users, Briefcase, Sparkles, CheckCircle2, Download, Star, Shield, Globe } from 'lucide-react';
 // import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -136,10 +136,9 @@ export default function LandingPage() {
                                         <span className="relative z-10">Continue with Google</span>
                                     </button>
 
-                                    {/* Android Download Button */}
-                                    <a
-                                        href="/UniLink.apk"
-                                        download="UniLink.apk"
+                                    {/* Android Download Button points to dedicated page */}
+                                    <Link
+                                        to="/download"
                                         className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
@@ -157,9 +156,9 @@ export default function LandingPage() {
                                         </svg>
                                         <div className="relative z-10 text-left">
                                             <div className="text-[10px] leading-none opacity-80 font-normal">Download for</div>
-                                            <div className="text-sm font-bold leading-tight">Android APK</div>
+                                            <div className="text-sm font-bold leading-tight">Android App</div>
                                         </div>
-                                    </a>
+                                    </Link>
                                 </div>
 
                                 <p className="mt-3 text-xs text-slate-400 text-center lg:text-left animate-in fade-in duration-1000 delay-500">
@@ -307,17 +306,16 @@ export default function LandingPage() {
                                         <span className="text-slate-400 text-sm">Free to download</span>
                                     </div>
 
-                                    <a
-                                        href="/UniLink.apk"
-                                        download="UniLink.apk"
+                                    <Link
+                                        to="/download"
                                         className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-emerald-900/30 group w-full sm:w-auto justify-center sm:justify-start"
                                     >
                                         <Download className="w-5 h-5 group-hover:animate-bounce" />
                                         <div className="text-left">
-                                            <div className="text-[10px] opacity-75 font-normal leading-none">TAP TO DOWNLOAD</div>
-                                            <div className="text-base leading-tight">UniLink.apk · 10.3MB</div>
+                                            <div className="text-[10px] opacity-75 font-normal leading-none uppercase tracking-widest">v1.0.0 Now Available</div>
+                                            <div className="text-base leading-tight">Download for Android</div>
                                         </div>
-                                    </a>
+                                    </Link>
 
                                     <p className="text-slate-500 text-xs mt-4">
                                         Android 7.0+ required

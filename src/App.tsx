@@ -26,6 +26,7 @@ import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import CoursesPage from './features/learn/CoursesPage';
 import LeaderboardPage from './features/leaderboard/LeaderboardPage';
 import CampusChallengePage from './features/challenge/CampusChallengePage';
+import DownloadPage from './features/landing/DownloadPage';
 import UpdateNotification from './components/UpdateNotification';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
@@ -108,6 +109,7 @@ function App() {
             element={!session ? <LandingPage /> : <Navigate to="/app" replace />}
           />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/download" element={<DownloadPage />} />
           <Route
             path="/onboarding"
             /* ... */
