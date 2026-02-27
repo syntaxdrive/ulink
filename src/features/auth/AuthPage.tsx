@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { Loader2 } from 'lucide-react';
 import ThreeBackground from '../../components/ThreeBackground';
-import { Capacitor } from '@capacitor/core';
+import { signInWithGoogle } from '../../lib/auth-helpers';
 // import { Browser } from '@capacitor/browser'; // TODO: Install @capacitor/browser package
 
 export default function AuthPage() {
@@ -13,26 +12,7 @@ export default function AuthPage() {
         setLoading(true);
         setError(null);
         try {
-            // Detect if running in Capacitor (mobile app)
-            const isCapacitor = Capacitor.isNativePlatform();
-
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: isCapacitor
-                        ? 'com.syntaxdrive.ulink://app' // Deep link for mobile
-                        : `${window.location.origin}/app`, // Web redirect
-                    skipBrowserRedirect: isCapacitor, // Don't auto-redirect on mobile
-                }
-            });
-
-            if (error) throw error;
-
-            // For mobile, open OAuth URL in system browser
-            // TODO: Uncomment when @capacitor/browser is installed
-            // if (isCapacitor && data?.url) {
-            //     await Browser.open({ url: data.url });
-            // }
+            await signInWithGoogle();
         } catch (err: any) {
             setError(err.message);
             setLoading(false);

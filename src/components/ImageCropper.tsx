@@ -23,7 +23,24 @@ export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspec
     const [rotation, setRotation] = useState(0);
 
     const handleCropComplete = async () => {
-        if (!completedCrop || !imgRef) return;
+        if (!imgRef) return;
+
+        let finalCrop = completedCrop;
+        if (!finalCrop) {
+            if (crop.unit === '%') {
+                finalCrop = {
+                    unit: 'px',
+                    width: (crop.width * imgRef.width) / 100,
+                    height: (crop.height * imgRef.height) / 100,
+                    x: (crop.x * imgRef.width) / 100,
+                    y: (crop.y * imgRef.height) / 100
+                };
+            } else {
+                finalCrop = crop;
+            }
+        }
+
+        if (!finalCrop || !finalCrop.width || !finalCrop.height) return;
 
         const canvas = document.createElement('canvas');
         const scaleX = imgRef.naturalWidth / imgRef.width;
@@ -33,8 +50,8 @@ export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspec
         if (!ctx) return;
 
         const pixelRatio = window.devicePixelRatio;
-        canvas.width = completedCrop.width * scaleX * pixelRatio;
-        canvas.height = completedCrop.height * scaleY * pixelRatio;
+        canvas.width = finalCrop.width * scaleX * pixelRatio;
+        canvas.height = finalCrop.height * scaleY * pixelRatio;
 
         ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         ctx.imageSmoothingQuality = 'high';
@@ -50,14 +67,14 @@ export default function ImageCropper({ imageUrl, onCropComplete, onCancel, aspec
 
         ctx.drawImage(
             imgRef,
-            completedCrop.x * scaleX,
-            completedCrop.y * scaleY,
-            completedCrop.width * scaleX,
-            completedCrop.height * scaleY,
+            finalCrop.x * scaleX,
+            finalCrop.y * scaleY,
+            finalCrop.width * scaleX,
+            finalCrop.height * scaleY,
             0,
             0,
-            completedCrop.width * scaleX,
-            completedCrop.height * scaleY
+            finalCrop.width * scaleX,
+            finalCrop.height * scaleY
         );
 
         canvas.toBlob(

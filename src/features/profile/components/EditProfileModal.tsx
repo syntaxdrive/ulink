@@ -240,13 +240,19 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
             delete updates.website;
             delete updates.facebook;
 
-            // Remove username if it hasn't changed to avoid unique constraint checks on self
-            if (updates.username === user.username) {
-                delete updates.username;
+            // Handle username updates safely
+            if (!updates.username) {
+                if (!user.username) {
+                    delete updates.username; // keep it unset
+                } else {
+                    updates.username = null; // allow them to clear it if they previously had one
+                }
+            } else if (updates.username === user.username) {
+                delete updates.username; // prevent unnecessary unique check on self
             } else {
                 // Validate Username
-                if (updates.username.length < 3) throw new Error('Username must be at least 3 chars');
-                if (!/^[a-z0-9_]+$/.test(updates.username)) throw new Error('Invalid characters in username');
+                if (updates.username.length < 3) throw new Error('Username must be at least 3 characters');
+                if (!/^[a-z0-9_]+$/.test(updates.username)) throw new Error('Username can only contain lowercase letters, numbers, and underscores');
             }
 
             const { error: updateError } = await supabase
@@ -383,11 +389,10 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                                     key={i}
                                     type="button"
                                     onClick={() => handleSelectPresetAvatar(url)}
-                                    className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${
-                                        avatarPreview === url
+                                    className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${avatarPreview === url
                                             ? 'border-stone-900 dark:border-zinc-100 ring-2 ring-stone-400 dark:ring-zinc-500'
                                             : 'border-stone-200 dark:border-zinc-700 hover:border-stone-400'
-                                    }`}
+                                        }`}
                                 >
                                     <img src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />
                                 </button>

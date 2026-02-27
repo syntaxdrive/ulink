@@ -164,7 +164,7 @@ BEGIN
         p.is_verified,
         p.gold_verified
     FROM profiles p
-    WHERE p.role = 'student' -- Only students in leaderboard
+    WHERE (p.role = 'student' OR p.role IS NULL) -- Allow students and legacy users in leaderboard
     ORDER BY p.points DESC, p.created_at ASC
     LIMIT p_limit
     OFFSET p_offset;
@@ -188,10 +188,10 @@ BEGIN
             COALESCE(points, 0) as user_points,
             ROW_NUMBER() OVER (ORDER BY COALESCE(points, 0) DESC, created_at ASC) as user_rank
         FROM profiles
-        WHERE role = 'student'
+        WHERE (role = 'student' OR role IS NULL)
     ),
     total_count AS (
-        SELECT COUNT(*) as total FROM profiles WHERE role = 'student'
+        SELECT COUNT(*) as total FROM profiles WHERE (role = 'student' OR role IS NULL)
     )
     SELECT 
         ru.user_rank as rank,
@@ -220,7 +220,7 @@ DECLARE
 BEGIN
     -- Loop through all student profiles
     FOR profile_record IN 
-        SELECT id FROM profiles WHERE role = 'student'
+        SELECT id FROM profiles WHERE (role = 'student' OR role IS NULL)
     LOOP
         total_points := 0;
         

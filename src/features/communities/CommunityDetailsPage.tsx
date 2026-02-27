@@ -15,8 +15,11 @@ export default function CommunityDetailsPage() {
     const [community, setCommunity] = useState<Community | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMember, setIsMember] = useState(false);
+    const [membershipStatus, setMembershipStatus] = useState<'active' | 'pending' | 'rejected' | null>(null);
     const [role, setRole] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+    const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null);
     const {
         posts,
         loading: postsLoading,
@@ -65,14 +68,20 @@ export default function CommunityDetailsPage() {
             if (user) {
                 const { data: member } = await supabase
                     .from('community_members')
-                    .select('role')
+                    .select('role, status')
                     .eq('community_id', comm.id)
                     .eq('user_id', user.id)
                     .single();
 
                 if (member) {
-                    setIsMember(true);
+                    setIsMember(member.status === 'active');
+                    setMembershipStatus(member.status as any);
                     setRole(member.role);
+
+                    // If admin/owner, fetch pending requests
+                    if (member.role === 'admin' || member.role === 'owner') {
+                        fetchPendingRequests(comm.id);
+                    }
                 }
             }
         } catch (error) {
@@ -80,6 +89,44 @@ export default function CommunityDetailsPage() {
             navigate('/app/communities'); // Fallback
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPendingRequests = async (communityId: string) => {
+        const { data, error } = await supabase
+            .from('community_members')
+            .select('id, user_id, profiles(name, avatar_url, university, role)')
+            .eq('community_id', communityId)
+            .eq('status', 'pending');
+
+        if (!error && data) {
+            setPendingRequests(data);
+        }
+    };
+
+    const handleRequest = async (requestId: string, action: 'approve' | 'reject') => {
+        setApprovingRequestId(requestId);
+        try {
+            if (action === 'approve') {
+                await supabase
+                    .from('community_members')
+                    .update({ status: 'active' })
+                    .eq('id', requestId);
+            } else {
+                await supabase
+                    .from('community_members')
+                    .delete()
+                    .eq('id', requestId);
+            }
+            setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+            if (action === 'approve') {
+                // Increment member count locally
+                setCommunity(prev => prev ? { ...prev, members_count: (prev.members_count || 0) + 1 } : null);
+            }
+        } catch (error) {
+            console.error('Error handling request:', error);
+        } finally {
+            setApprovingRequestId(null);
         }
     };
 
@@ -102,14 +149,27 @@ export default function CommunityDetailsPage() {
                 }
             } else {
                 // Join logic
+                const isPrivate = community.privacy === 'private';
+
                 // Optimistic Update
-                setIsMember(true);
-                setRole('member');
-                setCommunity(prev => prev ? { ...prev, members_count: (prev.members_count || 0) + 1 } : null);
+                if (!isPrivate) {
+                    setIsMember(true);
+                    setMembershipStatus('active');
+                    setRole('member');
+                    setCommunity(prev => prev ? { ...prev, members_count: (prev.members_count || 0) + 1 } : null);
+                } else {
+                    setMembershipStatus('pending');
+                }
 
                 await supabase
                     .from('community_members')
-                    .insert({ community_id: community.id, user_id: currentUserId });
+                    .insert({
+                        community_id: community.id,
+                        user_id: currentUserId,
+                        status: isPrivate ? 'pending' : 'active'
+                    });
+
+                if (isPrivate) alert('Your request to join has been sent to the community admins.');
             }
         } catch (error) {
             console.error('Error modifying membership:', error);
@@ -162,12 +222,15 @@ export default function CommunityDetailsPage() {
                         <div className="flex gap-3 w-full md:w-auto">
                             <button
                                 onClick={handleJoin}
+                                disabled={membershipStatus === 'pending'}
                                 className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all ${isMember
                                     ? 'bg-stone-100 text-stone-600 hover:bg-red-50 hover:text-red-600 border border-stone-200'
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
+                                    : membershipStatus === 'pending'
+                                        ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
                                     }`}
                             >
-                                {isMember ? 'Joined' : 'Join Group'}
+                                {isMember ? 'Joined' : membershipStatus === 'pending' ? 'Request Sent' : 'Join Group'}
                             </button>
                             {(role === 'admin' || role === 'owner') && (
                                 <button
@@ -198,8 +261,30 @@ export default function CommunityDetailsPage() {
                             communityId={community.id}
                         />
                     ) : (
-                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 text-center">
-                            <p className="font-bold text-indigo-900">Join this community to start posting!</p>
+                        <div className={`p-8 rounded-[2rem] text-center border ${membershipStatus === 'pending'
+                            ? 'bg-amber-50 border-amber-100'
+                            : 'bg-indigo-50 border-indigo-100 shadow-xl shadow-indigo-100/50'
+                            }`}>
+                            <h3 className={`text-xl font-bold mb-2 ${membershipStatus === 'pending' ? 'text-amber-900' : 'text-indigo-900'
+                                }`}>
+                                {membershipStatus === 'pending'
+                                    ? 'Join Request Pending'
+                                    : 'Become a Member'}
+                            </h3>
+                            <p className={`text-sm ${membershipStatus === 'pending' ? 'text-amber-700' : 'text-indigo-700'
+                                }`}>
+                                {membershipStatus === 'pending'
+                                    ? 'An admin needs to approve your request before you can post.'
+                                    : 'Join this community to start sharing posts and interacting with members!'}
+                            </p>
+                            {!membershipStatus && (
+                                <button
+                                    onClick={handleJoin}
+                                    className="mt-6 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                                >
+                                    Join Group
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -243,6 +328,50 @@ export default function CommunityDetailsPage() {
 
                 {/* Sidebar Info */}
                 <div className="lg:col-span-4 space-y-6">
+                    {/* Join Requests for Admins */}
+                    {(role === 'admin' || role === 'owner') && pendingRequests.length > 0 && (
+                        <div className="bg-white rounded-3xl p-6 border border-amber-100 shadow-sm shadow-amber-50">
+                            <h3 className="font-bold text-amber-900 mb-4 flex items-center gap-2">
+                                <Users className="w-5 h-5" />
+                                Join Requests ({pendingRequests.length})
+                            </h3>
+                            <div className="space-y-4">
+                                {pendingRequests.map(req => (
+                                    <div key={req.id} className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <img
+                                                src={req.profiles.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.profiles.name)}&background=random`}
+                                                className="w-10 h-10 rounded-full border border-stone-100"
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-stone-900 truncate">{req.profiles.name}</p>
+                                                <p className="text-[10px] text-stone-500 truncate">{req.profiles.university || 'Student'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleRequest(req.id, 'approve')}
+                                                disabled={approvingRequestId === req.id}
+                                                className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                                title="Approve"
+                                            >
+                                                {approvingRequestId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                onClick={() => handleRequest(req.id, 'reject')}
+                                                disabled={approvingRequestId === req.id}
+                                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                                title="Reject"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white rounded-3xl p-6 border border-stone-100 shadow-sm">
                         <h3 className="font-bold text-stone-900 mb-4">About</h3>
                         <div className="space-y-4 text-sm font-medium text-stone-500">

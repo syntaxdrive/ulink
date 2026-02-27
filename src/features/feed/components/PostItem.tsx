@@ -135,6 +135,7 @@ export default function PostItem({
     };
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isMember, setIsMember] = useState(false);
+    const [membershipStatus, setMembershipStatus] = useState<'active' | 'pending' | null>(null);
 
     const { joinCommunity, joiningCommunity } = useCommunityMembership();
 
@@ -189,9 +190,16 @@ export default function PostItem({
 
         if (!post.community?.id) return;
 
-        const success = await joinCommunity(post.community.id);
-        if (success) {
+        const result = await joinCommunity(post.community.id);
+        if (result && typeof result === 'object' && result.success) {
+            setIsMember(result.status === 'active');
+            setMembershipStatus(result.status as any);
+            if (result.status === 'pending') {
+                alert('Join request sent to community admins!');
+            }
+        } else if (result === true) {
             setIsMember(true);
+            setMembershipStatus('active');
         }
     };
 
@@ -335,7 +343,7 @@ export default function PostItem({
                         </div>
                     </Link>
 
-                    {!isMember && currentUserId && !sharedToFeed && !post.shared_to_feed && (
+                    {!isMember && membershipStatus !== 'pending' && currentUserId && !sharedToFeed && !post.shared_to_feed && (
                         <button
                             onClick={handleJoinCommunity}
                             disabled={joiningCommunity === post.community.id}
@@ -348,6 +356,11 @@ export default function PostItem({
                             )}
                             Join
                         </button>
+                    )}
+                    {membershipStatus === 'pending' && (
+                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                            Requested
+                        </span>
                     )}
                 </div>
             )}

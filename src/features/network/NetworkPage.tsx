@@ -160,10 +160,15 @@ export default function NetworkPage() {
                             </div>
                         </Link>
 
-                        {/* Action Button: Connect (Grow Tab) or Message (Network Tab) */}
                         {activeTab === 'grow' ? (
                             <button
-                                onClick={() => connect(profile.id)}
+                                onClick={() => {
+                                    if (!userProfile) {
+                                        alert('Please sign in to send connection requests.');
+                                        return;
+                                    }
+                                    connect(profile.id);
+                                }}
                                 disabled={connections.has(profile.id) || sentRequests.has(profile.id) || connecting === profile.id}
                                 className={`p-2.5 rounded-xl transition-all shrink-0 ${connections.has(profile.id)
                                     ? 'bg-emerald-50 text-emerald-600'

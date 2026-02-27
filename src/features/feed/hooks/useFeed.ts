@@ -523,7 +523,7 @@ export function useFeed(communityId?: string) {
         });
 
         if (isLiked) {
-            await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
+            await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
         } else {
             await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
         }

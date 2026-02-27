@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { LocalNotifications, type ScheduleOptions } from '@capacitor/local-notifications';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -61,12 +62,34 @@ export function useLocalNotifications() {
 
             // 4. Initial check when app first opens
             await checkMissedNotifications();
+
+            // 5. Schedule Inactivity Reminder
+            const INACTIVITY_NOTIF_ID = 888888;
+            App.addListener('appStateChange', async ({ isActive }) => {
+                if (isActive) {
+                    await LocalNotifications.cancel({ notifications: [{ id: INACTIVITY_NOTIF_ID }] });
+                    checkMissedNotifications();
+                } else {
+                    // Schedule for 24 hours of inactivity
+                    await LocalNotifications.schedule({
+                        notifications: [{
+                            id: INACTIVITY_NOTIF_ID,
+                            title: 'We miss you!',
+                            body: 'Catch up on the latest posts, connections, and updates on UniLink.',
+                            smallIcon: 'ic_launcher',
+                            iconColor: '#059669',
+                            schedule: { at: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+                        }]
+                    });
+                }
+            });
         };
 
         setup();
 
         return () => {
             LocalNotifications.removeAllListeners();
+            App.removeAllListeners();
         };
     }, [navigate]);
 

@@ -164,20 +164,23 @@ export function useNotifications() {
         setProcessing(connectionId);
         try {
             if (action === 'accept') {
-                await supabase
+                const { error } = await supabase
                     .from('connections')
                     .update({ status: 'accepted' })
                     .eq('id', connectionId);
+                if (error) throw error;
             } else {
-                await supabase
+                const { error } = await supabase
                     .from('connections')
                     .update({ status: 'rejected' })
                     .eq('id', connectionId);
+                if (error) throw error;
             }
 
             removeRequest(connectionId);
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Error ${action}ing request:`, error);
+            alert(`Failed to ${action} request: ` + (error?.message || 'Unknown error'));
         } finally {
             setProcessing(null);
         }

@@ -3,6 +3,18 @@ import { Link } from 'react-router-dom';
 import { Loader2, UserPlus, Check, X, Bell, MessageSquare, Heart, AtSign, Info, Trash2, Briefcase } from 'lucide-react';
 import { useNotifications } from './hooks/useNotifications';
 
+function getDefaultNotifText(type: string): string {
+    switch (type) {
+        case 'like': return 'Someone liked your post.';
+        case 'comment': return 'Someone commented on your post.';
+        case 'share': return 'Someone shared your post.';
+        case 'mention': return 'Someone mentioned you in a post.';
+        case 'connection_accepted': return 'Your connection request was accepted.';
+        case 'message': return 'You have a new message.';
+        default: return 'You have a new notification.';
+    }
+}
+
 export default function NotificationsPage() {
     const { requests, generalNotifications, loading, processing, handleAction, clearAll, deleteNotifications } = useNotifications();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -190,7 +202,9 @@ export default function NotificationsPage() {
                                                         {icon}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <p className="text-stone-900 text-sm">{notif.content}</p>
+                                                        <p className="text-stone-900 text-sm">
+                                                            {notif.content || getDefaultNotifText(notif.type)}
+                                                        </p>
                                                         <p className="text-xs text-stone-400 mt-1">
                                                             {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.created_at).toLocaleDateString()}
                                                         </p>

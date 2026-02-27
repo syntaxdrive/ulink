@@ -14,7 +14,6 @@ import JobsPage from './features/jobs/JobsPage';
 import TalentSearchPage from './features/jobs/TalentSearchPage';
 import ProfilePage from './features/preferences/ProfilePage';
 import NotificationsPage from './features/notifications/NotificationsPage';
-
 import UserProfilePage from './features/profile/UserProfilePage';
 import LegalPage from './features/legal/LegalPage';
 import SettingsPage from './features/settings/SettingsPage';
@@ -92,8 +91,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-stone-50 dark:bg-zinc-950 text-emerald-600">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#FAFAFA] dark:bg-zinc-950 text-emerald-600">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+        <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">UniLink Nigeria</h1>
       </div>
     );
   }

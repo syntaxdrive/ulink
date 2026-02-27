@@ -6,22 +6,32 @@ export function useCommunityMembership() {
 
     const joinCommunity = async (communityId: string) => {
         setJoiningCommunity(communityId);
-        
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
+
+            // Fetch community privacy first
+            const { data: comm } = await supabase
+                .from('communities')
+                .select('privacy')
+                .eq('id', communityId)
+                .single();
+
+            const isPrivate = comm?.privacy === 'private';
 
             const { error } = await supabase
                 .from('community_members')
                 .insert({
                     community_id: communityId,
                     user_id: user.id,
-                    role: 'member'
+                    role: 'member',
+                    status: isPrivate ? 'pending' : 'active'
                 });
 
             if (error) throw error;
-            
-            return true;
+
+            return { success: true, status: isPrivate ? 'pending' : 'active' };
         } catch (error) {
             console.error('Error joining community:', error);
             return false;
@@ -41,7 +51,7 @@ export function useCommunityMembership() {
                 .match({ community_id: communityId, user_id: user.id });
 
             if (error) throw error;
-            
+
             return true;
         } catch (error) {
             console.error('Error leaving community:', error);
