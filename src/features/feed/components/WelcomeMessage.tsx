@@ -76,65 +76,65 @@ export default function WelcomeMessage({ userName }: WelcomeMessageProps) {
     return (
         <div
             className={`relative overflow-hidden rounded-2xl border transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'
-                } bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 border-emerald-500/30 shadow-lg shadow-emerald-500/10`}
+                } bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border-stone-200/50 dark:border-zinc-800/50 shadow-xl shadow-stone-200/20 dark:shadow-black/20`}
         >
-            {/* Background glow orbs */}
-            <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-8 -left-4 w-24 h-24 bg-teal-400/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Background glass highlights */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative p-5">
                 {/* Top row */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="flex-1">
-                        <p className="text-emerald-200 text-xs font-semibold uppercase tracking-widest mb-1">
+                        <p className="text-emerald-600 dark:text-emerald-500 text-xs font-bold uppercase tracking-widest mb-1">
                             {emoji} {timeKey.charAt(0).toUpperCase() + timeKey.slice(1)}
                         </p>
-                        <h2 className="text-white text-lg font-bold leading-tight">
+                        <h2 className="text-stone-900 dark:text-zinc-100 text-lg font-extrabold leading-tight">
                             Hey, {userName}! 👋
                         </h2>
-                        <p className="text-emerald-100/80 text-sm mt-0.5 leading-relaxed">
+                        <p className="text-stone-600 dark:text-zinc-400 text-sm mt-0.5 leading-relaxed font-medium">
                             {msg}
                         </p>
                     </div>
                     <button
                         onClick={handleDismiss}
-                        className="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 mt-0.5"
+                        className="p-1.5 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0 mt-0.5"
                         aria-label="Dismiss"
                     >
-                        <X className="w-4 h-4 text-emerald-200/60" />
+                        <X className="w-4 h-4 text-stone-400 dark:text-zinc-600" />
                     </button>
                 </div>
 
                 {/* Stats row */}
                 <div className="flex items-center gap-3">
                     {/* Streak */}
-                    <div className={`flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10 transition-all duration-500 ${likeAnim ? 'scale-100' : 'scale-90 opacity-0'}`}>
-                        <Flame className={`w-4 h-4 text-orange-400 ${streak >= 3 ? 'animate-pulse' : ''}`} />
-                        <span className="text-white font-bold text-sm">{streak}</span>
-                        <span className="text-emerald-200/70 text-xs">day streak</span>
+                    <div className={`flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl px-3 py-2 border border-emerald-100 dark:border-emerald-800/30 transition-all duration-500 ${likeAnim ? 'scale-100' : 'scale-90 opacity-0'}`}>
+                        <Flame className={`w-4 h-4 text-orange-500 ${streak >= 3 ? 'animate-pulse' : ''}`} />
+                        <span className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">{streak}</span>
+                        <span className="text-emerald-600/60 dark:text-emerald-500/60 text-xs font-medium">day streak</span>
                     </div>
 
                     {/* XP bar */}
                     <div className={`flex-1 transition-all duration-700 ${likeAnim ? 'opacity-100' : 'opacity-0'}`}>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center gap-1">
-                                <Zap className="w-3 h-3 text-yellow-400" />
-                                <span className="text-emerald-200/80 text-xs font-medium">Weekly XP</span>
+                                <Zap className="w-3 h-3 text-amber-500" />
+                                <span className="text-stone-500 dark:text-zinc-500 text-[11px] font-bold uppercase tracking-wider">Weekly XP</span>
                             </div>
-                            <span className="text-white text-xs font-bold">{nextMilestone}d to milestone</span>
+                            <span className="text-stone-900 dark:text-zinc-200 text-xs font-bold">{nextMilestone}d to milestone</span>
                         </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-2 bg-stone-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-stone-200/50 dark:border-zinc-700/50">
                             <div
-                                className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all duration-1000 ease-out"
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                                 style={{ width: likeAnim ? `${xpProgress}%` : '0%' }}
                             />
                         </div>
                     </div>
 
                     {/* Trending icon */}
-                    <div className={`flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-2.5 py-2 border border-white/10 transition-all duration-500 delay-200 ${likeAnim ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
-                        <TrendingUp className="w-4 h-4 text-emerald-300" />
-                        <span className="text-white text-xs font-semibold">Active</span>
+                    <div className={`flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl px-2.5 py-2 border border-blue-100 dark:border-blue-800/30 transition-all duration-500 delay-200 ${likeAnim ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
+                        <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-tight">Active</span>
                     </div>
                 </div>
             </div>

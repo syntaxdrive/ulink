@@ -4,21 +4,7 @@ import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
 
-// Seed/test user usernames — always hidden from feed regardless of DB column state
-const TEST_USER_USERNAMES = new Set([
-    'chidi_okonkwo', 'amara_writes', 'tunde_codes', 'ngozi_builders',
-    'emekatech', 'fatima_finance', 'davidosei_art', 'blessings_med',
-    'ibrahim_econ', 'adaeze_fashion', 'seun_sports', 'chisom_biz',
-]);
-const TEST_USER_EMAILS = new Set([
-    'chidiokonkwo@gmail.com', 'amaraeze@gmail.com', 'tundeadeyemi@gmail.com',
-    'ngoziobi@gmail.com', 'emekanwosu@gmail.com', 'fatimabello@gmail.com',
-    'davidosei@gmail.com', 'blessingpeter@gmail.com', 'ibrahimmusa@gmail.com',
-    'adaezenwofor@gmail.com', 'seunadesanya@gmail.com', 'chisomokeke@gmail.com',
-]);
-const isTestUserPost = (post: any) =>
-    TEST_USER_USERNAMES.has(post.profiles?.username) ||
-    TEST_USER_EMAILS.has(post.profiles?.email);
+
 
 export function useFeed(communityId?: string) {
     // 1. Use Global Store
@@ -253,8 +239,7 @@ export function useFeed(communityId?: string) {
                 is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
 
-            // Remove test user posts (by email — always fetched; also by username as fallback)
-            formatted = formatted.filter((p: any) => !isTestUserPost(p));
+
 
             // SMART ALGORITHM
             const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -371,7 +356,6 @@ export function useFeed(communityId?: string) {
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
             const formatted = data
-                .filter((post: any) => !isTestUserPost(post))
                 .map((post: any) => ({
                     ...post,
                     likes_count: likesMap[post.id]?.count || 0,

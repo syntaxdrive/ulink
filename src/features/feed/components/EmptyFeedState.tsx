@@ -6,8 +6,12 @@ interface EmptyFeedStateProps {
 
 export default function EmptyFeedState({ onCreatePost }: EmptyFeedStateProps) {
     return (
-        <div className="bg-gradient-to-br from-emerald-50 to-white rounded-3xl p-8 md:p-12 border border-emerald-100 shadow-sm">
-            <div className="max-w-2xl mx-auto text-center space-y-6">
+        <div className="relative overflow-hidden bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl rounded-3xl p-8 md:p-12 border border-stone-200/50 dark:border-zinc-800/50 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
+            {/* Background Highlights */}
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative max-w-2xl mx-auto text-center space-y-6 z-10">
                 {/* Icon */}
                 <div className="flex justify-center">
                     <div className="text-6xl">👋</div>

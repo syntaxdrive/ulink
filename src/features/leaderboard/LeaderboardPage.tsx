@@ -97,33 +97,45 @@ export default function LeaderboardPage() {
     return (
         <div className="min-h-screen bg-[#FAFAFA] dark:bg-zinc-950">
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-12 px-6">
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-center gap-3 mb-4">
-                        <Trophy className="w-10 h-10" />
-                        <h1 className="text-4xl font-bold">Leaderboard</h1>
+            <div className="relative overflow-hidden bg-white/50 dark:bg-zinc-950 border-b border-stone-200/50 dark:border-zinc-800/50 py-16 px-6">
+                {/* Background Glass Orbs */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+                <div className="max-w-4xl mx-auto relative z-10">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-16 h-16 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-600/20">
+                            <Trophy className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-4xl md:text-5xl font-extrabold text-stone-900 dark:text-zinc-100 tracking-tight">Leaderboard</h1>
+                            <p className="text-stone-500 dark:text-zinc-400 text-lg font-medium mt-1">
+                                Top 100 most active students on UniLink
+                            </p>
+                        </div>
                     </div>
-                    <p className="text-emerald-50 text-lg">
-                        Top 100 most active students on UniLink
-                    </p>
 
                     {/* User's Rank Card */}
                     {userRank && (
-                        <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                        <div className="mt-8 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl rounded-3xl p-8 border border-white dark:border-zinc-800 shadow-xl shadow-stone-200/20 dark:shadow-black/40">
                             <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-emerald-50 text-sm font-medium mb-1">Your Rank</p>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-4xl font-bold">#{userRank.rank}</span>
-                                        <div className="text-left">
-                                            <p className="text-2xl font-bold">{userRank.points} pts</p>
-                                            <p className="text-emerald-100 text-sm">
-                                                out of {userRank.total_users.toLocaleString()} students
-                                            </p>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex flex-col">
+                                        <p className="text-stone-500 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">Your Rank</p>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-5xl font-extrabold text-stone-900 dark:text-zinc-100 italic tracking-tighter">#{userRank.rank}</span>
+                                            <span className="text-stone-400 dark:text-zinc-600 text-sm font-medium">/ {userRank.total_users.toLocaleString()}</span>
                                         </div>
                                     </div>
+                                    <div className="w-px h-12 bg-stone-200 dark:border-zinc-800" />
+                                    <div className="flex flex-col">
+                                        <p className="text-stone-500 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">Total Points</p>
+                                        <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-500">{userRank.points.toLocaleString()} <span className="text-xs font-bold font-sans">PTS</span></p>
+                                    </div>
                                 </div>
-                                <TrendingUp className="w-12 h-12 text-emerald-200" />
+                                <div className="hidden sm:block p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl">
+                                    <TrendingUp className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                                </div>
                             </div>
                         </div>
                     )}

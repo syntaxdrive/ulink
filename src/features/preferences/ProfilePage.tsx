@@ -356,7 +356,7 @@ export default function ProfilePage() {
             setProfile({ ...profile, ...updates });
 
             // Award profile completion bonus — fire-and-forget, never block the save
-            Promise.resolve(supabase.rpc('award_profile_completion_bonus', { p_user_id: profile.id })).catch(() => {});
+            Promise.resolve(supabase.rpc('award_profile_completion_bonus', { p_user_id: profile.id })).catch(() => { });
 
             alert('Profile updated successfully!');
         } catch (error) {
@@ -462,15 +462,19 @@ export default function ProfilePage() {
 
                     {/* Profile Card */}
                     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 overflow-hidden">
-                        {/* Background Image */}
+                        {/* Background Image / Header Glass */}
                         <div
-                            className="relative h-32 bg-gradient-to-br from-emerald-500 to-teal-600 group cursor-pointer"
+                            className="relative h-32 bg-stone-100 dark:bg-zinc-850 group cursor-pointer overflow-hidden"
                             onClick={() => bgInputRef.current?.click()}
                         >
+                            {/* Glass Highlights */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-blue-500/5 opacity-50" />
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl" />
+
                             {bgUrl && (
-                                <img src={bgUrl} alt="Background" className="w-full h-full object-cover" />
+                                <img src={bgUrl} alt="Background" className="w-full h-full object-cover relative z-10" />
                             )}
-                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                 <Camera className="w-6 h-6 text-white drop-shadow-md" />
                             </div>
                         </div>

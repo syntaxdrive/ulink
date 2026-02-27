@@ -401,19 +401,23 @@ export default function FeedPage() {
                     </div>
 
                     {/* Quick Actions CTA */}
-                    <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-md shadow-emerald-200/30 dark:shadow-emerald-900/20">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Sparkles className="w-4 h-4 text-yellow-300" />
-                            <span className="font-bold text-sm">Campus Challenge</span>
+                    <div className="relative overflow-hidden bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
+                        {/* Highlights */}
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                        <div className="relative flex items-center gap-2 mb-2">
+                            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                            <span className="font-extrabold text-sm text-stone-900 dark:text-zinc-100 uppercase tracking-wider">Campus Challenge</span>
                         </div>
-                        <p className="text-emerald-100/90 text-xs leading-relaxed mb-3">
+                        <p className="relative text-stone-600 dark:text-zinc-400 text-xs leading-relaxed font-medium mb-4">
                             Earn points, climb the leaderboard, and win prizes. New challenge every week!
                         </p>
                         <NavLink
                             to="/app/challenge"
-                            className="inline-flex items-center gap-1.5 bg-white text-emerald-700 text-xs font-bold px-3.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
+                            className="relative inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
                         >
-                            <Flame className="w-3.5 h-3.5 text-orange-500" />
+                            <Flame className="w-3.5 h-3.5 text-orange-400" />
                             Join Challenge
                         </NavLink>
                     </div>

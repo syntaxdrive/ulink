@@ -2,24 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Profile } from '../../../types';
 
-// Seed/test user usernames — always hidden regardless of DB column state
-const TEST_USER_USERNAMES = new Set([
-    'chidi_okonkwo', 'amara_writes', 'tunde_codes', 'ngozi_builders',
-    'emekatech', 'fatima_finance', 'davidosei_art', 'blessings_med',
-    'ibrahim_econ', 'adaeze_fashion', 'seun_sports', 'chisom_biz',
-]);
-const TEST_USER_EMAILS = new Set([
-    'chidiokonkwo@gmail.com', 'amaraeze@gmail.com', 'tundeadeyemi@gmail.com',
-    'ngoziobi@gmail.com', 'emekanwosu@gmail.com', 'fatimabello@gmail.com',
-    'davidosei@gmail.com', 'blessingpeter@gmail.com', 'ibrahimmusa@gmail.com',
-    'adaezenwofor@gmail.com', 'seunadesanya@gmail.com', 'chisomokeke@gmail.com',
-]);
 
-const filterTestUsers = (profiles: Profile[]) =>
-    profiles.filter(p =>
-        !TEST_USER_USERNAMES.has(p.username || '') &&
-        !TEST_USER_EMAILS.has(p.email || '')
-    );
 
 export function useNetwork() {
     const [suggestions, setSuggestions] = useState<Profile[]>([]);
@@ -91,9 +74,7 @@ export function useNetwork() {
 
         if (allProfiles) {
             const myUni = profile?.university?.toLowerCase().trim();
-            const filtered = filterTestUsers(
-                allProfiles.filter((p: Profile) => !excludeIds.has(p.id))
-            );
+            const filtered = allProfiles.filter((p: Profile) => !excludeIds.has(p.id));
             // Sort: same university first, then gold verified, then verified, then newest
             filtered.sort((a: Profile, b: Profile) => {
                 const aUni = a.university?.toLowerCase().trim();
@@ -139,7 +120,7 @@ export function useNetwork() {
                 );
                 setSearchResults(filtered);
             } else if (data) {
-                setSearchResults(filterTestUsers(data));
+                setSearchResults(data);
             }
         } catch (error) {
             console.error('Search failed:', error);
