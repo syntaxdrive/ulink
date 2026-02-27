@@ -68,7 +68,7 @@ export default function DownloadPage() {
                                 >
                                     <Smartphone className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <div className="text-left">
-                                        <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Recommended</div>
+                                        <div className="text-[10px] font-medium leading-none uppercase tracking-widest">Recommended</div>
                                         <div className="text-lg">Install UniLink App</div>
                                     </div>
                                 </button>
@@ -77,11 +77,11 @@ export default function DownloadPage() {
                             {/* Option 2: APK (Alternative) */}
                             <button
                                 onClick={handleDownload}
-                                className={`w-full h-16 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold rounded-2xl flex items-center justify-center gap-3 transition-all hover:bg-slate-200 dark:hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] group ${!isInstallable ? 'bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-500 dark:hover:bg-emerald-400' : ''}`}
+                                className={`w-full h-16 bg-slate-800 dark:bg-zinc-800 text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all hover:bg-slate-700 dark:hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] group ${!isInstallable ? 'bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400' : ''}`}
                             >
-                                <Download className={`w-6 h-6 group-hover:animate-bounce ${!isInstallable ? 'text-white' : 'text-emerald-600 dark:text-emerald-500'}`} />
+                                <Download className={`w-6 h-6 group-hover:animate-bounce text-white`} />
                                 <div className="text-left">
-                                    <div className="text-[10px] opacity-80 font-normal leading-none uppercase tracking-widest">Android APK</div>
+                                    <div className="text-[10px] font-medium leading-none uppercase tracking-widest">Android APK</div>
                                     <div className="text-lg">Download UniLink-Nigeria.apk</div>
                                 </div>
                             </button>
@@ -149,11 +149,20 @@ export default function DownloadPage() {
                             ))}
                         </div>
 
-                        <div className="mt-12 p-6 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex gap-4">
-                            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                            <p className="text-sm text-emerald-800 dark:text-emerald-300 leading-relaxed">
-                                <strong>Tip:</strong> If you see a "Harmful App Blocked" warning, tap "More details" and then "Install anyway". This is common for apps not yet in the Play Store.
-                            </p>
+                        <div className="mt-12 space-y-4">
+                            <div className="p-6 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 flex gap-4">
+                                <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                                <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                                    <strong>100% Safe & Secure:</strong> This app is completely safe to install. Our APK has been verified and contains no malicious code. It only requires basic permissions to run the campus network correctly.
+                                </p>
+                            </div>
+
+                            <div className="p-6 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex gap-4">
+                                <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                                <p className="text-sm text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                                    <strong>Tip:</strong> If you see a "Harmful App Blocked" warning, tap "More details" and then "Install anyway". This is just a standard Android warning for apps downloaded outside the Play Store.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
