@@ -1,2 +1,2 @@
-# SPA fallback for everything else
-/* /index.html 200
+# SPA routing is now handled via wrangler.jsonc or Cloudflare Pages settings.
+# Do not add "/* /index.html 200" here as it causes a redirect loop on Cloudflare.
