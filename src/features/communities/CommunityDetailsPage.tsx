@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Globe, Lock, Settings } from 'lucide-react';
+import { Users, Globe, Lock, Settings, Loader2, Check, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { type Community } from '../../types';
 import PostItem from '../feed/components/PostItem';

@@ -1,0 +1,4 @@
+﻿src/features/communities/CommunityDetailsPage.tsx(358,83): error TS2304: Cannot find name 'Loader2'.
+src/features/communities/CommunityDetailsPage.tsx(358,130): error TS2304: Cannot find name 'Check'.
+src/features/communities/CommunityDetailsPage.tsx(366,50): error TS2304: Cannot find name 'X'.
+src/features/feed/components/PostItem.tsx(200,20): error TS2367: This comparison appears to be unintentional because the types 'false | { success: boolean; status: string; }' and 'true' have no overlap.

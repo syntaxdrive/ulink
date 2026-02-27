@@ -197,9 +197,6 @@ export default function PostItem({
             if (result.status === 'pending') {
                 alert('Join request sent to community admins!');
             }
-        } else if (result === true) {
-            setIsMember(true);
-            setMembershipStatus('active');
         }
     };
 
