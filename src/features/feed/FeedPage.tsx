@@ -11,6 +11,7 @@ import { FeedLoadingState } from './components/PostSkeleton';
 import { useFeed } from './hooks/useFeed';
 import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
+import ProfileCompletionBanner from './components/ProfileCompletionBanner';
 
 // Live activity messages that rotate in the ticker
 const ACTIVITY_LINES = [
@@ -228,6 +229,13 @@ export default function FeedPage() {
                     {currentUserProfile && (
                         <div className="px-4 lg:px-0">
                             <WelcomeMessage userName={currentUserProfile.name.split(' ')[0]} />
+                        </div>
+                    )}
+
+                    {/* Profile Completion Reminder */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <ProfileCompletionBanner profile={currentUserProfile} />
                         </div>
                     )}
 

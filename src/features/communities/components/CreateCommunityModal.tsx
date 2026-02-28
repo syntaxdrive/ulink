@@ -222,7 +222,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-h-[90vh] sm:max-h-[85vh] h-full sm:h-auto overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
+            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-xl max-h-[90vh] sm:max-h-[85vh] h-full sm:h-auto overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
                 {/* Header - Fixed */}
                 <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50 flex-shrink-0">
                     <h2 className="text-lg sm:text-xl font-bold text-stone-900 font-display">Create Community</h2>
@@ -274,6 +274,36 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                             className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-stone-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all min-h-[70px] sm:min-h-[80px] resize-none text-sm sm:text-base"
                             rows={3}
                         />
+                    </div>
+
+                    {/* Privacy Toggle - Compact on Mobile */}
+                    <div>
+                        <label className="block text-sm font-bold text-stone-700 mb-2">Privacy</label>
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setPrivacy('public')}
+                                className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${privacy === 'public'
+                                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
+                                    : 'border-stone-100 hover:border-stone-200 bg-white'}`}
+                            >
+                                <Globe className={`w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2 ${privacy === 'public' ? 'text-indigo-600' : 'text-stone-400'}`} />
+                                <div className="font-bold text-xs sm:text-sm text-stone-900">Public</div>
+                                <div className="text-[10px] sm:text-xs text-stone-500 mt-0.5 sm:mt-1 leading-tight">Anyone can join</div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setPrivacy('private')}
+                                className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${privacy === 'private'
+                                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
+                                    : 'border-stone-100 hover:border-stone-200 bg-white'}`}
+                            >
+                                <Lock className={`w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2 ${privacy === 'private' ? 'text-indigo-600' : 'text-stone-400'}`} />
+                                <div className="font-bold text-xs sm:text-sm text-stone-900">Private</div>
+                                <div className="text-[10px] sm:text-xs text-stone-500 mt-0.5 sm:mt-1 leading-tight">Invite only</div>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Image Uploads */}
@@ -334,36 +364,6 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                                     )}
                                 </div>
                             </label>
-                        </div>
-                    </div>
-
-                    {/* Privacy Toggle - Compact on Mobile */}
-                    <div>
-                        <label className="block text-sm font-bold text-stone-700 mb-2">Privacy</label>
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setPrivacy('public')}
-                                className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${privacy === 'public'
-                                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
-                                    : 'border-stone-100 hover:border-stone-200 bg-white'}`}
-                            >
-                                <Globe className={`w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2 ${privacy === 'public' ? 'text-indigo-600' : 'text-stone-400'}`} />
-                                <div className="font-bold text-xs sm:text-sm text-stone-900">Public</div>
-                                <div className="text-[10px] sm:text-xs text-stone-500 mt-0.5 sm:mt-1 leading-tight">Anyone can join</div>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setPrivacy('private')}
-                                className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${privacy === 'private'
-                                    ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
-                                    : 'border-stone-100 hover:border-stone-200 bg-white'}`}
-                            >
-                                <Lock className={`w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2 ${privacy === 'private' ? 'text-indigo-600' : 'text-stone-400'}`} />
-                                <div className="font-bold text-xs sm:text-sm text-stone-900">Private</div>
-                                <div className="text-[10px] sm:text-xs text-stone-500 mt-0.5 sm:mt-1 leading-tight">Invite only</div>
-                            </button>
                         </div>
                     </div>
 
