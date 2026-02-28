@@ -28,6 +28,11 @@ export default function OnboardingPage() {
     const [showUniDropdown, setShowUniDropdown] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Org specific fields
+    const [industry, setIndustry] = useState('');
+    const [websiteUrl, setWebsiteUrl] = useState('');
+    const [headline, setHeadline] = useState('');
+
     // Step 2 — People You May Know
     const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
     const [connected, setConnected] = useState<Set<string>>(new Set());
@@ -82,6 +87,11 @@ export default function OnboardingPage() {
                 username: username.toLowerCase(),
                 university: role === 'student' ? university : null,
                 updated_at: new Date().toISOString(),
+                ...(role === 'org' && {
+                    industry: industry.trim() || null,
+                    website: websiteUrl.trim() || null,
+                    headline: headline.trim() || null
+                })
             };
 
             const { error: upsertError } = await supabase
@@ -237,8 +247,8 @@ export default function OnboardingPage() {
                                             onClick={() => !isConnected && handleConnect(profile.id)}
                                             disabled={isConnected || isConnecting}
                                             className={`w-full py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${isConnected
-                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
-                                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm hover:shadow-emerald-200 hover:shadow-md'
+                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
+                                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm hover:shadow-emerald-200 hover:shadow-md'
                                                 }`}
                                         >
                                             {isConnecting ? (
@@ -379,6 +389,42 @@ export default function OnboardingPage() {
 
                     {showUniDropdown && (
                         <div className="fixed inset-0 z-40" onClick={() => setShowUniDropdown(false)}></div>
+                    )}
+
+                    {role === 'org' && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Organization Category / Industry</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. NGO, Tech Hub, Student Body"
+                                    value={industry}
+                                    onChange={(e) => setIndustry(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Headline</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Empowering Students in Tech"
+                                    value={headline}
+                                    onChange={(e) => setHeadline(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Website URL (Optional)</label>
+                                <input
+                                    type="url"
+                                    placeholder="https://example.com"
+                                    value={websiteUrl}
+                                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                />
+                            </div>
+                        </div>
                     )}
 
                     <button

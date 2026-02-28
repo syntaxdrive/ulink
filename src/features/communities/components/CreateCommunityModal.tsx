@@ -222,17 +222,17 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[80vh] sm:max-h-[85vh] overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
+            <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-h-[90vh] sm:max-h-[85vh] h-full sm:h-auto overflow-hidden shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col">
                 {/* Header - Fixed */}
                 <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50 flex-shrink-0">
                     <h2 className="text-lg sm:text-xl font-bold text-stone-900 font-display">Create Community</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors text-stone-500">
+                    <button onClick={onClose} className="p-2 hover:bg-stone-200 rounded-full transition-colors text-stone-500 bg-stone-100 sm:bg-transparent">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Scrollable Form */}
-                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6 pb-28 sm:pb-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
                     {/* Name & Slug */}
                     <div className="space-y-3 sm:space-y-4">
                         <div>
@@ -368,14 +368,16 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                     </div>
 
                     {/* Footer Actions - Sticky on Mobile */}
-                    <div className="pt-2 sm:pt-3 sticky bottom-0 bg-white -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0">
+                    <div className="pt-2 sm:pt-3 absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-stone-100 px-4 sm:px-6 pb-safe sm:pb-0 p-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
                         <button
                             type="submit"
                             disabled={loading || !name}
-                            className="w-full py-3 sm:py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
+                            className="w-full py-4 sm:py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-50 flex items-center justify-center gap-2 text-base"
                         >
                             {loading ? 'Creating...' : 'Create Community'}
                         </button>
+                        {/* Empty spacer on mobile to prevent bottom nav overlap */}
+                        <div className="h-20 sm:h-0"></div>
                     </div>
                 </form>
             </div>

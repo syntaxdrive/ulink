@@ -66,21 +66,22 @@ export default function CommunityDetailsPage() {
             // Check Membership
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
+                // Use maybeSingle to avoid throw on 0 rows, and handle potential missing status column gracefully via separate query if needed, or catch error
                 const { data: member } = await supabase
                     .from('community_members')
-                    .select('role, status')
+                    .select('*') // Get everything to avoid column missing errors breaking the whole page if possible, or just standard fields
                     .eq('community_id', comm.id)
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (member) {
-                    setIsMember(member.status === 'active');
-                    setMembershipStatus(member.status as any);
+                    setIsMember(member.status !== 'pending' && member.status !== 'rejected');
+                    setMembershipStatus(member.status || 'active'); // Fallback to active if no status column
                     setRole(member.role);
 
                     // If admin/owner, fetch pending requests
                     if (member.role === 'admin' || member.role === 'owner') {
-                        fetchPendingRequests(comm.id);
+                        fetchPendingRequests(comm.id).catch(() => { });
                     }
                 }
             }
