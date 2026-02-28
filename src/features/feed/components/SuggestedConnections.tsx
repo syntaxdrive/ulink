@@ -98,26 +98,26 @@ export default function SuggestedConnections() {
     const currentProfile = suggestions[currentIndex];
 
     return (
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-2xl p-6 border border-emerald-100 dark:border-emerald-800/30 shadow-sm relative overflow-hidden">
             {/* Dismiss button */}
             <button
                 onClick={() => setDismissed(true)}
-                className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-full transition-colors z-10"
+                className="absolute top-3 right-3 p-1.5 text-slate-400 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-400 hover:bg-white/50 dark:hover:bg-zinc-800/50 rounded-full transition-colors z-10"
             >
                 <X className="w-4 h-4" />
             </button>
 
             <div className="mb-4">
-                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                    <UserPlus className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-lg flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                     People You May Know
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">From your university</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">From your university</p>
             </div>
 
             <div className="relative">
                 {/* Profile Card */}
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                <div className="bg-white dark:bg-bg-cardDark rounded-xl p-4 shadow-sm border border-slate-100 dark:border-zinc-800">
                     <Link to={`/app/profile/${currentProfile.username || currentProfile.id}`} className="block">
                         <div className="flex items-center gap-3 mb-3">
                             <img
@@ -126,7 +126,7 @@ export default function SuggestedConnections() {
                                 className="w-12 h-12 rounded-full object-cover border-2 border-emerald-100"
                             />
                             <div className="flex-1 min-w-0">
-                                <p className="font-bold text-slate-900 truncate flex items-center gap-1">
+                                <p className="font-bold text-slate-900 dark:text-zinc-100 truncate flex items-center gap-1">
                                     {currentProfile.name}
                                     {currentProfile.is_verified && (
                                         <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
@@ -134,7 +134,7 @@ export default function SuggestedConnections() {
                                         </svg>
                                     )}
                                 </p>
-                                <p className="text-xs text-slate-500 truncate">
+                                <p className="text-xs text-slate-500 dark:text-zinc-500 truncate">
                                     {currentProfile.headline || currentProfile.university}
                                 </p>
                             </div>
@@ -167,8 +167,8 @@ export default function SuggestedConnections() {
                                     key={idx}
                                     onClick={() => setCurrentIndex(idx)}
                                     className={`h-1.5 rounded-full transition-all ${idx === currentIndex
-                                            ? 'w-6 bg-emerald-600'
-                                            : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                                        ? 'w-6 bg-emerald-600'
+                                        : 'w-1.5 bg-slate-300 hover:bg-slate-400'
                                         }`}
                                 />
                             ))}

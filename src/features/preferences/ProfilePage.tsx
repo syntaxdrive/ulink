@@ -19,6 +19,7 @@ export default function ProfilePage() {
     const [headline, setHeadline] = useState('');
     const [location, setLocation] = useState('');
     const [university, setUniversity] = useState('');
+    const [expectedGradYear, setExpectedGradYear] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
     const [about, setAbout] = useState('');
     const [bgUrl, setBgUrl] = useState('');
@@ -76,6 +77,7 @@ export default function ProfilePage() {
         setHeadline(data.headline || '');
         setLocation(data.location || '');
         setUniversity(data.university || '');
+        setExpectedGradYear(data.expected_graduation_year ? data.expected_graduation_year.toString() : '');
         setAvatarUrl(data.avatar_url || '');
         setAbout(data.about || '');
         setSkills(data.skills || []);
@@ -343,6 +345,7 @@ export default function ProfilePage() {
                 whatsapp_url: whatsapp,
                 industry: profile.role === 'org' ? industry : null,
                 university: profile.role === 'student' ? university : null,
+                expected_graduation_year: profile.role === 'student' && expectedGradYear ? parseInt(expectedGradYear, 10) : null,
                 updated_at: new Date().toISOString(),
             };
 
@@ -556,19 +559,36 @@ export default function ProfilePage() {
                                     </div>
 
                                     {isStudent ? (
-                                        <div>
-                                            <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">University</label>
-                                            <div className="relative mt-1">
-                                                <School className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 dark:text-zinc-600" />
-                                                <input
-                                                    type="text"
-                                                    value={university}
-                                                    onChange={(e) => setUniversity(e.target.value)}
-                                                    className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
-                                                    placeholder="University Name"
-                                                />
+                                        <>
+                                            <div>
+                                                <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">University</label>
+                                                <div className="relative mt-1">
+                                                    <School className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 dark:text-zinc-600" />
+                                                    <input
+                                                        type="text"
+                                                        value={university}
+                                                        onChange={(e) => setUniversity(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
+                                                        placeholder="University Name"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
+                                            <div>
+                                                <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">Graduation Year</label>
+                                                <div className="relative mt-1">
+                                                    <School className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 dark:text-zinc-600" />
+                                                    <input
+                                                        type="number"
+                                                        min="1900"
+                                                        max="2100"
+                                                        value={expectedGradYear}
+                                                        onChange={(e) => setExpectedGradYear(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
+                                                        placeholder="e.g. 2026"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
                                     ) : (
                                         <div>
                                             <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">Industry</label>
@@ -1045,23 +1065,27 @@ export default function ProfilePage() {
             </div>
 
             {/* Image Croppers */}
-            {showAvatarCropper && (
-                <ImageCropper
-                    imageUrl={tempImageUrl}
-                    onCropComplete={handleAvatarCropComplete}
-                    onCancel={() => setShowAvatarCropper(false)}
-                    aspectRatio={1}
-                />
-            )}
+            {
+                showAvatarCropper && (
+                    <ImageCropper
+                        imageUrl={tempImageUrl}
+                        onCropComplete={handleAvatarCropComplete}
+                        onCancel={() => setShowAvatarCropper(false)}
+                        aspectRatio={1}
+                    />
+                )
+            }
 
-            {showBgCropper && (
-                <ImageCropper
-                    imageUrl={tempImageUrl}
-                    onCropComplete={handleBgCropComplete}
-                    onCancel={() => setShowBgCropper(false)}
-                    aspectRatio={16 / 9}
-                />
-            )}
-        </div>
+            {
+                showBgCropper && (
+                    <ImageCropper
+                        imageUrl={tempImageUrl}
+                        onCropComplete={handleBgCropComplete}
+                        onCancel={() => setShowBgCropper(false)}
+                        aspectRatio={16 / 9}
+                    />
+                )
+            }
+        </div >
     );
 }

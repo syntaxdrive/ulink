@@ -89,7 +89,8 @@ export function useFeed(communityId?: string) {
                     gold_verified,
                     headline,
                     role,
-                    email
+                    email,
+                    expected_graduation_year
                 ),
                 community:community_id (
                     id,
@@ -241,20 +242,52 @@ export function useFeed(communityId?: string) {
 
 
 
-            // SMART ALGORITHM
-            const ONE_DAY = 24 * 60 * 60 * 1000;
-            formatted.sort((a: any, b: any) => {
-                const now = Date.now();
-                const aTime = new Date(a.created_at).getTime();
-                const bTime = new Date(b.created_at).getTime();
-                const aIsRecent = (now - aTime) < ONE_DAY;
-                const bIsRecent = (now - bTime) < ONE_DAY;
+            // -------------------------------------------------------------
+            // SMART ENGAGEMENT ALGORITHM
+            // -------------------------------------------------------------
+            const now = Date.now();
 
-                if (a.is_vip && aIsRecent && (!b.is_vip || !bIsRecent)) return -1;
-                if (b.is_vip && bIsRecent && (!a.is_vip || !aIsRecent)) return 1;
+            formatted.forEach((post: any) => {
+                const ageHours = (now - new Date(post.created_at).getTime()) / (1000 * 60 * 60);
 
-                return bTime - aTime;
+                // Base points start at 100 to ensure everything has a floor
+                let score = 100;
+
+                // Time Decay (Linear dropoff over 48 hours)
+                // Newer posts get up to 50 bonus points
+                if (ageHours < 48) {
+                    score += 50 * (1 - (ageHours / 48));
+                }
+
+                // VIP Status Override (Legacy system integration)
+                const isRecent = ageHours < 24;
+                if (post.is_vip && isRecent) {
+                    score += 200; // Fast track VIPs to the top if recent
+                }
+
+                // Creator Verification Weighting
+                if (post.profiles?.gold_verified) {
+                    score *= 1.15; // +15% boost for gold verified originators
+                }
+
+                // Media Weighting
+                const hasMedia = post.image_url || post.video_url || post.image_urls?.length > 0;
+                if (hasMedia) score += 15;
+
+                // Engagement Weighting
+                // 1 Like = 1 point, 1 Comment = 3 points, 1 Repost = 5 points
+                const engagementScore =
+                    (post.likes_count || 0) * 1 +
+                    (post.comments_count || 0) * 3 +
+                    (post.reposts_count || 0) * 5;
+
+                score += engagementScore;
+
+                post._algorithmic_score = score;
             });
+
+            // Sort finally by score descending
+            formatted.sort((a: any, b: any) => b._algorithmic_score - a._algorithmic_score);
 
             setPosts(formatted);
         }
@@ -284,7 +317,8 @@ export function useFeed(communityId?: string) {
                     gold_verified,
                     headline,
                     role,
-                    email
+                    email,
+                    expected_graduation_year
                 ),
                 original_post:original_post_id (
                     id,
@@ -377,7 +411,7 @@ export function useFeed(communityId?: string) {
             .from('posts')
             .select(`
                 *, 
-                profiles:author_id (id, name, username, avatar_url, is_verified, gold_verified, headline, role, email), 
+                profiles:author_id (id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year), 
                 likes (user_id), 
                 comments (id)
             `)

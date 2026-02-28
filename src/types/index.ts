@@ -28,6 +28,7 @@ export interface Profile {
     university?: string;
     avatar_url?: string;
     headline?: string;
+    expected_graduation_year?: number;
     location?: string;
     about?: string;
     skills?: string[];

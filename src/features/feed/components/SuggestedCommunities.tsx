@@ -39,8 +39,8 @@ export default function SuggestedCommunities() {
     };
 
     if (loading) return (
-        <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-stone-200/50 space-y-4 animate-pulse">
-            <div className="h-6 w-1/2 bg-stone-200 rounded-full"></div>
+        <div className="bg-white/70 dark:bg-bg-cardDark/70 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-stone-200/50 dark:border-zinc-800/50 space-y-4 animate-pulse">
+            <div className="h-6 w-1/2 bg-stone-200 dark:bg-zinc-800 rounded-full"></div>
             <div className="space-y-3">
                 {[1, 2, 3].map(i => (
                     <div key={i} className="flex items-center gap-3">
@@ -56,9 +56,9 @@ export default function SuggestedCommunities() {
     );
 
     return (
-        <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-stone-200/50">
+        <div className="bg-white/70 dark:bg-bg-cardDark/70 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-stone-200/50 dark:border-zinc-800/50">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                     <Globe className="w-5 h-5 text-indigo-500" />
                     <span>Communities</span>
                 </h3>
@@ -92,11 +92,11 @@ export default function SuggestedCommunities() {
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-stone-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
+                                    <h4 className="font-bold text-stone-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-600 transition-colors">
                                         {community.name}
                                     </h4>
-                                    <div className="flex items-center gap-1 text-[10px] text-stone-500 font-medium">
-                                        <Users className="w-3 h-3" />
+                                    <div className="flex items-center gap-1 text-[10px] text-stone-500 dark:text-zinc-500 font-medium">
+                                        <Users className="w-3 h-3 text-indigo-500" />
                                         <span>{community.members_count} members</span>
                                     </div>
                                 </div>

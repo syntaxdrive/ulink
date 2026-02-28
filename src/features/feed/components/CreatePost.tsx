@@ -194,11 +194,11 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
     };
 
     return (
-        <div className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+        <div className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-white/50 dark:border-zinc-800/50 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="flex gap-4 items-start">
                     {user && (
-                        <div className={`w-12 h-12 flex-shrink-0 bg-stone-100 overflow-hidden border-2 border-white shadow-sm ${user.role === 'org' ? 'rounded-xl' : 'rounded-full'}`}>
+                        <div className={`w-12 h-12 flex-shrink-0 bg-stone-100 dark:bg-zinc-800 overflow-hidden border-2 border-white dark:border-zinc-900 shadow-sm ${user.role === 'org' ? 'rounded-xl' : 'rounded-full'}`}>
                             <img
                                 src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
                                 alt={user.name}
@@ -208,7 +208,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                     )}
                     <div className="flex-1 min-w-0">
                         <textarea
-                            className="w-full bg-stone-50/50 rounded-2xl p-4 text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all resize-none text-lg font-medium"
+                            className="w-full bg-stone-50/50 dark:bg-zinc-950/50 border border-transparent focus:border-emerald-500/30 rounded-2xl p-4 text-stone-700 dark:text-zinc-200 placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/20 focus:bg-white dark:focus:bg-zinc-900 transition-all resize-none text-lg font-medium"
                             placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
                             rows={4}
                             value={content}
@@ -218,7 +218,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                                 }
                             }}
                         />
-                        <div className="text-right text-xs text-stone-400 mt-1 mr-2 font-medium">
+                        <div className="text-right text-xs text-stone-400 dark:text-zinc-600 mt-1 mr-2 font-medium">
                             {content.length}/{MAX_CHARS}
                         </div>
                     </div>
@@ -247,7 +247,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                                 key={prompt.label}
                                 type="button"
                                 onClick={() => setContent(prompt.text)}
-                                className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-stone-100 hover:bg-emerald-50 hover:text-emerald-700 text-stone-500 font-medium transition-all border border-transparent hover:border-emerald-200 whitespace-nowrap"
+                                className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-stone-100 dark:bg-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 text-stone-500 dark:text-zinc-400 font-medium transition-all border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 whitespace-nowrap"
                             >
                                 {prompt.label}
                             </button>
@@ -263,7 +263,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                                 <img
                                     src={src}
                                     alt={`Preview ${index}`}
-                                    className={`w-full object-cover rounded-xl border border-stone-200 ${previews.length === 1 ? 'max-h-80' : 'h-40'}`}
+                                    className={`w-full object-cover rounded-xl border border-stone-200 dark:border-zinc-800 ${previews.length === 1 ? 'max-h-80' : 'h-40'}`}
                                 />
                                 <button
                                     type="button"
@@ -293,7 +293,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
 
                 {/* Poll Creator */}
                 {showPoll && (
-                    <div className="space-y-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
+                    <div className="space-y-2 p-3 bg-stone-50 dark:bg-zinc-950/50 rounded-xl border border-stone-200 dark:border-zinc-800 transition-colors">
                         {pollOptions.map((option, index) => (
                             <div key={index} className="flex gap-2">
                                 <input
@@ -301,7 +301,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                                     value={option}
                                     onChange={(e) => handlePollChange(index, e.target.value)}
                                     placeholder={`Option ${index + 1}`}
-                                    className="flex-1 px-3 py-2 rounded-lg border border-stone-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                                    className="flex-1 px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
                                 />
                                 {pollOptions.length > 2 && (
                                     <button
@@ -347,7 +347,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                             type="button"
                             onClick={handleImageClick}
                             disabled={!!videoFile || isCompressing}
-                            className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
+                            className={`p-2 rounded-xl transition-all ${imageFiles.length > 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'text-stone-400 dark:text-zinc-600 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-800 disabled:opacity-30'}`}
                             title="Add Images"
                         >
                             <ImageIcon className="w-5 h-5" />
@@ -356,7 +356,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                             type="button"
                             onClick={() => videoInputRef.current?.click()}
                             disabled={imageFiles.length > 0 || isCompressing}
-                            className={`p-2 rounded-xl transition-all ${videoFile ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 disabled:opacity-30'}`}
+                            className={`p-2 rounded-xl transition-all ${videoFile ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'text-stone-400 dark:text-zinc-600 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-800 disabled:opacity-30'}`}
                             title="Add Video"
                         >
                             <Video className="w-5 h-5" />
@@ -365,12 +365,12 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                             type="button"
                             onClick={() => setShowPoll(!showPoll)}
                             disabled={isCompressing}
-                            className={`p-2 rounded-xl transition-all ${showPoll ? 'text-emerald-600 bg-emerald-50' : 'text-stone-400 hover:text-emerald-500 hover:bg-emerald-50'}`}
+                            className={`p-2 rounded-xl transition-all ${showPoll ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'text-stone-400 dark:text-zinc-600 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-800'}`}
                             title="Create Poll"
                         >
                             <BarChart2 className="w-5 h-5" />
                         </button>
-                        <button type="button" className="p-2 text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
+                        <button type="button" className="p-2 text-stone-400 dark:text-zinc-600 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-zinc-800 rounded-xl transition-all">
                             <Smile className="w-5 h-5" />
                         </button>
                         {isCompressing && (
@@ -382,7 +382,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                     <button
                         type="submit"
                         disabled={(!content.trim() && imageFiles.length === 0 && !videoFile && !showPoll) || isPosting}
-                        className="bg-stone-900 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
+                        className="bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 dark:hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-200 dark:hover:shadow-none transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
                     >
                         <Send className="w-4 h-4" />
                         {isPosting ? 'Posting...' : 'Post'}

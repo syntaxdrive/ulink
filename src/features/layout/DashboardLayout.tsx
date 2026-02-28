@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
 import { supabase } from '../../lib/supabase';
@@ -19,7 +19,7 @@ import { useLocalNotifications } from '../../hooks/usePushNotifications';
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { isImmersive } = useUIStore();
+    const { isImmersive, isDarkMode, toggleDarkMode } = useUIStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
 
@@ -290,16 +290,16 @@ export default function DashboardLayout() {
     );
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
+        <div className="min-h-screen bg-[#FAFAFA] dark:bg-bg-dark text-slate-900 dark:text-white font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
 
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 
             {/* Mobile Top Bar */}
             {location.pathname !== '/app/learn' && (
-                <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 z-40">
+                <header className="md:hidden flex items-center justify-between px-4 h-16 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 fixed top-0 left-0 right-0 z-40 transition-transform duration-300">
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
-                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative"
+                        className="p-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors relative"
                     >
                         <Menu className="w-6 h-6" />
                         {(unreadNotifications > 0) && (
@@ -316,8 +316,15 @@ export default function DashboardLayout() {
                             </button>
                         ) : (
                             <>
-                                <span className="font-display font-bold text-lg text-slate-900">UniLink</span>
-                                <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg" />
+                                <span className="font-display font-bold text-lg text-slate-900 dark:text-white italic tracking-tighter">UniLink</span>
+                                <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg shadow-sm" />
+                                <button
+                                    onClick={toggleDarkMode}
+                                    className="p-2 ml-1 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-all active:scale-90"
+                                    title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                >
+                                    {isDarkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-indigo-600" />}
+                                </button>
                             </>
                         )}
                     </div>
@@ -331,12 +338,12 @@ export default function DashboardLayout() {
                         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
                         onClick={() => setIsMobileMenuOpen(false)}
                     ></div>
-                    <div className="absolute top-0 left-0 bottom-0 w-[280px] bg-white shadow-2xl p-6 flex flex-col animate-in slide-in-from-left duration-300">
+                    <div className="absolute top-0 left-0 bottom-0 w-[280px] bg-white dark:bg-bg-dark shadow-2xl p-6 flex flex-col animate-in slide-in-from-left duration-300">
                         <div className="flex justify-between items-center mb-8">
-                            <span className="font-display font-bold text-xl text-slate-900">Menu</span>
+                            <span className="font-display font-bold text-xl text-slate-900 dark:text-zinc-100">Menu</span>
                             <button
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                                className="p-2 text-slate-400 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg"
                             >
                                 <X className="w-6 h-6" />
                             </button>
@@ -464,15 +471,15 @@ export default function DashboardLayout() {
             )}
 
             {/* Sidebar - Desktop */}
-            <aside className="w-[280px] fixed h-full hidden md:flex flex-col z-40 border-r border-slate-200 bg-white/80 backdrop-blur-xl">
-                <div className="p-8 border-b border-slate-100">
+            <aside className="w-[280px] fixed h-full hidden md:flex flex-col z-40 border-r border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl">
+                <div className="p-8 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
                         <img src="/icon-512.png" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
                         <div>
-                            <h1 className="text-xl font-display font-bold tracking-tight text-slate-900">
+                            <h1 className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-zinc-100">
                                 UniLink
                             </h1>
-                            <div className="text-xs font-medium text-slate-500 tracking-wide">
+                            <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 tracking-wide">
                                 Student Network
                             </div>
                         </div>
@@ -491,8 +498,8 @@ export default function DashboardLayout() {
                             end={item.path === '/app'}
                             className={({ isActive }) =>
                                 `relative group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 ${isActive
-                                    ? 'bg-stone-900 text-white shadow-xl shadow-stone-200 ring-1 ring-stone-900'
-                                    : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                                    ? 'bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xl shadow-stone-200 dark:shadow-none ring-1 ring-stone-900 dark:ring-zinc-100'
+                                    : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white hover:bg-stone-50 dark:hover:bg-zinc-800'
                                 }`
                             }
                         >
@@ -519,8 +526,8 @@ export default function DashboardLayout() {
                             end={item.path === '/app'}
                             className={({ isActive }) =>
                                 `relative group flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300 ${isActive
-                                    ? 'bg-stone-100 text-stone-900 font-semibold'
-                                    : 'text-stone-400 hover:text-stone-700 hover:bg-stone-50'
+                                    ? 'bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 font-semibold'
+                                    : 'text-stone-400 dark:text-zinc-400 hover:text-stone-700 dark:hover:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800'
                                 }`
                             }
                         >
@@ -530,7 +537,7 @@ export default function DashboardLayout() {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-bg-cardDark/50">
                     {isGuest ? (
                         <button
                             onClick={signInWithGoogle}
@@ -549,8 +556,8 @@ export default function DashboardLayout() {
                                     />
                                 </div>
                                 <div className="overflow-hidden">
-                                    <p className="text-sm font-bold text-slate-800 truncate">{userProfile?.name || 'User'}</p>
-                                    <p className="text-[10px] text-slate-500 font-medium truncate uppercase tracking-tight opacity-70">
+                                    <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{userProfile?.name || 'User'}</p>
+                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate uppercase tracking-tight opacity-70">
                                         {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
                                     </p>
                                 </div>
@@ -559,7 +566,7 @@ export default function DashboardLayout() {
                             {notificationPermission === 'default' && (
                                 <button
                                     onClick={requestNotificationPermission}
-                                    className="w-full mb-3 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full mb-3 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <Bell className="w-3 h-3" /> Enable Notifications
                                 </button>
@@ -568,7 +575,7 @@ export default function DashboardLayout() {
                             {isInstallable && (
                                 <button
                                     onClick={install}
-                                    className="flex items-center gap-3 px-4 py-2.5 w-full text-emerald-600 hover:bg-emerald-50 border border-transparent rounded-xl transition-all duration-300 group mb-2"
+                                    className="flex items-center gap-3 px-4 py-2.5 w-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border border-transparent rounded-xl transition-all duration-300 group mb-2"
                                 >
                                     <Download className="w-4 h-4" />
                                     <span className="font-sans text-xs font-semibold">Install App</span>
@@ -577,11 +584,30 @@ export default function DashboardLayout() {
 
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent rounded-xl transition-all duration-300 group"
+                                className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-transparent rounded-xl transition-all duration-300 group"
                             >
                                 <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" strokeWidth={1.5} />
                                 <span className="font-sans text-xs font-semibold">Log Out</span>
                             </button>
+
+                            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                                <button
+                                    onClick={toggleDarkMode}
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-bg-cardDark border border-slate-100 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-md transition-all group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-600' : 'bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600'}`}>
+                                            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                            {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                                        </span>
+                                    </div>
+                                    <div className={`w-10 h-5 rounded-full transition-colors relative ${isDarkMode ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isDarkMode ? 'right-1' : 'left-1'}`} />
+                                    </div>
+                                </button>
+                            </div>
                         </>
                     )}
 
@@ -601,7 +627,7 @@ export default function DashboardLayout() {
             </main>
 
             {/* Mobile Bottom Nav */}
-            <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-200 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isImmersive ? 'translate-y-full' : 'translate-y-0'}`}>
+            <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-t border-stone-200 dark:border-zinc-800 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isImmersive ? 'translate-y-full' : 'translate-y-0'}`}>
                 {bottomNavItems.map((item) => (
                     <NavLink
                         key={item.path}

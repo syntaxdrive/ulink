@@ -45,7 +45,7 @@ export default function ProfileCompletionBanner({ profile }: { profile: any }) {
 
             <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
                 <div className="flex-1 w-full">
-                    <h3 className="font-bold text-lg text-stone-900 dark:text-zinc-100 mb-1">
+                    <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-1">
                         Complete your profile
                     </h3>
                     <p className="text-sm text-stone-500 dark:text-zinc-400 mb-4">
@@ -60,7 +60,7 @@ export default function ProfileCompletionBanner({ profile }: { profile: any }) {
                                 style={{ width: `${percentage}%` }}
                             />
                         </div>
-                        <span className="text-xs font-bold text-stone-700 dark:text-zinc-300 w-10 text-right">
+                        <span className="text-xs font-bold text-stone-700 dark:text-zinc-200 w-10 text-right">
                             {percentage}%
                         </span>
                     </div>
@@ -69,7 +69,7 @@ export default function ProfileCompletionBanner({ profile }: { profile: any }) {
                     <div className="flex flex-wrap gap-2">
                         {missing.slice(0, 2).map((step, idx) => (
                             <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-50 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-700/50 rounded-xl text-xs font-semibold text-stone-600 dark:text-zinc-300">
-                                <step.icon className="w-3.5 h-3.5 text-indigo-500" />
+                                <step.icon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
                                 {step.label}
                             </div>
                         ))}

@@ -20,7 +20,7 @@ export default function SponsoredPostItem({ post }: SponsoredPostItemProps) {
     };
 
     return (
-        <article className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl overflow-hidden mb-4 hover:border-stone-300 dark:hover:border-zinc-700 transition-all shadow-sm">
+        <article className="bg-white dark:bg-bg-cardDark border border-stone-200 dark:border-zinc-800 rounded-2xl overflow-hidden mb-4 hover:border-stone-300 dark:hover:border-zinc-700 transition-all shadow-sm">
             {/* Header */}
             <div className="p-4 flex items-start gap-3">
                 <Link to={`/app/profile/${post.organization?.username || post.organization?.id}`} className="shrink-0 relative">

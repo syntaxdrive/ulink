@@ -191,7 +191,7 @@ export default function FeedPage() {
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-4 py-2.5 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm border border-stone-200/60 dark:border-zinc-800/60 rounded-xl text-sm text-stone-900 dark:text-zinc-100 placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-sm transition-all"
+                                className="block w-full pl-10 pr-4 py-2.5 bg-white/90 dark:bg-bg-cardDark/90 backdrop-blur-sm border border-stone-200/60 dark:border-zinc-800/60 rounded-xl text-sm text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-sm transition-all"
                                 placeholder="Search posts, people, topics…"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -208,7 +208,7 @@ export default function FeedPage() {
                                 className={({ isActive }) =>
                                     `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${isActive
                                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30'
-                                        : 'bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
+                                        : 'bg-white dark:bg-bg-cardDark text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
                                     }`
                                 }
                             >
@@ -248,7 +248,7 @@ export default function FeedPage() {
 
                     {/* People Search Results */}
                     {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (
-                        <div className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-white dark:bg-bg-cardDark border border-stone-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
                             <div className="px-4 pt-3 pb-1">
                                 <p className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
                                     <UserRound className="w-3.5 h-3.5" /> People
@@ -266,7 +266,7 @@ export default function FeedPage() {
                                         className="w-9 h-9 rounded-full object-cover flex-shrink-0"
                                     />
                                     <div className="flex-1 min-w-0 text-left">
-                                        <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 truncate">{person.name}</p>
+                                        <p className="text-sm font-semibold text-stone-900 dark:text-white truncate">{person.name}</p>
                                         <p className="text-xs text-stone-400 dark:text-zinc-500 truncate">{person.headline || person.university || person.role}</p>
                                     </div>
                                     {person.is_verified && <span className="text-emerald-500 text-xs font-bold">✓ Verified</span>}
@@ -279,11 +279,11 @@ export default function FeedPage() {
                     <div className="space-y-2">
                         {posts.length === 0 ? (
                             searchQuery ? (
-                                <div className="text-center py-12 bg-white dark:bg-zinc-900 border-y border-stone-200/80 dark:border-zinc-800 rounded-2xl">
-                                    <p className="text-stone-500 dark:text-zinc-500 mb-2">No posts found for "{searchQuery}"</p>
+                                <div className="text-center py-12 bg-white dark:bg-bg-cardDark border-y border-stone-200/80 dark:border-zinc-800 rounded-2xl">
+                                    <p className="text-stone-500 dark:text-zinc-400 mb-2">No posts found for "{searchQuery}"</p>
                                     <button
                                         onClick={() => setSearchQuery('')}
-                                        className="text-emerald-600 dark:text-emerald-500 font-medium hover:underline"
+                                        className="text-emerald-600 dark:text-emerald-500 font-bold hover:underline"
                                     >
                                         Clear search
                                     </button>
@@ -348,7 +348,7 @@ export default function FeedPage() {
 
                     {/* Who's Active Now */}
                     {activeUsers.length > 0 && (
-                        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                        <div className="bg-white/80 dark:bg-bg-cardDark/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
                             <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 Active on campus
@@ -378,7 +378,7 @@ export default function FeedPage() {
                     )}
 
                     {/* Trending Topics */}
-                    <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                    <div className="bg-white/80 dark:bg-bg-cardDark/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
                         <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                             Trending topics
@@ -409,14 +409,14 @@ export default function FeedPage() {
                     </div>
 
                     {/* Quick Actions CTA */}
-                    <div className="relative overflow-hidden bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
+                    <div className="relative overflow-hidden bg-white/70 dark:bg-bg-cardDark/70 backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
                         {/* Highlights */}
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
                         <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
                         <div className="relative flex items-center gap-2 mb-2">
                             <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
-                            <span className="font-extrabold text-sm text-stone-900 dark:text-zinc-100 uppercase tracking-wider">Campus Challenge</span>
+                            <span className="font-extrabold text-sm text-stone-900 dark:text-white uppercase tracking-wider">Campus Challenge</span>
                         </div>
                         <p className="relative text-stone-600 dark:text-zinc-400 text-xs leading-relaxed font-medium mb-4">
                             Earn points, climb the leaderboard, and win prizes. New challenge every week!

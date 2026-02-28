@@ -1,9 +1,82 @@
 @import "tailwindcss";
 
+/* Force Tailwind v4 to recognize .dark class on <html> as the dark variant */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Global Base Styles */
+@layer base {
+    :root {
+        --background: #FAFAFA;
+        --foreground: #09090B;
+        --card: #FFFFFF;
+        --card-foreground: #09090B;
+        --muted: #64748B;
+        --border: #E2E8F0;
+    }
+
+    :root.dark {
+        --background: #09090B;
+        --foreground: #FAFAFA;
+        --card: #18181B;
+        /* Zinc 900 */
+        --card-foreground: #FAFAFA;
+        --muted: #A1A1AA;
+        --border: #27272A;
+        /* Zinc 800 */
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+        transition: background-color 0.3s ease, color 0.3s ease;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Accessibility & Global Resets for Dark Mode Visibility */
+    .dark h1,
+    .dark h2,
+    .dark h3,
+    .dark h4,
+    .dark h5,
+    .dark h6 {
+        color: #FFFFFF !important;
+    }
+
+    .dark p,
+    .dark span:not([class*="text-"]),
+    .dark div:not([class*="text-"]) {
+        color: #D4D4D8 !important;
+        /* Zinc 300 - High Contrast AA */
+    }
+
+    .dark .bg-white {
+        background-color: var(--card) !important;
+    }
+
+    .dark .text-slate-900,
+    .dark .text-stone-900,
+    .dark .text-gray-900,
+    .dark .text-slate-800,
+    .dark .text-stone-800 {
+        color: #FFFFFF !important;
+    }
+
+    .dark .text-slate-500,
+    .dark .text-stone-500,
+    .dark .text-gray-500,
+    .dark .text-slate-400,
+    .dark .text-stone-400 {
+        color: #A1A1AA !important;
+        /* Zinc 400 - Contrast 4.5:1 on Zinc 900 */
+    }
+}
+
 /* Hide scrollbar while keeping scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
     display: none;
 }
+
 .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -15,6 +88,7 @@
         transform: translate(-50%, -50%) scale(1);
         opacity: 1;
     }
+
     100% {
         transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0);
         opacity: 0;
@@ -23,29 +97,60 @@
 
 /* Heartbeat animation */
 @keyframes heartbeat {
-    0%, 100% { transform: scale(1); }
-    15% { transform: scale(1.25); }
-    30% { transform: scale(1.05); }
-    45% { transform: scale(1.2); }
-    60% { transform: scale(1); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    15% {
+        transform: scale(1.25);
+    }
+
+    30% {
+        transform: scale(1.05);
+    }
+
+    45% {
+        transform: scale(1.2);
+    }
+
+    60% {
+        transform: scale(1);
+    }
 }
 
 /* Progress bar fill animation */
 @keyframes progress {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(0%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(0%);
+    }
 }
 
 /* Shimmer sweep */
 @keyframes shimmer {
-    0% { background-position: -200% center; }
-    100% { background-position: 200% center; }
+    0% {
+        background-position: -200% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
 }
 
 /* Ticker scroll */
 @keyframes ticker {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
+    0% {
+        transform: translateX(100%);
+    }
+
+    100% {
+        transform: translateX(-100%);
+    }
 }
 
 /* Feed post stagger appears */
@@ -54,6 +159,7 @@
         opacity: 0;
         transform: translateY(12px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -64,13 +170,16 @@
 .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #e5e7eb;
     border-radius: 2px;
 }
+
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #3f3f46;
 }
