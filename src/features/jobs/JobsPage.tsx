@@ -78,7 +78,7 @@ export default function JobsPage() {
     const [newJob, setNewJob] = useState<{
         title: string;
         company: string;
-        type: 'Internship' | 'Entry Level' | 'Full Time';
+        type: 'Internship' | 'Entry Level' | 'Full Time' | 'Scholarship';
         description: string;
         application_link: string;
         location: string;
@@ -330,7 +330,7 @@ export default function JobsPage() {
 
                 <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-1">
                     {/* Type Filter Pills */}
-                    {['All', 'Internship', 'Entry Level', 'Full Time'].map(type => (
+                    {['All', 'Internship', 'Scholarship', 'Entry Level', 'Full Time'].map(type => (
                         <button
                             key={type}
                             onClick={() => setFilterType(type)}
@@ -406,9 +406,10 @@ export default function JobsPage() {
                             <select
                                 className="w-full bg-white rounded-xl px-4 py-3 border border-stone-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none"
                                 value={newJob.type}
-                                onChange={e => setNewJob({ ...newJob, type: e.target.value as 'Internship' | 'Entry Level' | 'Full Time' })}
+                                onChange={e => setNewJob({ ...newJob, type: e.target.value as 'Internship' | 'Entry Level' | 'Full Time' | 'Scholarship' })}
                             >
                                 <option>Internship</option>
+                                <option>Scholarship</option>
                                 <option>Entry Level</option>
                                 <option>Full Time</option>
                             </select>
