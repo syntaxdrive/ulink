@@ -8,7 +8,7 @@ on:
 
 jobs:
   post-news:
-    runs-name: Post Tech News to Feed
+    name: Post Tech News to Feed
     runs-on: ubuntu-latest
     
     steps:
