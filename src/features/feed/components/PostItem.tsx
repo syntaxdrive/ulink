@@ -302,7 +302,7 @@ export default function PostItem({
                         <Link
                             key={`${i}-${j}`}
                             to={`/app/profile/${username}`}
-                            className="text-blue-600 dark:text-blue-500 font-bold hover:underline"
+                            className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors mx-0.5"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {subPart}
@@ -846,7 +846,9 @@ export default function PostItem({
                                                         </button>
                                                     )}
                                                 </div>
-                                                <p className="text-stone-700 dark:text-stone-300 text-[13px] leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                                                <div className="text-stone-700 dark:text-stone-300 text-[13px] leading-relaxed whitespace-pre-wrap">
+                                                    {renderContent(comment.content)}
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-3 mt-1.5 px-1">
                                                 <span className="text-[10px] font-medium text-stone-500">
