@@ -99,8 +99,9 @@ export function useFeed(communityId?: string) {
                     icon_url
                 )
             `)
+            `)
             .order('created_at', { ascending: false })
-            .limit(60);
+            .limit(30);
 
         if (communityId) {
             query = query.eq('community_id', communityId);
@@ -117,13 +118,13 @@ export function useFeed(communityId?: string) {
             const fallback = communityId
                 ? await supabase
                     .from('posts')
-                    .select(`*, profiles:author_id (id, name, username, avatar_url, is_verified, headline, role, email), community:community_id (id, name, slug, icon_url)`)
+                    .select(`*, profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email), community: community_id(id, name, slug, icon_url)`)
                     .eq('community_id', communityId)
                     .order('created_at', { ascending: false })
                     .limit(20)
                 : await supabase
                     .from('posts')
-                    .select(`*, profiles:author_id (id, name, username, avatar_url, is_verified, headline, role, email), community:community_id (id, name, slug, icon_url)`)
+                    .select(`*, profiles: author_id(id, name, username, avatar_url, is_verified, headline, role, email), community: community_id(id, name, slug, icon_url)`)
                     .or('community_id.is.null,shared_to_feed.eq.true')
                     .order('created_at', { ascending: false })
                     .limit(20);
@@ -137,7 +138,7 @@ export function useFeed(communityId?: string) {
             error = null;
         }
 
-        console.log(`Fetched ${data?.length || 0} posts from database`);
+        console.log(`Fetched ${ data?.length || 0 } posts from database`);
 
         if (!error && data) {
             // VIP Users List
@@ -307,20 +308,20 @@ export function useFeed(communityId?: string) {
         let dbQuery = supabase
             .from('posts')
             .select(`
-                *,
-                profiles:author_id (
-                    id,
-                    name,
-                    username,
-                    avatar_url,
-                    is_verified,
-                    gold_verified,
-                    headline,
-                    role,
-                    email,
-                    expected_graduation_year
-                ),
-                original_post:original_post_id (
+            *,
+            profiles: author_id(
+                id,
+                name,
+                username,
+                avatar_url,
+                is_verified,
+                gold_verified,
+                headline,
+                role,
+                email,
+                expected_graduation_year
+            ),
+                original_post: original_post_id(
                     id,
                     content,
                     image_url,
@@ -328,15 +329,15 @@ export function useFeed(communityId?: string) {
                     video_url,
                     created_at,
                     author_id,
-                    profiles:author_id (
+                    profiles: author_id(
                         id,
                         name,
                         avatar_url,
                         is_verified
                     )
                 )
-            `)
-            .ilike('content', `%${query}%`)
+                    `)
+            .ilike('content', `% ${ query }% `)
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -410,11 +411,11 @@ export function useFeed(communityId?: string) {
         const { data } = await supabase
             .from('posts')
             .select(`
-                *, 
-                profiles:author_id (id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year), 
-                likes (user_id), 
-                comments (id)
-            `)
+            *,
+            profiles: author_id(id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year),
+                likes(user_id),
+                comments(id)
+                    `)
             .eq('id', postId)
             .single();
 
@@ -451,8 +452,8 @@ export function useFeed(communityId?: string) {
             // Upload Images
             for (const file of imageFiles) {
                 const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
-                const filePath = `posts/${fileName}`;
+                const fileName = `${ Date.now() }_${ Math.random() }.${ fileExt } `;
+                const filePath = `posts / ${ fileName } `;
                 const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, file);
 
                 if (uploadError) {
@@ -467,8 +468,8 @@ export function useFeed(communityId?: string) {
             // Upload Video
             if (videoFile) {
                 const fileExt = videoFile.name.split('.').pop();
-                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt}`;
-                const filePath = `posts/${fileName}`;
+                const fileName = `video_${ Date.now() }_${ Math.random() }.${ fileExt } `;
+                const filePath = `posts / ${ fileName } `;
                 const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, videoFile);
 
                 if (uploadError) {
@@ -495,7 +496,7 @@ export function useFeed(communityId?: string) {
                     poll_options: pollOptions && pollOptions.length > 1 ? pollOptions : null,
                     poll_counts: pollOptions && pollOptions.length > 1 ? new Array(pollOptions.length).fill(0) : null
                 })
-                .select(`*, profiles:author_id (*), likes (user_id), comments (id)`)
+                .select(`*, profiles: author_id(*), likes(user_id), comments(id)`)
                 .single();
 
             if (error) throw error;
@@ -624,8 +625,8 @@ export function useFeed(communityId?: string) {
                     community_id: communityId || null
                 })
                 .select(`
-                    *,
-                    profiles:author_id (*)
+            *,
+            profiles: author_id(*)
                 `)
                 .single();
 
@@ -669,7 +670,7 @@ export function useFeed(communityId?: string) {
                 setLoadingComments(true);
                 const { data } = await supabase
                     .from('comments')
-                    .select(`*, profiles:author_id (*)`)
+                    .select(`*, profiles: author_id(*)`)
                     .eq('post_id', postId)
                     .order('created_at', { ascending: true });
                 if (data) setComments(prev => ({ ...prev, [postId]: data }));
@@ -683,7 +684,7 @@ export function useFeed(communityId?: string) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const tempId = `temp-${Date.now()}`;
+        const tempId = `temp - ${ Date.now() } `;
         const optimisticComment: any = {
             id: tempId,
             post_id: postId,
@@ -703,7 +704,7 @@ export function useFeed(communityId?: string) {
         const { data, error } = await supabase
             .from('comments')
             .insert({ post_id: postId, author_id: user.id, content: content })
-            .select(`*, profiles:author_id (*)`)
+            .select(`*, profiles: author_id(*)`)
             .single();
 
         if (error) {
