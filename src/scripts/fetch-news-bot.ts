@@ -27,9 +27,10 @@ const BOT_EMAIL = 'unilinkrep@gmail.com';
 
 const FEEDS = [
     { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
-    { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
-    { name: 'Mozilla Hacks', url: 'https://hacks.mozilla.org/feed/' },
-    { name: 'CSS Tricks', url: 'https://css-tricks.com/feed/' },
+    { name: 'The Verge Video', url: 'https://www.theverge.com/video/rss/index.xml' },
+    { name: 'Fireship Tech', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA' },
+    { name: 'Hacker News', url: 'https://news.ycombinator.com/rss' },
+    { name: 'Ted Ed', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCsooa4yRKGN_zEE8iknghZA' },
 ];
 
 async function getOrCreateBotProfile() {
@@ -92,7 +93,8 @@ async function fetchAndPostNews() {
         }
 
         // Format the post content
-        const content = `📰 **Tech News via ${feedSource.name}**\n\n${item.title}\n\n${item.contentSnippet?.substring(0, 150) || ''}...\n\nRead more: ${item.link}\n\n#${feedSource.name.replace(/\s+/g, '')} #TechNews #StudentLife #Programming`;
+        const icon = feedSource.url.includes('youtube.com') ? '📺' : '📰';
+        const content = `${icon} **${feedSource.name} Update**\n\n${item.title}\n\n${item.contentSnippet?.substring(0, 150) || ''}...\n\nWatch/Read: ${item.link}\n\n#${feedSource.name.replace(/\s+/g, '')} #UniLinkUpdate #Learning #Growth`;
 
         // Extract Image (Basic attempt)
         let imageUrl = null;
