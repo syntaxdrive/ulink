@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Flame, Newspaper } from 'lucide-react';
+import { ExternalLink, Flame, Newspaper, Globe } from 'lucide-react';
 
 interface NewsItem {
     title: string;
@@ -18,7 +18,8 @@ export default function NewsSlider() {
         { name: 'Tech', url: 'https://techcrunch.com/feed/' },
         { name: 'Economics', url: 'https://www.economist.com/finance-and-economics/rss.xml' }, // The Economist Finance & Economics
         { name: 'Engineering', url: 'https://spectrum.ieee.org/feeds/feed.rss' }, // IEEE Spectrum
-        { name: 'Campus', url: 'https://www.theguardian.com/education/students/rss' } // The Guardian Students
+        { name: 'Campus', url: 'https://www.theguardian.com/education/students/rss' }, // The Guardian Students
+        { name: 'Life', url: 'https://www.theverge.com/rss/index.xml' } // The Verge (General)
     ];
 
     useEffect(() => {
@@ -40,16 +41,29 @@ export default function NewsSlider() {
 
                     // Mapped to our interface
                     const items: NewsItem[] = validItems.map((item: any) => {
-                        // Attempt to extract an image from description or enclosure
+                        // Attempt to extract an image from thumbnail, enclosure, or description
                         let image = item.thumbnail || item.enclosure?.link;
+
+                        // Check specifically for rss2json's common thumbnail locations
+                        if (!image && item.content?.match(/<img[^>]+src="([^">]+)"/)) {
+                            image = item.content.match(/<img[^>]+src="([^">]+)"/)[1];
+                        }
+
                         if (!image) {
                             const imgMatch = item.description?.match(/<img[^>]+src="([^">]+)"/);
                             if (imgMatch) image = imgMatch[1];
                         }
 
-                        // Fallback image
-                        if (!image) {
-                            image = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800';
+                        // Robust fallback images based on category
+                        if (!image || image.toString().includes('placeholder')) {
+                            const fallbacks: Record<string, string> = {
+                                'Tech': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800',
+                                'Economics': 'https://images.unsplash.com/photo-1611974714658-66d2f13cd9a7?auto=format&fit=crop&q=80&w=800',
+                                'Engineering': 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800',
+                                'Campus': 'https://images.unsplash.com/photo-1523050335109-d6d3be71aa0d?auto=format&fit=crop&q=80&w=800',
+                                'Life': 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800'
+                            };
+                            image = fallbacks[activeCategory] || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800';
                         }
 
                         // Clean HTML tags from description
@@ -116,8 +130,8 @@ export default function NewsSlider() {
                         key={category.name}
                         onClick={() => setActiveCategory(category.name)}
                         className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors border ${activeCategory === category.name
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                : 'bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300'
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                            : 'bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300'
                             }`}
                     >
                         {category.name}
