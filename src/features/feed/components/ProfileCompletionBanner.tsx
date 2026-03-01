@@ -9,25 +9,46 @@ export default function ProfileCompletionBanner({ profile }: { profile: any }) {
 
     // Calculate completion score
     let completedSteps = 0;
-    const totalSteps = 4;
+    const totalSteps = 8;
     const missing: { icon: any, label: string }[] = [];
 
+    // 1. Avatar
     if (profile.avatar_url) completedSteps++;
     else missing.push({ icon: Camera, label: 'Add Profile Photo' });
 
+    // 2. Headline
     if (profile.headline) completedSteps++;
     else missing.push({ icon: FileText, label: 'Add Headline' });
 
-    if (profile.role === 'student') {
-        if (profile.university) completedSteps++;
-        else missing.push({ icon: GraduationCap, label: 'Add University' });
-    } else {
+    // 3. University/Industry
+    if (profile.role === 'org') {
         if (profile.industry) completedSteps++;
         else missing.push({ icon: FileText, label: 'Add Industry' });
+    } else {
+        if (profile.university) completedSteps++;
+        else missing.push({ icon: GraduationCap, label: 'Add University' });
     }
 
+    // 4. Bio
     if (profile.about) completedSteps++;
     else missing.push({ icon: FileText, label: 'Add Bio' });
+
+    // 5. Background Image
+    if (profile.background_image_url) completedSteps++;
+    else missing.push({ icon: Camera, label: 'Add Cover Photo' });
+
+    // 6. Location
+    if (profile.location) completedSteps++;
+    else missing.push({ icon: FileText, label: 'Add Location' });
+
+    // 7. Skills
+    if (profile.skills && profile.skills.length > 0) completedSteps++;
+    else missing.push({ icon: FileText, label: 'Add Skills' });
+
+    // 8. Social links (any)
+    const hasSocials = profile.instagram_url || profile.twitter_url || profile.linkedin_url || profile.website_url || profile.facebook_url;
+    if (hasSocials) completedSteps++;
+    else missing.push({ icon: Globe, label: 'Add Social Links' });
 
     const percentage = Math.round((completedSteps / totalSteps) * 100);
 
