@@ -30,16 +30,18 @@ export function useFeed(communityId?: string) {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setCurrentUserId(user.id);
-                // Background fetch profile
-                supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
-                    if (data) setCurrentUserProfile(data);
-                });
+                // Background fetch profile synchronously before posts if possible
+                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                if (data) {
+                    setCurrentUserProfile(data);
+                    // Pass current profile to ensure first fetch has accurate author info
+                    await fetchPosts(user.id);
+                } else {
+                    await fetchPosts(user.id);
+                }
+            } else {
+                await fetchPosts();
             }
-
-            // Always fetch if communityId is present (context switch)
-            // or if traditional refresh is needed
-            // Force refresh to ensure we get latest data
-            await fetchPosts(user?.id);
         };
         init();
 

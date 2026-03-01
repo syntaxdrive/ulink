@@ -66,6 +66,7 @@ export default function PostItem({
     isInCommunityFeed = false,
 }: PostItemProps) {
     const [commentText, setCommentText] = useState('');
+    const commentInputRef = useRef<HTMLTextAreaElement>(null);
     const [showRepostModal, setShowRepostModal] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const [sharedToFeed, setSharedToFeed] = useState<boolean>(post.shared_to_feed || false);
@@ -139,6 +140,11 @@ export default function PostItem({
     const [membershipStatus, setMembershipStatus] = useState<'active' | 'pending' | null>(null);
 
     const { joinCommunity, joiningCommunity } = useCommunityMembership();
+
+    const handleReply = (username: string) => {
+        setCommentText((prev) => `@${username} ${prev}`);
+        commentInputRef.current?.focus();
+    };
 
     // Detect video embed in post content
     const videoEmbed = useMemo(() => detectVideoEmbed(post.content || ''), [post.content]);
@@ -788,7 +794,7 @@ export default function PostItem({
                     </div>
 
                     {/* Comments List (Scrollable to prevent elongating) */}
-                    <div className="max-h-[50vh] overflow-y-auto px-5 py-4 space-y-5 custom-scrollbar">
+                    <div className="max-h-[400px] overflow-y-auto px-5 py-4 space-y-5 custom-scrollbar scroll-smooth">
                         {loadingComments ? (
                             <div className="flex flex-col items-center justify-center py-10 gap-3">
                                 <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
@@ -846,7 +852,12 @@ export default function PostItem({
                                                 <span className="text-[10px] font-medium text-stone-500">
                                                     {formatTimeAgo(comment.created_at)}
                                                 </span>
-                                                <button className="text-[10px] font-bold text-stone-500 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors">Reply</button>
+                                                <button
+                                                    onClick={() => handleReply(comment.profiles?.username || comment.author_id)}
+                                                    className="text-[10px] font-bold text-stone-500 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors"
+                                                >
+                                                    Reply
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -859,6 +870,7 @@ export default function PostItem({
                     <div className="p-4 bg-stone-100/50 dark:bg-bg-cardDark/50 border-t border-stone-200 dark:border-zinc-800/80 rounded-b-[2rem]">
                         <div className="flex gap-2 items-end bg-white dark:bg-bg-dark border border-stone-200 dark:border-zinc-700 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500/50 transition-all shadow-sm">
                             <textarea
+                                ref={commentInputRef}
                                 className="flex-1 bg-transparent border-0 py-2 px-3 text-sm text-stone-900 dark:text-white placeholder:text-stone-400 focus:ring-0 resize-none min-h-[36px] max-h-24 no-scrollbar"
                                 placeholder="Add a comment..."
                                 rows={1}
