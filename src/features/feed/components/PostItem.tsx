@@ -720,140 +720,120 @@ export default function PostItem({
                 )}
             </div>
 
-            {/* Unified Responsive Comment Drawer */}
+            {/* Unified Responsive Comment Section (Inline but scrollable) */}
             {isActiveCommentSection && (
-                <div className="fixed inset-0 z-50 flex flex-col md:flex-row justify-end overflow-hidden">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-                        onClick={() => onToggleComments(post.id)}
-                    />
+                <div className="border-t border-stone-100 dark:border-zinc-800 bg-stone-50/50 dark:bg-bg-dark/20 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Header Area */}
+                    <div className="px-5 py-3 border-b border-stone-100 dark:border-zinc-800/50 flex justify-between items-center">
+                        <h3 className="font-bold text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                            Comments
+                            <span className="text-xs font-semibold text-stone-500 bg-stone-100 dark:bg-bg-cardDark px-1.5 py-0.5 rounded-md border border-stone-200 dark:border-zinc-800">
+                                {post.comments_count || 0}
+                            </span>
+                        </h3>
+                        <button
+                            onClick={() => onToggleComments(post.id)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-white transition-all active:scale-95 hover:bg-stone-200 dark:hover:bg-zinc-800"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
 
-                    {/* Drawer Content */}
-                    <div className="relative bg-white dark:bg-bg-dark w-full md:w-[450px] h-[85vh] md:h-full rounded-t-[2.5rem] md:rounded-t-none md:rounded-l-[2.5rem] flex flex-col shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-right duration-500 transition-all border-l border-white/10">
-                        {/* Header Area */}
-                        <div className="flex flex-col flex-shrink-0 px-6 pt-4 pb-2">
-                            {/* Mobile Handle */}
-                            <div className="md:hidden w-12 h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-full mx-auto mb-6" />
-
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 className="font-display font-black text-2xl text-stone-900 dark:text-white flex items-center gap-2">
-                                        Comments
-                                        <span className="text-sm font-medium text-stone-400 bg-stone-100 dark:bg-bg-cardDark px-2 py-0.5 rounded-full border border-stone-200 dark:border-zinc-800">
-                                            {post.comments_count || 0}
-                                        </span>
-                                    </h3>
-                                    <p className="text-xs text-stone-500 font-medium mt-0.5">Community Discussion</p>
-                                </div>
-                                <button
-                                    onClick={() => onToggleComments(post.id)}
-                                    className="p-2.5 rounded-2xl bg-stone-100 dark:bg-bg-cardDark text-stone-500 hover:text-stone-900 dark:hover:text-white transition-all active:scale-95 border border-stone-200 dark:border-zinc-800"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
+                    {/* Comments List (Scrollable to prevent elongating) */}
+                    <div className="max-h-[50vh] overflow-y-auto px-5 py-4 space-y-5 custom-scrollbar">
+                        {loadingComments ? (
+                            <div className="flex flex-col items-center justify-center py-10 gap-3">
+                                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                                <p className="text-xs font-bold text-stone-400 animate-pulse uppercase tracking-widest">Loading...</p>
                             </div>
-                        </div>
-
-                        {/* Comments List */}
-                        <div className="flex-1 overflow-y-auto px-6 py-2 space-y-5 custom-scrollbar">
-                            {loadingComments ? (
-                                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                    <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-                                    <p className="text-sm font-bold text-stone-400 animate-pulse uppercase tracking-widest">Loading Conversation...</p>
+                        ) : comments.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mb-4">
+                                    <MessageCircle className="w-6 h-6 text-emerald-500 opacity-50" />
                                 </div>
-                            ) : comments.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-center px-10">
-                                    <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mb-6">
-                                        <MessageCircle className="w-10 h-10 text-emerald-500 opacity-50" />
-                                    </div>
-                                    <h4 className="font-display font-bold text-lg text-stone-900 dark:text-white mb-2">No comments yet</h4>
-                                    <p className="text-sm text-stone-500 leading-relaxed">Starting a conversation is a great way to build your network. Be the first to share your thoughts!</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-6 pb-10">
-                                    {comments.map((comment, idx) => (
-                                        <div
-                                            key={comment.id}
-                                            className="flex gap-4 group animate-in slide-in-from-bottom-2 fade-in"
-                                            style={{ animationDelay: `${idx * 50}ms` }}
+                                <h4 className="font-bold text-sm text-stone-900 dark:text-white mb-1">No comments yet</h4>
+                                <p className="text-xs text-stone-500 leading-relaxed">Be the first to share your thoughts!</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {comments.map((comment, idx) => (
+                                    <div
+                                        key={comment.id}
+                                        className="flex gap-3 group animate-in slide-in-from-bottom-2 fade-in"
+                                        style={{ animationDelay: `${idx * 40}ms` }}
+                                    >
+                                        <Link
+                                            to={`/app/profile/${comment.profiles?.username || comment.author_id}`}
+                                            className="shrink-0"
                                         >
-                                            <Link
-                                                to={`/app/profile/${comment.profiles?.username || comment.author_id}`}
-                                                className="shrink-0"
-                                            >
-                                                <div className={`w-10 h-10 ${comment.profiles?.role === 'org' ? 'rounded-xl' : 'rounded-full'} overflow-hidden ring-2 ring-white dark:ring-zinc-900 shadow-sm transition-transform active:scale-90`}>
-                                                    <img
-                                                        src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                            </Link>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="bg-stone-50 dark:bg-bg-cardDark border border-stone-200/60 dark:border-zinc-800 rounded-[1.5rem] rounded-tl-none p-4 shadow-sm hover:shadow-md transition-all group-hover:border-emerald-500/30">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <Link
-                                                            to={`/app/profile/${comment.profiles?.username || comment.author_id}`}
-                                                            className="font-black text-stone-900 dark:text-white text-xs hover:text-emerald-500 transition-colors uppercase tracking-tight flex items-center gap-1.5"
+                                            <div className={`w-8 h-8 ${comment.profiles?.role === 'org' ? 'rounded-lg' : 'rounded-full'} overflow-hidden ring-1 ring-stone-200 dark:ring-zinc-800 shadow-sm`}>
+                                                <img
+                                                    src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.name || 'User')}&background=random`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        </Link>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="bg-white dark:bg-bg-cardDark border border-stone-200/60 dark:border-zinc-800 rounded-2xl rounded-tl-none p-3 shadow-sm group-hover:border-emerald-500/30 transition-colors">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <Link
+                                                        to={`/app/profile/${comment.profiles?.username || comment.author_id}`}
+                                                        className="font-bold text-stone-900 dark:text-white text-xs hover:text-emerald-500 transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        {comment.profiles?.name}
+                                                        {comment.profiles?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
+                                                    </Link>
+                                                    {currentUserId === comment.author_id && (
+                                                        <button
+                                                            onClick={() => { if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id); }}
+                                                            className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all opacity-0 group-hover:opacity-100"
                                                         >
-                                                            {comment.profiles?.name}
-                                                            {comment.profiles?.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
-                                                        </Link>
-                                                        {currentUserId === comment.author_id && (
-                                                            <button
-                                                                onClick={() => { if (confirm('Delete this comment?')) onDeleteComment(post.id, comment.id); }}
-                                                                className="text-stone-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all opacity-0 group-hover:opacity-100"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-stone-600 dark:text-stone-300 text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <div className="flex items-center gap-4 mt-2 px-1">
-                                                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                                                        {formatTimeAgo(comment.created_at)}
-                                                    </span>
-                                                    <button className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest hover:underline">Reply</button>
-                                                </div>
+                                                <p className="text-stone-700 dark:text-stone-300 text-[13px] leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-1.5 px-1">
+                                                <span className="text-[10px] font-medium text-stone-500">
+                                                    {formatTimeAgo(comment.created_at)}
+                                                </span>
+                                                <button className="text-[10px] font-bold text-stone-500 hover:text-emerald-600 dark:hover:text-emerald-500 transition-colors">Reply</button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="p-6 border-t border-stone-100 dark:border-zinc-900 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl flex-shrink-0">
-                            <div className="flex gap-3 items-end bg-stone-50 dark:bg-bg-cardDark border border-stone-200 dark:border-zinc-800 rounded-3xl p-2 pl-4 focus-within:ring-4 focus-within:ring-emerald-500/10 focus-within:border-emerald-500/50 transition-all">
-                                <textarea
-                                    className="flex-1 bg-transparent border-0 py-2.5 text-sm md:text-base text-stone-900 dark:text-white placeholder:text-stone-400 focus:ring-0 resize-none min-h-[44px] max-h-32 no-scrollbar"
-                                    placeholder="Add your voice to the conversation..."
-                                    rows={1}
-                                    value={commentText}
-                                    onChange={(e) => {
-                                        setCommentText(e.target.value);
-                                        e.target.style.height = 'auto';
-                                        e.target.style.height = `${e.target.scrollHeight}px`;
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleCommentSubmit();
-                                        }
-                                    }}
-                                />
-                                <button
-                                    onClick={handleCommentSubmit}
-                                    disabled={!commentText.trim() || loadingComments}
-                                    className="p-3 bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl hover:bg-emerald-600 dark:hover:bg-emerald-500 hover:text-white disabled:opacity-30 disabled:grayscale transition-all shadow-lg active:scale-90 shrink-0"
-                                >
-                                    <Send className="w-5 h-5" />
-                                </button>
+                                    </div>
+                                ))}
                             </div>
-                            <p className="text-[9px] text-center text-stone-400 font-bold uppercase tracking-widest mt-4 opacity-50">
-                                Be respectful and supportive. See our community guidelines.
-                            </p>
+                        )}
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="p-4 bg-stone-100/50 dark:bg-bg-cardDark/50 border-t border-stone-200 dark:border-zinc-800/80 rounded-b-[2rem]">
+                        <div className="flex gap-2 items-end bg-white dark:bg-bg-dark border border-stone-200 dark:border-zinc-700 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500/50 transition-all shadow-sm">
+                            <textarea
+                                className="flex-1 bg-transparent border-0 py-2 px-3 text-sm text-stone-900 dark:text-white placeholder:text-stone-400 focus:ring-0 resize-none min-h-[36px] max-h-24 no-scrollbar"
+                                placeholder="Add a comment..."
+                                rows={1}
+                                value={commentText}
+                                onChange={(e) => {
+                                    setCommentText(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleCommentSubmit();
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={handleCommentSubmit}
+                                disabled={!commentText.trim() || loadingComments}
+                                className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 disabled:opacity-40 disabled:grayscale transition-all active:scale-95 shrink-0 m-0.5"
+                            >
+                                <Send className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </div>

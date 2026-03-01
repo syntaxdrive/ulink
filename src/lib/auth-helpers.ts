@@ -61,13 +61,17 @@ export const initializeNativeAuth = () => {
 
         console.log('App opened with URL:', data.url);
 
+        // Close the browser tab manually on any deep link return
+        try {
+            await Browser.close();
+        } catch (e) {
+            console.error('Error closing browser:', e);
+        }
+
         // Supabase PKCE flow returns a 'code' parameter
         const code = url.searchParams.get('code');
 
         if (code) {
-            // Close the browser tab manually
-            await Browser.close();
-
             // Exchange the code for a real user session
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
@@ -77,7 +81,6 @@ export const initializeNativeAuth = () => {
 
         // Also handle implicit flow (if anyone switched it back)
         if (url.hash && url.hash.includes('access_token')) {
-            await Browser.close();
             // Supabase client auto-handles hash fragments if configured
         }
     });
