@@ -210,7 +210,8 @@ export default function PostItem({
     const getShareText = () => {
         const title = `Post by ${post.profiles?.name || 'someone'} on UniLink`;
         // Replace newlines and limit text to first ~100 chars
-        const cleanContent = post.content.replace(/\r?\n|\r/g, ' ');
+        const safeContent = post.content || '';
+        const cleanContent = safeContent.replace(/\r?\n|\r/g, ' ');
         const snippet = cleanContent.length > 100 ? `${cleanContent.substring(0, 100)}...` : cleanContent;
         return { title, text: `"${snippet}"\n\nCheck out this post on UniLink Nigeria!` };
     };
