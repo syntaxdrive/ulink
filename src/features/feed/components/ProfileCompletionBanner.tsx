@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Camera, GraduationCap, FileText, ChevronRight, X } from 'lucide-react';
+import { Camera, GraduationCap, FileText, ChevronRight, X, Globe } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ProfileCompletionBanner({ profile }: { profile: any }) {

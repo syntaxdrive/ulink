@@ -95,7 +95,6 @@ export function useFeed(communityId?: string) {
                     username,
                     avatar_url,
                     is_verified,
-                    gold_verified,
                     headline,
                     role,
                     email,
@@ -121,24 +120,24 @@ export function useFeed(communityId?: string) {
         let { data, error } = await query;
 
         if (error) {
-            console.error('Error fetching posts:', error);
-            // Fallback: minimal select without gold_verified in case column doesn't exist
+            console.error('Error fetching posts:', JSON.stringify(error, null, 2));
+            // Fallback: minimal select without potentially missing FK joins or columns
             const fallback = communityId
                 ? await supabase
                     .from('posts')
-                    .select(`*, profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email), community: community_id(id, name, slug, icon_url)`)
+                    .select(`*, profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), community: community_id(id, name, slug, icon_url)`)
                     .eq('community_id', communityId)
                     .order('created_at', { ascending: false })
-                    .limit(20)
+                    .limit(POSTS_PER_PAGE * pageNumber)
                 : await supabase
                     .from('posts')
-                    .select(`*, profiles: author_id(id, name, username, avatar_url, is_verified, headline, role, email), community: community_id(id, name, slug, icon_url)`)
+                    .select(`*, profiles: author_id(id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), community: community_id(id, name, slug, icon_url)`)
                     .or('community_id.is.null,shared_to_feed.eq.true')
                     .order('created_at', { ascending: false })
-                    .limit(20);
+                    .limit(POSTS_PER_PAGE * pageNumber);
 
             if (fallback.error) {
-                console.error('Fallback fetch also failed:', fallback.error);
+                console.error('Fallback fetch failed:', JSON.stringify(fallback.error, null, 2));
                 if (isInitial) setLoading(false);
                 return;
             }
