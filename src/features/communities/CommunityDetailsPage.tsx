@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Globe, Lock, Settings, Loader2, Check, X } from 'lucide-react';
+import { Users, Globe, Lock, Settings, Loader2, Check, X, Share2, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { shareToWhatsApp, nativeShare } from '../../utils/shareUtils';
 import { type Community } from '../../types';
 import PostItem from '../feed/components/PostItem';
 import CreatePost from '../feed/components/CreatePost';
@@ -178,6 +179,23 @@ export default function CommunityDetailsPage() {
         }
     };
 
+    const handleShareCommunity = async () => {
+        if (!community) return;
+        const url = `${window.location.origin}/app/communities/${community.slug}`;
+        const title = `${community.name} on UniLink`;
+        let snippet = community.description ? community.description.replace(/\r?\n|\r/g, ' ') : '';
+        if (snippet.length > 100) snippet = `${snippet.substring(0, 100)}...`;
+
+        const text = snippet
+            ? `"${snippet}"\n\nJoin the "${community.name}" community on UniLink Nigeria, the largest network for university students!`
+            : `Join the "${community.name}" community on UniLink Nigeria, the largest network for university students!`;
+
+        const shared = await nativeShare(title, text, url);
+        if (!shared) {
+            shareToWhatsApp(text, url);
+        }
+    };
+
     if (loading) return <div className="p-10 text-center"><span className="loading loading-spinner text-indigo-600"></span></div>;
     if (!community) return null;
 
@@ -221,6 +239,13 @@ export default function CommunityDetailsPage() {
                         </div>
 
                         <div className="flex gap-3 w-full md:w-auto">
+                            <button
+                                onClick={handleShareCommunity}
+                                className="p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-colors border border-emerald-100"
+                                title="Share Community"
+                            >
+                                <Share2 className="w-5 h-5" />
+                            </button>
                             <button
                                 onClick={handleJoin}
                                 disabled={membershipStatus === 'pending'}

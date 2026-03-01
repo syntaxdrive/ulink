@@ -9,6 +9,7 @@ import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 import { supabase } from '../../../lib/supabase';
 import { signInWithGoogle } from '../../../lib/auth-helpers';
+import { shareToWhatsApp, nativeShare } from '../../../utils/shareUtils';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -201,8 +202,40 @@ export default function PostItem({
     };
 
     const copyLink = () => {
-        navigator.clipboard.writeText(`${window.location.origin}/app/post/${post.id}`);
+        const url = `${window.location.origin}/app/post/${post.id}`;
+        navigator.clipboard.writeText(url);
         alert('Link copied to clipboard!');
+    };
+
+    const getShareText = () => {
+        const title = `Post by ${post.profiles?.name || 'someone'} on UniLink`;
+        // Replace newlines and limit text to first ~100 chars
+        const cleanContent = post.content.replace(/\r?\n|\r/g, ' ');
+        const snippet = cleanContent.length > 100 ? `${cleanContent.substring(0, 100)}...` : cleanContent;
+        return { title, text: `"${snippet}"\n\nCheck out this post on UniLink Nigeria!` };
+    };
+
+    const handleShare = async (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const url = `${window.location.origin}/app/post/${post.id}`;
+        const { title, text } = getShareText();
+
+        const shared = await nativeShare(title, text, url);
+        if (!shared) {
+            // Fallback to copy if native share fails or is unsupported
+            copyLink();
+        }
+    };
+
+    const handleWhatsAppShare = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const url = `${window.location.origin}/app/post/${post.id}`;
+        const { text } = getShareText();
+        shareToWhatsApp(text, url);
+        onToggleMenu(post.id); // Close menu
     };
 
     // Truncation Logic
@@ -422,6 +455,13 @@ export default function PostItem({
                                         </button>
                                     )}
                                     <button
+                                        onClick={handleWhatsAppShare}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-[#25D366] hover:bg-[#25D366]/10 font-medium transition-colors flex items-center gap-2.5"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        Share to WhatsApp
+                                    </button>
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
                                         className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
                                     >
@@ -431,6 +471,13 @@ export default function PostItem({
                                 </>
                             ) : (
                                 <>
+                                    <button
+                                        onClick={handleWhatsAppShare}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-[#25D366] hover:bg-[#25D366]/10 font-medium transition-colors flex items-center gap-2.5"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        Share to WhatsApp
+                                    </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
                                         className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
@@ -693,7 +740,7 @@ export default function PostItem({
                 </button>
 
                 <button
-                    onClick={copyLink}
+                    onClick={handleShare}
                     className="flex items-center group transition-colors p-2 ml-auto text-stone-900 dark:text-zinc-100 hover:text-stone-600 dark:hover:text-zinc-400"
                 >
                     <Share2 className="w-[22px] h-[22px] transition-all active:scale-90" />

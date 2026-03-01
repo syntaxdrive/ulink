@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Job } from '../../types';
-import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, CheckCircle, XCircle, Users, MapPin, Calendar, DollarSign, Clock } from 'lucide-react';
+import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, CheckCircle, XCircle, Users, MapPin, Calendar, DollarSign, Clock, Share2, MessageCircle } from 'lucide-react';
+import { shareToWhatsApp, nativeShare } from '../../utils/shareUtils';
 
 export default function JobsPage() {
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -20,6 +21,25 @@ export default function JobsPage() {
 
     const openJobDetails = (job: Job) => {
         setSelectedJob(job);
+    };
+
+    const handleShareJob = async (job: Job, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = `${window.location.origin}/app/jobs?job=${job.id}`;
+        const title = `${job.title} at ${job.company}`;
+
+        let snippet = job.description ? job.description.replace(/\r?\n|\r/g, ' ') : '';
+        if (snippet.length > 100) snippet = `${snippet.substring(0, 100)}...`;
+
+        const text = snippet
+            ? `"${snippet}"\n\nCheck out this ${job.type} opportunity at ${job.company} on UniLink Nigeria!`
+            : `Check out this ${job.type} opportunity at ${job.company} on UniLink Nigeria!`;
+
+        const shared = await nativeShare(title, text, url);
+        if (!shared) {
+            shareToWhatsApp(text, url);
+        }
     };
 
     const closeJobDetails = () => {
@@ -619,20 +639,29 @@ export default function JobsPage() {
                                     Position Closed
                                 </button>
                             ) : (
-                                myApplications[job.id] ? (
-                                    <div className="w-full py-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-center flex items-center justify-center gap-2 cursor-default border border-emerald-100">
-                                        <CheckCircle className="w-4 h-4" />
-                                        {myApplications[job.id].charAt(0).toUpperCase() + myApplications[job.id].slice(1)}
-                                    </div>
-                                ) : (
+                                <div className="flex gap-2 w-full">
+                                    {myApplications[job.id] ? (
+                                        <div className="flex-1 py-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-center flex items-center justify-center gap-2 cursor-default border border-emerald-100">
+                                            <CheckCircle className="w-4 h-4" />
+                                            {myApplications[job.id].charAt(0).toUpperCase() + myApplications[job.id].slice(1)}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleApply(job)}
+                                            className="flex-1 py-3 rounded-xl bg-stone-50 text-stone-900 font-bold text-center hover:bg-stone-900 hover:text-white transition-all group-hover:shadow-lg flex items-center justify-center gap-2"
+                                        >
+                                            <Globe className="w-4 h-4" />
+                                            Apply Now
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => handleApply(job)}
-                                        className="block w-full py-3 rounded-xl bg-stone-50 text-stone-900 font-bold text-center hover:bg-stone-900 hover:text-white transition-all group-hover:shadow-lg flex items-center justify-center gap-2"
+                                        onClick={(e) => handleShareJob(job, e)}
+                                        className="py-3 px-4 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 transition-all font-bold flex items-center justify-center gap-2"
+                                        title="Share to WhatsApp"
                                     >
-                                        <Globe className="w-4 h-4" />
-                                        Apply Now
+                                        <Share2 className="w-4 h-4" />
                                     </button>
-                                )
+                                </div>
                             )}
                         </div>
                     ))
