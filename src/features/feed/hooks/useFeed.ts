@@ -19,6 +19,12 @@ export function useFeed(communityId?: string) {
     const [comments, setComments] = useState<Record<string, Comment[]>>({});
     const [loadingComments, setLoadingComments] = useState(false);
 
+    // Pagination State
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const POSTS_PER_PAGE = 30;
+
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -72,8 +78,9 @@ export function useFeed(communityId?: string) {
         };
     }, [communityId]);
 
-    const fetchPosts = async (userId?: string) => {
-        setLoading(true);
+    const fetchPosts = async (userId?: string, pageNumber = 1) => {
+        const isInitial = pageNumber === 1;
+        if (isInitial) setLoading(true);
 
         // Simple, safe query — no self-referential or potentially unregistered FK joins
         let query = supabase
@@ -99,9 +106,8 @@ export function useFeed(communityId?: string) {
                     icon_url
                 )
             `)
-            `)
             .order('created_at', { ascending: false })
-            .limit(30);
+            .limit(POSTS_PER_PAGE * pageNumber);
 
         if (communityId) {
             query = query.eq('community_id', communityId);
@@ -131,14 +137,14 @@ export function useFeed(communityId?: string) {
 
             if (fallback.error) {
                 console.error('Fallback fetch also failed:', fallback.error);
-                setLoading(false);
+                if (isInitial) setLoading(false);
                 return;
             }
             data = fallback.data;
             error = null;
         }
 
-        console.log(`Fetched ${ data?.length || 0 } posts from database`);
+        console.log(`Fetched ${data?.length || 0} posts from database`);
 
         if (!error && data) {
             // VIP Users List
@@ -291,8 +297,18 @@ export function useFeed(communityId?: string) {
             formatted.sort((a: any, b: any) => b._algorithmic_score - a._algorithmic_score);
 
             setPosts(formatted);
+            setHasMore(formatted.length >= POSTS_PER_PAGE * pageNumber);
         }
-        setLoading(false);
+        if (isInitial) setLoading(false);
+    };
+
+    const loadMorePosts = async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        setPage(nextPage);
+        await fetchPosts(currentUserId || undefined, nextPage);
+        setLoadingMore(false);
     };
 
     const searchPosts = async (query: string) => {
@@ -337,7 +353,7 @@ export function useFeed(communityId?: string) {
                     )
                 )
                     `)
-            .ilike('content', `% ${ query }% `)
+            .ilike('content', `% ${query}% `)
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -452,8 +468,8 @@ export function useFeed(communityId?: string) {
             // Upload Images
             for (const file of imageFiles) {
                 const fileExt = file.name.split('.').pop();
-                const fileName = `${ Date.now() }_${ Math.random() }.${ fileExt } `;
-                const filePath = `posts / ${ fileName } `;
+                const fileName = `${Date.now()}_${Math.random()}.${fileExt} `;
+                const filePath = `posts / ${fileName} `;
                 const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, file);
 
                 if (uploadError) {
@@ -468,8 +484,8 @@ export function useFeed(communityId?: string) {
             // Upload Video
             if (videoFile) {
                 const fileExt = videoFile.name.split('.').pop();
-                const fileName = `video_${ Date.now() }_${ Math.random() }.${ fileExt } `;
-                const filePath = `posts / ${ fileName } `;
+                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt} `;
+                const filePath = `posts / ${fileName} `;
                 const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, videoFile);
 
                 if (uploadError) {
@@ -684,7 +700,7 @@ export function useFeed(communityId?: string) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const tempId = `temp - ${ Date.now() } `;
+        const tempId = `temp - ${Date.now()} `;
         const optimisticComment: any = {
             id: tempId,
             post_id: postId,
@@ -812,6 +828,9 @@ export function useFeed(communityId?: string) {
         votePoll,
         searchPosts,
         fetchSinglePost,
-        currentUserProfile
+        currentUserProfile,
+        hasMore,
+        loadingMore,
+        loadMorePosts
     };
 }

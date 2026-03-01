@@ -79,7 +79,10 @@ export default function FeedPage() {
         reportPost,
         votePoll,
         searchPosts,
-        currentUserProfile
+        currentUserProfile,
+        hasMore,
+        loadingMore,
+        loadMorePosts
     } = useFeed();
 
     const { posts: sponsoredPosts } = useSponsoredPosts();
@@ -339,6 +342,32 @@ export default function FeedPage() {
                                     </div>
                                 );
                             })
+                        )}
+
+                        {/* Load More Button */}
+                        {!loading && !searchQuery && posts.length > 0 && hasMore && (
+                            <div className="py-6 flex justify-center">
+                                <button
+                                    onClick={loadMorePosts}
+                                    disabled={loadingMore}
+                                    className="px-6 py-2.5 bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300 rounded-full font-semibold text-sm shadow-sm hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {loadingMore ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        'Load More'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+
+                        {!loading && !searchQuery && posts.length > 0 && !hasMore && (
+                            <div className="py-8 text-center text-stone-400 dark:text-zinc-500 text-sm font-medium">
+                                You've reached the end of the feed! 🚀
+                            </div>
                         )}
                     </div>
                 </div>
