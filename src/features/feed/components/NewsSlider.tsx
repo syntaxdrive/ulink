@@ -12,17 +12,23 @@ interface NewsItem {
 export default function NewsSlider() {
     const [news, setNews] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeCategory, setActiveCategory] = useState<string>('Tech');
 
-    const RSS_FEEDS = [
-        'https://techcrunch.com/feed/',
-        // 'https://www.theverge.com/rss/index.xml' 
+    const CATEGORIES = [
+        { name: 'Tech', url: 'https://techcrunch.com/feed/' },
+        { name: 'Economics', url: 'https://www.economist.com/finance-and-economics/rss.xml' }, // The Economist Finance & Economics
+        { name: 'Engineering', url: 'https://spectrum.ieee.org/feeds/feed.rss' }, // IEEE Spectrum
+        { name: 'Campus', url: 'https://www.theguardian.com/education/students/rss' } // The Guardian Students
     ];
 
     useEffect(() => {
         const fetchNews = async () => {
+            setLoading(true);
             try {
+                // Find the selected feed URL
+                const selectedFeed = CATEGORIES.find(c => c.name === activeCategory)?.url || CATEGORIES[0].url;
                 // We use rss2json to bypass CORS and parse XML easily
-                const feedUrl = encodeURIComponent(RSS_FEEDS[0]);
+                const feedUrl = encodeURIComponent(selectedFeed);
                 const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${feedUrl}&api_key=`);
                 const data = await response.json();
 
@@ -69,7 +75,7 @@ export default function NewsSlider() {
         };
 
         fetchNews();
-    }, []);
+    }, [activeCategory]);
 
     if (loading) {
         return (
@@ -87,8 +93,6 @@ export default function NewsSlider() {
         );
     }
 
-    if (news.length === 0) return null;
-
     return (
         <div className="w-full mb-4 group relative">
             <div className="px-4 flex items-center justify-between mb-3">
@@ -105,43 +109,69 @@ export default function NewsSlider() {
                 </span>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto no-scrollbar px-4 pb-2 snap-x snap-mandatory">
-                {news.map((item, id) => (
-                    <a
-                        key={id}
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative min-w-[260px] max-w-[260px] md:min-w-[300px] md:max-w-[300px] h-48 rounded-2xl overflow-hidden snap-center flex-shrink-0 flex flex-col justify-end group/card text-left transition-transform active:scale-95 border border-stone-200/50 dark:border-zinc-800/50 shadow-sm"
+            {/* Category Selector */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 mb-3 pb-1">
+                {CATEGORIES.map(category => (
+                    <button
+                        key={category.name}
+                        onClick={() => setActiveCategory(category.name)}
+                        className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors border ${activeCategory === category.name
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                : 'bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300'
+                            }`}
                     >
-                        {/* Background Image */}
-                        <img
-                            src={item.thumbnail}
-                            alt={item.title}
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
-                        />
-
-                        {/* Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-                        {/* Content */}
-                        <div className="relative z-10 p-4">
-                            <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase mb-1.5 block">
-                                {item.pubDate}
-                            </span>
-                            <h4 className="text-white font-bold text-sm leading-tight mb-1.5 line-clamp-2 shadow-black drop-shadow-md">
-                                {item.title}
-                            </h4>
-                            <div className="flex items-center gap-1.5 text-xs text-stone-300 font-medium opacity-80 group-hover/card:text-emerald-300 transition-colors">
-                                Read article <ExternalLink className="w-3 h-3" />
-                            </div>
-                        </div>
-                    </a>
+                        {category.name}
+                    </button>
                 ))}
-
-                {/* spacer for end padding in flex layout */}
-                <div className="min-w-[1px] flex-shrink-0" />
             </div>
+
+            {loading ? (
+                <div className="flex gap-4 overflow-x-hidden px-4 pb-2">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="min-w-[260px] md:min-w-[300px] h-48 bg-stone-100 dark:bg-zinc-800 rounded-2xl animate-pulse flex-shrink-0" />
+                    ))}
+                </div>
+            ) : news.length === 0 ? (
+                <div className="px-4 pb-2 text-sm text-stone-500 text-center">No news found for this category.</div>
+            ) : (
+                <div className="flex gap-4 overflow-x-auto no-scrollbar px-4 pb-2 snap-x snap-mandatory">
+                    {news.map((item, id) => (
+                        <a
+                            key={id}
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative min-w-[260px] max-w-[260px] md:min-w-[300px] md:max-w-[300px] h-48 rounded-2xl overflow-hidden snap-center flex-shrink-0 flex flex-col justify-end group/card text-left transition-transform active:scale-95 border border-stone-200/50 dark:border-zinc-800/50 shadow-sm"
+                        >
+                            {/* Background Image */}
+                            <img
+                                src={item.thumbnail}
+                                alt={item.title}
+                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
+                            />
+
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+                            {/* Content */}
+                            <div className="relative z-10 p-4">
+                                <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase mb-1.5 block">
+                                    {item.pubDate}
+                                </span>
+                                <h4 className="text-white font-bold text-sm leading-tight mb-1.5 line-clamp-2 shadow-black drop-shadow-md">
+                                    {item.title}
+                                </h4>
+                                <div className="flex items-center gap-1.5 text-xs text-stone-300 font-medium opacity-80 group-hover/card:text-emerald-300 transition-colors">
+                                    Read article <ExternalLink className="w-3 h-3" />
+                                </div>
+                            </div>
+                        </a>
+                    ))}
+
+                    {/* spacer for end padding in flex layout */}
+                    <div className="min-w-[1px] flex-shrink-0" />
+                </div>
+            )}
         </div>
     );
 }
