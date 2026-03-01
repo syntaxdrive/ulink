@@ -241,7 +241,16 @@ export default function DashboardLayout() {
     useEffect(() => {
         const ping = () => {
             supabase.rpc('update_last_seen').then(({ error }) => {
-                if (error) console.error('Activity heartbeat failed', error);
+                if (error) {
+                    const isAbort =
+                        error.message?.includes('AbortError') ||
+                        (error as any).code === 'ERR_ABORTED' ||
+                        (error as any).name === 'AbortError';
+
+                    if (!isAbort) {
+                        console.warn('Activity heartbeat failed:', error.message);
+                    }
+                }
             });
         };
 
