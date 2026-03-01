@@ -12,6 +12,7 @@ import { useFeed } from './hooks/useFeed';
 import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
 import ProfileCompletionBanner from './components/ProfileCompletionBanner';
+import NewsSlider from './components/NewsSlider';
 
 // Live activity messages that rotate in the ticker
 const ACTIVITY_LINES = [
@@ -247,6 +248,16 @@ export default function FeedPage() {
                         <div className="mb-1">
                             <CreatePost onCreate={createPost} user={currentUserProfile} />
                         </div>
+                    )}
+
+                    {/* Curated News Slider */}
+                    {!searchQuery && (
+                        <div className="mb-1 hidden lg:block">
+                            {/* Desktop only or show everywhere? the user asked for feed slider, let's show on all sizes */}
+                        </div>
+                    )}
+                    {!searchQuery && (
+                        <NewsSlider />
                     )}
 
                     {/* People Search Results */}
