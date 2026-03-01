@@ -172,7 +172,7 @@ export interface Job {
     id: string;
     title: string;
     company: string;
-    type: 'Internship' | 'Entry Level' | 'Full Time';
+    type: 'Internship' | 'Entry Level' | 'Full Time' | 'Scholarship';
     description?: string;
     application_link?: string;
     location?: string;
