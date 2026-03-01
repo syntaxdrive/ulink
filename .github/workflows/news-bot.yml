@@ -1,0 +1,32 @@
+name: Daily News Bot
+
+on:
+  schedule:
+    # Runs every day at 8:00 AM UTC (approx morning/mid-day Nigeria)
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Allows manual triggering from GitHub UI
+
+jobs:
+  post-news:
+    runs-name: Post Tech News to Feed
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run News Bot
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          # Recommended to use the explicit service role key here for the bot script to bypass RLS safely without logging in
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }} 
+        run: npx tsx src/scripts/fetch-news-bot.ts
