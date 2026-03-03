@@ -10,6 +10,12 @@ export function useFollow(profileId: string) {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
+        // Guard: don't query with an empty profileId
+        if (!profileId) {
+            setLoading(false);
+            return;
+        }
+
         fetchFollowStatus();
         fetchCounts();
 

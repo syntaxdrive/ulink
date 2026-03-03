@@ -5,6 +5,7 @@ import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText
 import type { Message, Profile } from '../../../types';
 import MessageItem from './MessageItem';
 import ForwardMessageModal from './ForwardMessageModal';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
 interface ChatWindowProps {
     activeChat: Profile;
@@ -32,7 +33,10 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const lastTypedRef = useRef<number>(0);
 
     const scrollRef = useRef<HTMLDivElement>(null);
+    const bottomAnchorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isAtBottom, setIsAtBottom] = useState(true);
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
 
     // Subscribe to Typing Events
     useEffect(() => {
@@ -99,12 +103,38 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         }
     };
 
-    // Auto-scroll to bottom
+    // Track scroll position to show/hide jump-to-bottom button
+    const handleScroll = () => {
+        if (!scrollRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        const atBottom = distanceFromBottom < 80;
+        setIsAtBottom(atBottom);
+        setShowScrollBtn(!atBottom && scrollHeight > clientHeight + 200);
+    };
+
+    const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+        bottomAnchorRef.current?.scrollIntoView({ behavior, block: 'end' });
+    };
+
+    // Auto-scroll to bottom on new messages — smooth when user is near bottom
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        if (isAtBottom) {
+            scrollToBottom('smooth');
         }
-    }, [messages, activeChat, replyingTo, isTyping]); // scroll when typing appears too
+    }, [messages, isTyping]);
+
+    // Scroll to bottom instantly when switching chats
+    useEffect(() => {
+        scrollToBottom('instant' as ScrollBehavior);
+        setIsAtBottom(true);
+        setShowScrollBtn(false);
+    }, [activeChat.id]);
+
+    // After reply/image added, scroll gently
+    useEffect(() => {
+        if (replyingTo || imageFile) scrollToBottom('smooth');
+    }, [replyingTo, imageFile]);
 
 
     const handleImageClick = () => {
@@ -261,24 +291,30 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         try {
             let imageUrl = null;
             if (imageFile) {
-                const fileExt = imageFile.name.split('.').pop();
-                const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
+                const isImage = imageFile.type.startsWith('image/');
 
-                const { error: uploadError } = await supabase.storage
-                    .from('uploads')
-                    .upload(fileName, imageFile);
-
-                if (uploadError) {
-                    console.error('Error uploading chat image:', uploadError);
-                    alert('Failed to send image.');
-                    return;
+                if (isImage && cloudinaryService.isConfigured()) {
+                    // Images → Cloudinary (f_auto,q_auto on delivery)
+                    try {
+                        const result = await cloudinaryService.uploadImage(imageFile, { folder: 'ulink/messages' });
+                        imageUrl = result.secureUrl;
+                    } catch (cloudErr) {
+                        console.warn('[Chat image] Cloudinary failed, falling back to Supabase:', cloudErr);
+                        // Supabase fallback for images
+                        const fileExt = imageFile.name.split('.').pop();
+                        const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
+                        const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, imageFile);
+                        if (uploadError) { alert('Failed to send image.'); return; }
+                        imageUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                    }
+                } else {
+                    // Non-image files (PDF, DOC, etc.) → always Supabase
+                    const fileExt = imageFile.name.split('.').pop();
+                    const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
+                    const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, imageFile);
+                    if (uploadError) { alert('Failed to send file.'); return; }
+                    imageUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
                 }
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('uploads')
-                    .getPublicUrl(fileName);
-
-                imageUrl = publicUrl;
             }
 
             // Pass simple args to parent/hook
@@ -348,9 +384,9 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-stone-50/50 flex">
+        <div className="flex-1 flex flex-col h-full bg-stone-50/50 dark:bg-black relative">
             {/* Header */}
-            <div className="p-4 bg-white border-b border-stone-100 flex items-center gap-3 shadow-sm z-10">
+            <div className="p-4 bg-white/95 dark:bg-black backdrop-blur-sm border-b border-stone-100 dark:border-zinc-800 flex items-center gap-3 shadow-sm z-10">
                 <button
                     onClick={onBack}
                     className="md:hidden p-2 -ml-2 text-stone-500 hover:text-stone-800 active:bg-stone-100 rounded-full transition-colors"
@@ -392,7 +428,9 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             {/* Messages List */}
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-4"
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll"
+                style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
                 {messages.map((msg) => (
                     <MessageItem
@@ -410,43 +448,54 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                 {/* Typing Indicator Bubble */}
                 {isTyping && (
                     <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-stone-100 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                            <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                            <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"></span>
+                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-stone-100 dark:border-zinc-800 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce"></span>
                         </div>
                     </div>
                 )}
+                {/* Bottom anchor for smooth scroll targeting */}
+                <div ref={bottomAnchorRef} className="h-0" />
             </div>
+
+            {/* Jump to Bottom Button */}
+            {showScrollBtn && (
+                <button
+                    onClick={() => scrollToBottom('smooth')}
+                    className="absolute bottom-24 right-4 z-20 p-2.5 bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-200 animate-in fade-in zoom-in-95 duration-200 hover:bg-emerald-700 active:scale-90 transition-all"
+                    title="Jump to latest"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </button>
+            )}
 
             {/* Reply Preview */}
             {(replyingTo || imageFile) && (
-                <div className="px-4 py-2 bg-stone-100 border-t border-stone-200 flex justify-between items-center text-sm text-stone-600">
+                <div className="px-4 py-2 bg-stone-100 dark:bg-zinc-900 border-t border-stone-200 dark:border-zinc-800 flex justify-between items-center text-sm text-stone-600 dark:text-zinc-400">
                     <div className="flex items-center gap-2">
                         {replyingTo && (
-                            <>
-                                <React.Fragment>
-                                    <span className="truncate max-w-[150px] md:max-w-md">Replying to: {replyingTo.content}</span>
-                                </React.Fragment>
-                            </>
+                            <span className="truncate max-w-[150px] md:max-w-md">Replying to: {replyingTo.content}</span>
                         )}
                         {imageFile && (
                             <div className="flex items-center gap-2 ml-4">
                                 {imagePreview ? (
                                     <>
                                         <ImageIcon className="w-4 h-4" />
-                                        <img src={imagePreview} className="w-8 h-8 rounded object-cover border" alt="preview" />
+                                        <img src={imagePreview} className="w-8 h-8 rounded object-cover border dark:border-zinc-700" alt="preview" />
                                     </>
                                 ) : (
                                     <>
                                         <FileText className="w-4 h-4" />
-                                        <span className="font-medium text-stone-900 truncate max-w-[120px]">{imageFile.name}</span>
+                                        <span className="font-medium text-stone-900 dark:text-white truncate max-w-[120px]">{imageFile.name}</span>
                                     </>
                                 )}
                             </div>
                         )}
                     </div>
-                    <button onClick={() => { setReplyingTo(null); clearImage(); }} className="p-1 hover:text-stone-900 shrink-0 ml-2">
+                    <button onClick={() => { setReplyingTo(null); clearImage(); }} className="p-1 hover:text-stone-900 dark:hover:text-white shrink-0 ml-2">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -454,12 +503,12 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
 
             {/* Input Area */}
             {isRecording ? (
-                <div className="p-4 bg-white border-t border-stone-100 flex items-center justify-between pb-safe">
+                <div className="p-4 bg-white dark:bg-zinc-900 border-t border-stone-100 dark:border-zinc-800 flex items-center justify-between pb-safe">
                     <div className="flex items-center gap-3 text-red-500 animate-pulse">
                         <div className="w-3 h-3 bg-red-500 rounded-full" />
                         <span className="font-mono font-medium">{formatTime(recordingTime)}</span>
                     </div>
-                    <div className="text-sm text-stone-500 font-medium">Recording voice note...</div>
+                    <div className="text-sm text-stone-500 dark:text-zinc-400 font-medium">Recording voice note...</div>
                     <button
                         onClick={stopRecording}
                         className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-transform active:scale-95 shadow-lg shadow-red-200"
@@ -468,13 +517,13 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                     </button>
                 </div>
             ) : (
-                <div className="p-4 bg-white border-t border-stone-100 pb-safe relative">
+                <div className="p-4 bg-white dark:bg-black border-t border-stone-100 dark:border-zinc-800 pb-safe relative">
                     {/* Sticker Picker Popover */}
                     {showStickers && (
-                        <div className="absolute bottom-full left-4 mb-2 bg-white rounded-2xl shadow-xl border border-stone-100 p-4 w-72 grid grid-cols-4 gap-2 animate-in slide-in-from-bottom-5 z-20">
-                            <div className="col-span-4 flex justify-between items-center mb-2 pb-2 border-b border-stone-50">
-                                <span className="text-xs font-bold text-stone-500 uppercase">Stickers</span>
-                                <button onClick={() => setShowStickers(false)} className="bg-stone-100 p-1 rounded-full"><X className="w-3 h-3" /></button>
+                        <div className="absolute bottom-full left-4 mb-2 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-stone-100 dark:border-zinc-800 p-4 w-72 grid grid-cols-4 gap-2 animate-in slide-in-from-bottom-5 z-20">
+                            <div className="col-span-4 flex justify-between items-center mb-2 pb-2 border-b border-stone-50 dark:border-zinc-800">
+                                <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase">Stickers</span>
+                                <button onClick={() => setShowStickers(false)} className="bg-stone-100 dark:bg-zinc-800 p-1 rounded-full"><X className="w-3 h-3 dark:text-zinc-400" /></button>
                             </div>
                             {['happy', 'love', 'cool', 'wink', 'cry', 'surprised', 'angry', 'confused', 'sleep', 'laugh', 'kiss', 'shades'].map(seed => (
                                 <button
@@ -498,7 +547,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         <button
                             type="button"
                             onClick={() => setShowStickers(!showStickers)}
-                            className={`p-2 rounded-xl transition-all ${showStickers ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-400 hover:text-emerald-600'}`}
+                            className={`p-2 rounded-xl transition-all ${showStickers ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-stone-50 dark:bg-zinc-800 text-stone-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400'}`}
                         >
                             <Smile className="w-5 h-5" />
                         </button>
@@ -506,7 +555,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         <button
                             type="button"
                             onClick={handleImageClick}
-                            className={`p-2 rounded-xl transition-all ${imageFile ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-400 hover:text-emerald-600'}`}
+                            className={`p-2 rounded-xl transition-all ${imageFile ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-stone-50 dark:bg-zinc-800 text-stone-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400'}`}
                         >
                             <Paperclip className="w-5 h-5" />
                         </button>
@@ -519,7 +568,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                                 handleTyping();
                             }}
                             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
-                            className="flex-1 px-4 py-2 rounded-xl bg-stone-50 border-none outline-none focus:ring-2 focus:ring-emerald-100"
+                            className="flex-1 px-4 py-2 rounded-xl bg-stone-50 dark:bg-zinc-950 border-none outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/40 text-stone-900 dark:text-zinc-100 placeholder:text-stone-400 dark:placeholder:text-zinc-600"
                             autoFocus
                         />
                         {newMessage.trim() || imageFile ? (
@@ -534,7 +583,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                             <button
                                 type="button"
                                 onClick={startRecording}
-                                className="p-2 bg-stone-50 text-stone-500 rounded-xl hover:bg-stone-200 transition-colors"
+                                className="p-2 bg-stone-50 dark:bg-zinc-800 text-stone-500 dark:text-zinc-400 rounded-xl hover:bg-stone-200 dark:hover:bg-zinc-700 transition-colors"
                                 title="Record Voice Note"
                             >
                                 <Mic className="w-5 h-5" />

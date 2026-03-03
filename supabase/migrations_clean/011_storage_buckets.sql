@@ -51,6 +51,17 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Resumes (PDFs for job applications)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'resumes',
+    'resumes',
+    true,
+    10485760, -- 10MB
+    ARRAY['application/pdf']
+)
+ON CONFLICT (id) DO NOTHING;
+
 --------------------------------------------------------------------------------
 -- 2. STORAGE POLICIES - COMMUNITY IMAGES
 --------------------------------------------------------------------------------
@@ -176,7 +187,32 @@ CREATE POLICY "Users can delete their own uploads"
     );
 
 --------------------------------------------------------------------------------
--- MIGRATION COMPLETE
+-- 6. STORAGE POLICIES - RESUMES
+--------------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "Resumes are publicly accessible" ON storage.objects;
+CREATE POLICY "Resumes are publicly accessible"
+    ON storage.objects FOR SELECT
+    USING (bucket_id = 'resumes');
+
+DROP POLICY IF EXISTS "Users can upload their own resumes" ON storage.objects;
+CREATE POLICY "Users can upload their own resumes"
+    ON storage.objects FOR INSERT
+    WITH CHECK (
+        bucket_id = 'resumes' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+DROP POLICY IF EXISTS "Users can delete their own resumes" ON storage.objects;
+CREATE POLICY "Users can delete their own resumes"
+    ON storage.objects FOR DELETE
+    USING (
+        bucket_id = 'resumes' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+--------------------------------------------------------------------------------
+-- 7. MIGRATION COMPLETE
 --------------------------------------------------------------------------------
 
 DO $$

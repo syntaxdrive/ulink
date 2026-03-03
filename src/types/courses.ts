@@ -9,6 +9,7 @@ export type CourseCategory =
     | 'Other';
 
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced';
+export type CourseContentType = 'video' | 'document' | 'both';
 
 export interface Course {
     id: string;
@@ -28,10 +29,18 @@ export interface Course {
     created_at: string;
     updated_at: string;
 
+    // Document fields (optional — course may be video-only)
+    document_url: string | null;
+    document_name: string | null;
+    document_size: number | null;
+    document_type: string | null;
+    content_type: CourseContentType;
+
     // Joined data
     profiles?: {
         id: string;
         name: string;
+        username: string | null;
         avatar_url: string | null;
         university: string | null;
         is_verified: boolean;
@@ -40,6 +49,32 @@ export interface Course {
     // User interaction states
     user_has_liked?: boolean;
     user_has_enrolled?: boolean;
+
+    // Attached documents (joined when needed)
+    course_documents?: CourseDocument[];
+}
+
+export interface CourseDocument {
+    id: string;
+    course_id: string;
+    uploader_id: string;
+    name: string;
+    storage_path: string;
+    public_url: string;
+    file_type: string;
+    file_size: number;
+    downloads_count: number;
+    created_at: string;
+}
+
+export interface UserDocumentDownload {
+    id: string;
+    user_id: string;
+    document_id: string;
+    downloaded_at: string;
+    course_documents?: CourseDocument & {
+        courses?: Pick<Course, 'id' | 'title' | 'category'>;
+    };
 }
 
 export interface CourseEnrollment {
@@ -68,6 +103,7 @@ export interface CourseComment {
     profiles?: {
         id: string;
         name: string;
+        username: string | null;
         avatar_url: string | null;
     };
 }
@@ -84,3 +120,32 @@ export const COURSE_CATEGORIES: Record<CourseCategory, string> = {
 };
 
 export const COURSE_LEVELS: CourseLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
+
+// Accepted document MIME types
+export const ACCEPTED_DOC_TYPES: Record<string, string> = {
+    'application/pdf': 'PDF',
+    'application/msword': 'DOC',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+    'application/vnd.ms-powerpoint': 'PPT',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+    'application/vnd.ms-excel': 'XLS',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+    'text/plain': 'TXT',
+};
+
+export const MAX_DOC_SIZE_MB = 25;
+export const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
+
+export function getDocIcon(mimeType: string): string {
+    if (mimeType === 'application/pdf') return '📄';
+    if (mimeType.includes('word')) return '📝';
+    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📊';
+    if (mimeType.includes('excel') || mimeType.includes('sheet')) return '📈';
+    return '📃';
+}
+
+export function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

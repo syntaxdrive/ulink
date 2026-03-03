@@ -9,48 +9,98 @@ import WelcomeMessage from './components/WelcomeMessage';
 import EmptyFeedState from './components/EmptyFeedState';
 import { FeedLoadingState } from './components/PostSkeleton';
 import { useFeed } from './hooks/useFeed';
+import { useFeedStore } from '../../stores/useFeedStore';
 import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
 import ProfileCompletionBanner from './components/ProfileCompletionBanner';
 import NewsSlider from './components/NewsSlider';
 
-// Live activity messages that rotate in the ticker
-const ACTIVITY_LINES = [
-    '🔥 Someone just liked a trending post',
-    '💬 New comment on a popular discussion',
-    '🚀 A student shared an exciting opportunity',
-    '🎓 New academic resource posted',
-    '⚡ Campus challenge is heating up — join now!',
-    '🏆 Leaderboard update — check your rank!',
-    '📢 New community post in your network',
-    '🤝 Someone connected with you on campus',
-];
+
+
 
 function LiveTicker({ postCount }: { postCount: number }) {
-    const [idx, setIdx] = useState(0);
+    const [message, setMessage] = useState('🌐 UniLink is live — students are active right now');
     const [visible, setVisible] = useState(true);
+    const [isRealEvent, setIsRealEvent] = useState(false);
+
+    const showMessage = (msg: string, real = false) => {
+        setVisible(false);
+        setTimeout(() => {
+            setMessage(msg);
+            setIsRealEvent(real);
+            setVisible(true);
+        }, 250);
+    };
+
+    // Fetch name helper
+    const getName = async (userId: string): Promise<string> => {
+        const { data } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', userId)
+            .single();
+        return data?.name?.split(' ')[0] || 'Someone';
+    };
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setVisible(false);
-            setTimeout(() => {
-                setIdx(i => (i + 1) % ACTIVITY_LINES.length);
-                setVisible(true);
-            }, 300);
-        }, 4000);
-        return () => clearInterval(interval);
+        const channel = supabase
+            .channel('live-ticker')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload) => {
+                const name = await getName(payload.new.author_id);
+                showMessage(`✍️ ${name} just posted something new`, true);
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, async (payload) => {
+                const name = await getName(payload.new.author_id);
+                showMessage(`💬 ${name} just dropped a comment`, true);
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, async (payload) => {
+                const name = await getName(payload.new.user_id);
+                showMessage(`❤️ ${name} liked a post`, true);
+            })
+            .subscribe();
+
+        // Rotate idle messages when nothing is happening
+        const IDLE = [
+            '🌐 UniLink is live — students are active right now',
+            '⚡ Campus challenge is heating up — join now!',
+            '🏆 Check the leaderboard — see where you rank!',
+            '🤝 Grow your network — connect with classmates',
+            '📢 Explore communities on your campus',
+        ];
+        let idleIdx = 0;
+        const idleTimer = setInterval(() => {
+            // Only show idle if no real event is currently displayed
+            setIsRealEvent(prev => {
+                if (!prev) {
+                    idleIdx = (idleIdx + 1) % IDLE.length;
+                    showMessage(IDLE[idleIdx], false);
+                }
+                return prev;
+            });
+        }, 6000);
+
+        // Clear "real" flag after a few seconds so idle rotation resumes
+        return () => {
+            supabase.removeChannel(channel);
+            clearInterval(idleTimer);
+        };
     }, []);
+
+    // Reset isRealEvent after 8s so idle rotation can resume
+    useEffect(() => {
+        if (!isRealEvent) return;
+        const t = setTimeout(() => setIsRealEvent(false), 8000);
+        return () => clearTimeout(t);
+    }, [isRealEvent, message]);
 
     return (
         <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/30 rounded-xl px-3 py-2 overflow-hidden">
             <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isRealEvent ? 'animate-ping' : 'animate-pulse'}`} />
                 <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Live</span>
             </div>
-            <p
-                className={`text-xs text-emerald-800 dark:text-emerald-300 truncate transition-all duration-300 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}`}
-            >
-                {ACTIVITY_LINES[idx]}
+            <p className={`text-xs text-emerald-800 dark:text-emerald-300 truncate transition-all duration-300 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}`}>
+                {message}
             </p>
             {postCount > 0 && (
                 <span className="flex-shrink-0 ml-auto text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
@@ -60,6 +110,7 @@ function LiveTicker({ postCount }: { postCount: number }) {
         </div>
     );
 }
+
 
 export default function FeedPage() {
     const navigate = useNavigate();
@@ -132,18 +183,19 @@ export default function FeedPage() {
         setActiveMenuPostId(prev => (prev === postId ? null : postId));
     };
 
-    // Hashtag Logic
-    const trendingTags = posts.reduce((acc, post) => {
+    // Hashtag Logic - Use all store posts to get more trends
+    const { posts: allStorePosts } = useFeedStore();
+    const trendingTags = allStorePosts.reduce((acc: Record<string, number>, post: any) => {
         const tags = (post.content || '').match(/#[a-z0-9_]+/gi) || [];
-        tags.forEach(tag => {
+        tags.forEach((tag: string) => {
             acc[tag] = (acc[tag] || 0) + 1;
         });
         return acc;
     }, {} as Record<string, number>);
 
     const sortedTags = Object.entries(trendingTags)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 6)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
+        .slice(0, 8)
         .map(([tag]) => tag);
 
     // Smart slider positions
@@ -195,7 +247,7 @@ export default function FeedPage() {
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-4 py-2.5 bg-white/90 dark:bg-bg-cardDark/90 backdrop-blur-sm border border-stone-200/60 dark:border-zinc-800/60 rounded-xl text-sm text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-sm transition-all"
+                                className="block w-full pl-10 pr-4 py-2.5 bg-white/90 dark:bg-black/90 backdrop-blur-sm border border-stone-200/60 dark:border-zinc-800/60 rounded-xl text-sm text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-sm transition-all"
                                 placeholder="Search posts, people, topics…"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -212,7 +264,7 @@ export default function FeedPage() {
                                 className={({ isActive }) =>
                                     `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${isActive
                                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30'
-                                        : 'bg-white dark:bg-bg-cardDark text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
+                                        : 'bg-white dark:bg-black text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
                                     }`
                                 }
                             >
@@ -224,7 +276,27 @@ export default function FeedPage() {
 
                     {/* Live Activity Ticker */}
                     {!searchQuery && (
-                        <div className="px-4 lg:px-0">
+                        <div className="px-4 lg:px-0 space-y-3">
+                            {/* Trending Tags (Mobile only) */}
+                            {sortedTags.length > 0 && (
+                                <div className="lg:hidden">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                        <span className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-600 tracking-widest">Trending</span>
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                        {sortedTags.map(tag => (
+                                            <button
+                                                key={tag}
+                                                onClick={() => setSearchQuery(tag)}
+                                                className="px-3 py-1.5 rounded-full bg-stone-100 dark:bg-black text-stone-600 dark:text-zinc-300 text-[11px] font-bold border border-stone-200 dark:border-zinc-800 whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5"
+                                            >
+                                                {tag}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <LiveTicker postCount={posts.length} />
                         </div>
                     )}
@@ -250,15 +322,16 @@ export default function FeedPage() {
                         </div>
                     )}
 
-                    {/* Curated News Slider */}
-                    {!searchQuery && (
-                        <div className="mb-1 hidden lg:block">
-                            {/* Desktop only or show everywhere? the user asked for feed slider, let's show on all sizes */}
-                        </div>
-                    )}
-                    {!searchQuery && (
+                    {/* News Slider (Curated Curations) */}
+                    <div className="mb-2">
+                        {searchQuery && (
+                            <div className="px-5 mb-3 flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-widest">Recommended News</h3>
+                            </div>
+                        )}
                         <NewsSlider />
-                    )}
+                    </div>
 
                     {/* People Search Results */}
                     {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (
@@ -388,7 +461,7 @@ export default function FeedPage() {
 
                     {/* Who's Active Now */}
                     {activeUsers.length > 0 && (
-                        <div className="bg-white/80 dark:bg-bg-cardDark/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                        <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
                             <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 Active on campus
@@ -418,7 +491,7 @@ export default function FeedPage() {
                     )}
 
                     {/* Trending Topics */}
-                    <div className="bg-white/80 dark:bg-bg-cardDark/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                    <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
                         <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                             Trending topics
@@ -449,7 +522,7 @@ export default function FeedPage() {
                     </div>
 
                     {/* Quick Actions CTA */}
-                    <div className="relative overflow-hidden bg-white/70 dark:bg-bg-cardDark/70 backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
+                    <div className="relative overflow-hidden bg-white/70 dark:bg-bg-cardDark/70 dark-card backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
                         {/* Highlights */}
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
                         <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />

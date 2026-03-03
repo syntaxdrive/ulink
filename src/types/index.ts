@@ -53,6 +53,8 @@ export interface Profile {
     industry?: string; // For organizations
     resume_url?: string; // Resume PDF URL
     points?: number; // User points for leaderboard
+    referral_code?: string;
+    referred_by?: string;
 }
 
 export interface Project {
@@ -66,7 +68,10 @@ export interface Comment {
     id: string;
     post_id: string;
     author_id: string;
-    content: string;
+    content: string | null;
+    sticker_url?: string;
+    type: 'text' | 'sticker' | 'image';
+    parent_id?: string;
     created_at: string;
     author?: Profile;
     profiles?: Profile; // For join

@@ -37,12 +37,12 @@ export function useLocalNotifications() {
             // 2. Handle notification tap — deep link to the right screen
             await LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
                 const extra = event.notification.extra;
-                if (extra?.type === 'message') {
+                if (extra?.type === 'message' || extra?.type === 'chat') {
                     navigate(`/app/messages${extra.chat_id ? `?chat=${extra.chat_id}` : ''}`);
-                } else if (extra?.type === 'connection') {
-                    navigate('/app/notifications');
-                } else if (extra?.type === 'post') {
-                    navigate(extra.post_id ? `/app/post/${extra.post_id}` : '/app');
+                } else if (extra?.type === 'connection' || extra?.type === 'connection_accepted') {
+                    navigate('/app/network');
+                } else if (['post', 'like', 'comment', 'repost', 'mention'].includes(extra?.type)) {
+                    navigate(extra.post_id ? `/app/post/${extra.post_id}` : '/app/notifications');
                 } else {
                     navigate('/app/notifications');
                 }
@@ -63,7 +63,7 @@ export function useLocalNotifications() {
             // 4. Initial check when app first opens
             await checkMissedNotifications();
 
-            // 5. Schedule Inactivity Reminder
+            // 5. Schedule Inactivity Reminder (Not opened app today)
             const INACTIVITY_NOTIF_ID = 888888;
             App.addListener('appStateChange', async ({ isActive }) => {
                 if (isActive) {
@@ -74,15 +74,20 @@ export function useLocalNotifications() {
                     await LocalNotifications.schedule({
                         notifications: [{
                             id: INACTIVITY_NOTIF_ID,
-                            title: 'We miss you!',
-                            body: 'Catch up on the latest posts, connections, and updates on UniLink.',
+                            title: '🌟 Stay Connected!',
+                            body: 'You haven\'t checked your UniLink updates today. See what\'s happening on your campus!',
                             smallIcon: 'ic_launcher',
                             iconColor: '#059669',
-                            schedule: { at: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+                            schedule: { at: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+                            extra: { type: 'inactivity' }
                         }]
                     });
                 }
             });
+
+            // 6. Handle Background Push Readiness (Placeholder for FCM)
+            // Note: True FCM requires @capacitor/push-notifications and google-services.json
+            console.log('[Notifications] Local Pulse system active');
         };
 
         setup();
@@ -149,22 +154,47 @@ export function useLocalNotifications() {
                 });
             }
 
+            // Check for new community join requests since last check
+            const { data: newCommunityRequests } = await supabase
+                .from('notifications')
+                .select('id, content, type, data')
+                .eq('user_id', user.id)
+                .in('type', ['community_join_request', 'community_join_accepted'])
+                .eq('read', false)
+                .gt('created_at', since)
+                .limit(3);
+
+            if (newCommunityRequests && newCommunityRequests.length > 0) {
+                for (const req of newCommunityRequests) {
+                    await scheduleNotification({
+                        id: Math.floor(Math.random() * 100000),
+                        title: getNotifTitle(req.type),
+                        body: req.content || 'A community request needs your attention',
+                        extra: { type: req.type },
+                    });
+                }
+            }
+
             // Check for new general notifications since last check
             const { data: newNotifs } = await supabase
                 .from('notifications')
-                .select('id, content, type')
+                .select('id, content, type, data')
                 .eq('user_id', user.id)
                 .eq('read', false)
                 .gt('created_at', since)
                 .limit(3);
 
             if (newNotifs && newNotifs.length > 0) {
-                for (const notif of newNotifs.slice(0, 2)) {
+                for (const notif of newNotifs.slice(0, 3)) {
                     await scheduleNotification({
                         id: Math.floor(Math.random() * 100000),
                         title: getNotifTitle(notif.type),
                         body: notif.content || 'You have a new notification',
-                        extra: { type: notif.type },
+                        extra: {
+                            type: notif.type,
+                            post_id: notif.data?.post_id,
+                            chat_id: notif.data?.chat_id || notif.data?.sender_id
+                        },
                     });
                 }
             }
@@ -179,6 +209,8 @@ function getNotifTitle(type: string): string {
         case 'like': return '❤️ Someone liked your post';
         case 'comment': return '💬 New comment on your post';
         case 'share': return '🔄 Someone shared your post';
+        case 'community_join_request': return '🏘️ New Join Request';
+        case 'community_join_accepted': return '🎉 Community Request Approved';
         default: return '🔔 New notification';
     }
 }

@@ -21,7 +21,7 @@ export default function UserCard({ profile, status, onConnect, onAccept, isLoadi
         <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm flex flex-col items-center text-center transition-all hover:shadow-md">
             <div className="mb-4 relative">
                 <img
-                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=10b981&color=fff`}
+                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=256&background=10b981&color=fff`}
                     alt={profile.name}
                     className="w-20 h-20 rounded-full object-cover border-4 border-emerald-50"
                 />

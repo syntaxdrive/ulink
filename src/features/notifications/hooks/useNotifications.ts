@@ -3,6 +3,46 @@ import { supabase } from '../../../lib/supabase';
 import { type Profile } from '../../../types';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
 
+/** Request browser notification permission once per session */
+function requestNotifPermission() {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+/** Fire a native browser notification */
+function fireBrowserNotif(title: string, body: string, url?: string) {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+    try {
+        const n = new Notification(title, {
+            body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: url || 'unilink-notif',
+        });
+        if (url) n.onclick = () => { window.location.href = url; n.close(); };
+    } catch (err) {
+        console.warn('[BrowserNotif] Failed to show notification:', err);
+    }
+}
+
+function getNotifTitle(type: string): string {
+    switch (type) {
+        case 'like': return '❤️ New Like';
+        case 'comment': return '💬 New Comment';
+        case 'repost': return '🔄 New Repost';
+        case 'mention': return '@ You were mentioned';
+        case 'message': return '💬 New Message';
+        case 'connection_accepted': return '🤝 Connection Accepted';
+        case 'community_join_request': return '🏘️ Community Join Request';
+        case 'community_join_accepted': return '🎉 Community Request Approved';
+        case 'job_update': return '💼 Job Update';
+        default: return '🔔 New Notification';
+    }
+}
+
 export interface NotificationItem {
     id: string; // Connection ID
     created_at: string;
@@ -17,6 +57,7 @@ export interface GeneralNotification {
     read: boolean;
     data: any;
     user_id: string; // Recipient
+    action_url?: string;
 }
 
 export function useNotifications() {
@@ -27,6 +68,8 @@ export function useNotifications() {
         setRequests,
         setGeneralNotifications,
         addGeneralNotification,
+        markAsRead: storeMarkRead,
+        markAllAsRead: storeMarkAllRead,
         removeRequest,
         removeGeneralNotifications,
         clearGeneralNotifications: clearStoreNotifications,
@@ -119,6 +162,9 @@ export function useNotifications() {
 
     useEffect(() => {
         const init = async () => {
+            // Request browser notification permission on first load
+            requestNotifPermission();
+
             // 80/20 Rule
             if (needsRefresh() || (requests.length === 0 && generalNotifications.length === 0)) {
                 await fetchNotifications();
@@ -135,6 +181,12 @@ export function useNotifications() {
                     supabase.auth.getUser().then(({ data: { user } }) => {
                         if (user && payload.new.recipient_id === user.id) {
                             fetchSingleRequest(payload.new.id);
+                            // Fire in-app push notification
+                            fireBrowserNotif(
+                                '👥 New Connection Request',
+                                'Someone wants to connect with you',
+                                `${window.location.origin}/app/notifications`
+                            );
                         }
                     });
                 }
@@ -147,7 +199,29 @@ export function useNotifications() {
                 (payload) => {
                     supabase.auth.getUser().then(({ data: { user } }) => {
                         if (user && payload.new.user_id === user.id) {
-                            addGeneralNotification(payload.new as GeneralNotification);
+                            const notif = payload.new as GeneralNotification;
+                            addGeneralNotification(notif);
+
+                            // Robust URL resolution for browser notifications
+                            let relUrl = notif.action_url
+                                || (notif.data?.post_id ? `/post/${notif.data.post_id}` : null)
+                                || '/notifications';
+
+                            if (!relUrl.startsWith('/app/')) {
+                                relUrl = relUrl.replace('/posts/', '/post/');
+                                if (!relUrl.startsWith('/')) relUrl = '/' + relUrl;
+                                const rts = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+                                if (rts.some(r => relUrl.startsWith(r))) relUrl = '/app' + relUrl;
+                                else if (relUrl === '/notifications') relUrl = '/app/notifications';
+                            }
+
+                            const notifUrl = `${window.location.origin}${relUrl}`;
+
+                            fireBrowserNotif(
+                                getNotifTitle(notif.type),
+                                notif.content || 'You have a new notification',
+                                notifUrl
+                            );
                         }
                     });
                 }
@@ -155,8 +229,14 @@ export function useNotifications() {
             .subscribe();
 
         return () => {
-            supabase.removeChannel(connectionChannel);
-            supabase.removeChannel(notifChannel);
+            if (connectionChannel) {
+                connectionChannel.unsubscribe();
+                supabase.removeChannel(connectionChannel);
+            }
+            if (notifChannel) {
+                notifChannel.unsubscribe();
+                supabase.removeChannel(notifChannel);
+            }
         };
     }, []); // Empty dependency array -> mount once
 
@@ -221,6 +301,37 @@ export function useNotifications() {
         }
     };
 
+    const markRead = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ read: true })
+                .eq('id', id);
+
+            if (error) throw error;
+            storeMarkRead(id);
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    };
+
+    const markAllRead = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from('notifications')
+                .update({ read: true })
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            storeMarkAllRead();
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    };
+
     return {
         requests,
         generalNotifications,
@@ -228,6 +339,8 @@ export function useNotifications() {
         processing,
         handleAction,
         clearAll,
-        deleteNotifications
+        deleteNotifications,
+        markRead,
+        markAllRead
     };
 }

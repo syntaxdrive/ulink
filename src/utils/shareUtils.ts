@@ -1,28 +1,53 @@
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
+
+export interface ShareOptions {
+    title: string;
+    text: string;
+    url: string;
+}
+
+/**
+ * Standardizes share text with UniLink branding
+ */
+export const formatShareText = (text: string): string => {
+    return `${text}\n\nShared via UniLink Nigeria 🇳🇬`;
+};
+
 export const shareToWhatsApp = (text: string, url?: string) => {
-    const fullText = url ? `${text}\n\n${url}` : text;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const brandedText = formatShareText(text);
+    const fullText = url ? `${brandedText}\n${url}` : brandedText;
 
-    // Direct WhatsApp protocol for mobile, wa.me for web
-    const baseUrl = isMobile ? 'whatsapp://send' : 'https://wa.me/';
-    const shareUrl = `${baseUrl}?text=${encodeURIComponent(fullText)}`;
-
-    // Open in new tab/app
+    // Modern WhatsApp share URL
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
     window.open(shareUrl, '_blank');
 };
 
 export const nativeShare = async (title: string, text: string, url: string) => {
-    if (navigator.share) {
-        try {
+    try {
+        const brandedText = formatShareText(text);
+
+        if (Capacitor.isNativePlatform()) {
+            await Share.share({
+                title,
+                text: brandedText,
+                url,
+                dialogTitle: `Share ${title}`,
+            });
+            return true;
+        } else if (navigator.share) {
             await navigator.share({
                 title,
-                text,
+                text: brandedText,
                 url,
             });
             return true;
-        } catch (error) {
-            console.error('Error sharing natively:', error);
-            return false;
         }
+        return false;
+    } catch (error: any) {
+        if (error.name !== 'AbortError') {
+            console.error('Error sharing natively:', error);
+        }
+        return false;
     }
-    return false;
 };

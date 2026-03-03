@@ -1,42 +1,13 @@
-import { type Profile } from '../types';
 import { CheckCircle2, Circle } from 'lucide-react';
+import { type Profile } from '../types';
+import { calculateProfileCompletion } from '../utils/profileCompletion';
 
 interface ProfileCompletionProps {
     profile: Profile;
 }
 
 export default function ProfileCompletion({ profile }: ProfileCompletionProps) {
-    const calculateCompletion = () => {
-        const checks = [
-            { label: 'Profile Picture', completed: !!profile.avatar_url, weight: 15 },
-            { label: 'Headline', completed: !!profile.headline && profile.headline.length > 10, weight: 10 },
-            { label: 'About', completed: !!profile.about && profile.about.length > 50, weight: 15 },
-            { label: 'Location', completed: !!profile.location, weight: 5 },
-            { label: 'Skills (3+)', completed: !!profile.skills && profile.skills.length >= 3, weight: 15 },
-            { label: 'Experience', completed: !!profile.experience && profile.experience.length >= 1, weight: 20 },
-            { label: 'Social Links (2+)', completed: getSocialLinksCount() >= 2, weight: 10 },
-            { label: 'Resume', completed: !!profile.resume_url, weight: 10 },
-        ];
-
-        const totalWeight = checks.reduce((sum, check) => sum + check.weight, 0);
-        const completedWeight = checks.filter(c => c.completed).reduce((sum, check) => sum + check.weight, 0);
-        const percentage = Math.round((completedWeight / totalWeight) * 100);
-
-        return { checks, percentage };
-    };
-
-    const getSocialLinksCount = () => {
-        let count = 0;
-        if (profile.linkedin_url) count++;
-        if (profile.github_url) count++;
-        if (profile.twitter_url) count++;
-        if (profile.instagram_url) count++;
-        if (profile.facebook_url) count++;
-        if (profile.website_url || profile.website) count++;
-        return count;
-    };
-
-    const { checks, percentage } = calculateCompletion();
+    const { checks, percentage } = calculateProfileCompletion(profile);
 
     const getColorClass = () => {
         if (percentage >= 80) return 'bg-emerald-600';

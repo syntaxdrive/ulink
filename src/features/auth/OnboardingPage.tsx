@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Camera } from '@capacitor/camera';
+import { Filesystem } from '@capacitor/filesystem';
 import ThreeBackground from '../../components/ThreeBackground';
 import {
     Building2, GraduationCap, ArrowRight, Loader2, AtSign,
-    UserPlus, CheckCircle2, Users, ChevronRight, Sparkles
+    UserPlus, CheckCircle2, Users, ChevronRight, Sparkles,
+    ShieldCheck, Bell, Camera as CameraIcon, Mic
 } from 'lucide-react';
 import { NIGERIAN_UNIVERSITIES } from '../../lib/universities';
 
@@ -20,9 +25,11 @@ interface SuggestedProfile {
 
 export default function OnboardingPage() {
     const navigate = useNavigate();
-    const [step, setStep] = useState<'profile' | 'connect'>('profile');
+    const isNative = Capacitor.isNativePlatform();
+    const [step, setStep] = useState<'welcome' | 'profile' | 'connect'>(isNative ? 'welcome' : 'profile');
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState<'student' | 'org'>('student');
+    const [agreed, setAgreed] = useState(false);
     const [university, setUniversity] = useState('');
     const [username, setUsername] = useState('');
     const [showUniDropdown, setShowUniDropdown] = useState(false);
@@ -105,6 +112,21 @@ export default function OnboardingPage() {
                 throw upsertError;
             }
 
+            // --- Referral System Logic ---
+            const referralCode = sessionStorage.getItem('referral_code');
+            if (referralCode) {
+                try {
+                    await supabase.rpc('process_referral', {
+                        p_referred_user_id: user.id,
+                        p_referral_code: referralCode
+                    });
+                    sessionStorage.removeItem('referral_code');
+                } catch (referralErr) {
+                    console.error('Referral processing failed:', referralErr);
+                    // Non-blocking error
+                }
+            }
+
             // Move to step 2 — fetch suggestions
             await fetchSuggestions(user.id, role === 'student' ? university : null);
             setStep('connect');
@@ -158,6 +180,93 @@ export default function OnboardingPage() {
             setConnectingId(null);
         }
     };
+
+    // ── STEP 0: Welcome & Permissions ───────────────────────────────────────
+    if (step === 'welcome') {
+        const handleGrantPermissions = async () => {
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    // 1. Request Notifications (Official Plugin)
+                    await LocalNotifications.requestPermissions();
+
+                    // 2. Request Camera & Photos (Official Plugin)
+                    await Camera.requestPermissions();
+
+                    // 3. Request Storage/Files (Official Plugin)
+                    await Filesystem.requestPermissions();
+
+                    // 4. Request Microphone (Via Browser API trick)
+                    // In Capacitor, calling getUserMedia triggers the RECORD_AUDIO native dialog
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        stream.getTracks().forEach(track => track.stop()); // Stop immediately after getting permission
+                    } catch (err) {
+                        console.warn('Mic permission denied:', err);
+                    }
+
+                } catch (e) {
+                    console.warn('Permission request sequence failed:', e);
+                }
+            }
+            setStep('profile');
+        };
+
+        return (
+            <div className="relative min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4 overflow-hidden font-sans text-center">
+                <div className="absolute inset-0 z-0"><ThreeBackground /></div>
+                <div className="relative z-10 w-full max-w-[440px] bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] p-8 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <ShieldCheck className="w-8 h-8 text-emerald-600" />
+                        </div>
+                        <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">Safe & Connected</h1>
+                        <p className="text-slate-500 text-sm">To provide the best experience on campus, UniLink works best when you enable these features:</p>
+                    </div>
+
+                    <div className="space-y-4 mb-8 text-left">
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:border-emerald-100">
+                            <div className="p-2.5 bg-indigo-50 rounded-xl">
+                                <Bell className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-slate-900 text-sm leading-tight">Notifications</p>
+                                <p className="text-xs text-slate-500">Stay updated on likes, mentions, and campus news.</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:border-emerald-100">
+                            <div className="p-2.5 bg-rose-50 rounded-xl">
+                                <CameraIcon className="w-5 h-5 text-rose-600" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-slate-900 text-sm leading-tight">Camera & Media</p>
+                                <p className="text-xs text-slate-500">Share photos of your campus life and study notes.</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:border-emerald-100">
+                            <div className="p-2.5 bg-emerald-50 rounded-xl">
+                                <Mic className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-slate-900 text-sm leading-tight">Microphone</p>
+                                <p className="text-xs text-slate-500">Engage in group voice chats and campus radio.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleGrantPermissions}
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                        Get Started
+                        <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <p className="mt-4 text-[10px] text-center text-slate-400">
+                        Permissions will be requested individually when you use these features.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     // ── STEP 2: People You May Know ──────────────────────────────────────────
     if (step === 'connect') {
@@ -315,7 +424,7 @@ export default function OnboardingPage() {
                             type="button"
                             onClick={() => setRole('student')}
                             className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-300 group ${role === 'student'
-                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                                 }`}
                         >
@@ -326,7 +435,7 @@ export default function OnboardingPage() {
                             type="button"
                             onClick={() => setRole('org')}
                             className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-300 group ${role === 'org'
-                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                                 }`}
                         >
@@ -337,20 +446,20 @@ export default function OnboardingPage() {
 
                     {/* Username Input */}
                     <div className="relative group">
-                        <AtSign className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-indigo-600 z-10" />
+                        <AtSign className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-emerald-600 z-10" />
                         <input
                             type="text"
                             placeholder="Choose a username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
+                            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
                             required
                         />
                     </div>
 
                     {role === 'student' && (
                         <div className="relative group z-50">
-                            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-indigo-600 z-10" />
+                            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-emerald-600 z-10" />
                             <div className="relative">
                                 <input
                                     type="text"
@@ -361,7 +470,7 @@ export default function OnboardingPage() {
                                         setShowUniDropdown(true);
                                     }}
                                     onFocus={() => setShowUniDropdown(true)}
-                                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
                                     required
                                 />
                                 {showUniDropdown && (
@@ -376,7 +485,7 @@ export default function OnboardingPage() {
                                                     setUniversity(uni);
                                                     setShowUniDropdown(false);
                                                 }}
-                                                className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors border-b border-slate-100 last:border-0"
+                                                className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors border-b border-slate-100 last:border-0"
                                             >
                                                 {uni}
                                             </button>
@@ -400,7 +509,7 @@ export default function OnboardingPage() {
                                     placeholder="e.g. NGO, Tech Hub, Student Body"
                                     value={industry}
                                     onChange={(e) => setIndustry(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
                                     required
                                 />
                             </div>
@@ -411,7 +520,7 @@ export default function OnboardingPage() {
                                     placeholder="e.g. Empowering Students in Tech"
                                     value={headline}
                                     onChange={(e) => setHeadline(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
                                 />
                             </div>
                             <div>
@@ -421,16 +530,45 @@ export default function OnboardingPage() {
                                     placeholder="https://example.com"
                                     value={websiteUrl}
                                     onChange={(e) => setWebsiteUrl(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
                                 />
                             </div>
                         </div>
                     )}
 
+                    {/* Legal Checkbox */}
+                    <div className="space-y-4">
+                        <label className="flex items-start gap-3 cursor-pointer group">
+                            <div className="relative flex items-center pt-0.5">
+                                <input
+                                    type="checkbox"
+                                    checked={agreed}
+                                    onChange={(e) => setAgreed(e.target.checked)}
+                                    className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                    required
+                                />
+                            </div>
+                            <span className="text-xs text-slate-500 leading-tight">
+                                I agree to UniLink's{' '}
+                                <Link to="/legal/terms" target="_blank" className="text-emerald-600 hover:text-emerald-700 font-bold underline decoration-emerald-200">
+                                    Terms of Service
+                                </Link>
+                                {' '}and{' '}
+                                <Link to="/legal/privacy" target="_blank" className="text-emerald-600 hover:text-emerald-700 font-bold underline decoration-emerald-200">
+                                    Privacy Policy
+                                </Link>.
+                                <br />
+                                <span className="text-[10px] text-slate-400 mt-1 block italic opacity-70">
+                                    I certify that I am a student or an authorized representative of my campus/organization.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-50 flex items-center justify-center gap-3"
+                        disabled={loading || !agreed}
+                        className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-[0.98] ${!agreed ? 'opacity-70' : ''}`}
                     >
                         {loading
                             ? <Loader2 className="w-5 h-5 animate-spin" />

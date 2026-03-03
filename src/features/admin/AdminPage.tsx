@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, BadgeCheck, Building2, Mail, LayoutDashboard, Smile, Zap } from 'lucide-react';
+import { Users, Shield, Building2, Mail, LayoutDashboard, Smile, Zap } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -11,21 +11,40 @@ import UserTable from './components/UserTable';
 import AdminReactionsBoard from './components/AdminReactionsBoard';
 import AdminPollCreator from './components/AdminPollCreator';
 import AdminIntercom from './components/AdminIntercom';
+import RecentActivity from './components/RecentActivity';
+import { Newspaper, TrendingUp } from 'lucide-react';
 
 interface DashboardStats {
     total_users: number;
     total_verified: number;
     total_orgs: number;
+    total_posts: number;
+    total_communities: number;
+    total_jobs: number;
+    total_courses: number;
+    pending_reports: number;
+    active_sponsored_posts: number;
+    total_revenue: number;
+}
+
+interface Activity {
+    activity_type: string;
+    user_id: string;
+    user_name: string;
+    user_avatar: string | null;
+    description: string;
+    created_at: string;
 }
 
 export default function AdminPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'board' | 'polls'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'board' | 'polls'>('dashboard');
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<Profile[]>([]);
+    const [activities, setActivities] = useState<Activity[]>([]);
 
     // Email Modal State (Global Broadcast)
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -57,31 +76,39 @@ export default function AdminPage() {
 
     const fetchDashboardData = async () => {
         setLoading(true);
-        // 1. Fetch Stats
-        const { data: statsData } = await supabase.rpc('get_admin_stats');
-        if (statsData) setStats(statsData);
+        try {
+            // 1. Fetch Stats
+            const { data: statsData } = await supabase.rpc('get_admin_stats');
+            if (statsData) setStats(statsData);
 
-        // 2. Fetch Recent Users
-        const { data: usersData } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (usersData) setUsers(usersData);
+            // 2. Fetch Recent Activities
+            const { data: activityData } = await supabase.rpc('get_recent_activity', { p_limit: 20 });
+            if (activityData) setActivities(activityData);
 
-        // 3. Fetch Reports
-        const { data: reportsData } = await supabase
-            .from('reports')
-            .select(`
-                *,
-                reporter:reporter_id(name, email, avatar_url),
-                reported:reported_id(name, email, avatar_url)
-            `)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
+            // 3. Fetch Recent Users (Full List)
+            const { data: usersData } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (usersData) setUsers(usersData);
 
-        if (reportsData) setReports(reportsData);
+            // 4. Fetch Reports
+            const { data: reportsData } = await supabase
+                .from('reports')
+                .select(`
+                    *,
+                    reporter:reporter_id(name, email, avatar_url),
+                    reported:reported_id(name, email, avatar_url)
+                `)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
 
-        setLoading(false);
+            if (reportsData) setReports(reportsData);
+        } catch (error) {
+            console.error('Error fetching admin data:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (!isAdmin && loading) return <div className="p-8 text-center text-stone-500">Checking permissions...</div>;
@@ -124,6 +151,16 @@ export default function AdminPage() {
                     Dashboard
                 </button>
                 <button
+                    onClick={() => setActiveTab('users')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'users'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
+                >
+                    <Users className="w-4 h-4" />
+                    Users
+                </button>
+                <button
                     onClick={() => setActiveTab('board')}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'board'
                         ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
@@ -148,50 +185,95 @@ export default function AdminPage() {
             {activeTab === 'dashboard' ? (
                 <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
                             <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500 rounded-2xl">
-                                <Users className="w-8 h-8" />
+                                <Users className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Total Users</p>
-                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_users || 0}</p>
+                                <p className="text-stone-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest">Total Users</p>
+                                <p className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">{stats?.total_users || 0}</p>
                             </div>
                         </div>
 
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
                             <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-500 rounded-2xl">
-                                <BadgeCheck className="w-8 h-8" />
+                                <Newspaper className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Verified Accounts</p>
-                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_verified || 0}</p>
+                                <p className="text-stone-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest">Total Posts</p>
+                                <p className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">{stats?.total_posts || 0}</p>
                             </div>
                         </div>
 
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
                             <div className="p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-500 rounded-2xl">
-                                <Building2 className="w-8 h-8" />
+                                <Building2 className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-stone-500 dark:text-zinc-400 text-sm font-medium">Organizations</p>
-                                <p className="text-3xl font-bold text-stone-900 dark:text-white">{stats?.total_orgs || 0}</p>
+                                <p className="text-stone-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest">Organizations</p>
+                                <p className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">{stats?.total_orgs || 0}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm flex items-center gap-4 hover:scale-[1.02] transition-transform duration-300">
+                            <div className="p-4 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-500 rounded-2xl">
+                                <TrendingUp className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-stone-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest">Revenue (₦)</p>
+                                <p className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">{Math.floor(stats?.total_revenue || 0).toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Advanced Analytics Charts */}
-                    <AnalyticsCharts users={users} />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            {/* Advanced Analytics Charts */}
+                            <AnalyticsCharts users={users} activities={activities} />
 
-                    {/* User Reports Section */}
-                    <ReportsManager reports={reports} setReports={setReports} />
+                            {/* Sponsored Posts Manager */}
+                            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm p-6 overflow-hidden">
+                                <SponsoredPostsManager />
+                            </div>
+                        </div>
 
-                    {/* Sponsored Posts Manager */}
-                    <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm p-6 overflow-hidden">
-                        <SponsoredPostsManager />
+                        <div className="space-y-8">
+                            <RecentActivity activities={activities} />
+
+                            <div className="bg-gradient-to-br from-stone-900 to-stone-800 dark:from-zinc-800 dark:to-zinc-900 p-6 rounded-[2rem] text-white shadow-xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <Shield className="w-5 h-5 text-emerald-500" />
+                                    System Health
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-stone-400">Database Status</span>
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                            Optimal
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-stone-400">Media CDN</span>
+                                        <span className="text-emerald-500 font-bold">Stable</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-stone-400">Queue Workers</span>
+                                        <span>4 Active</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* User Management */}
+                    {/* Pending Reports */}
+                    {reports.length > 0 && (
+                        <ReportsManager reports={reports} setReports={setReports} />
+                    )}
+                </div>
+            ) : activeTab === 'users' ? (
+                <div className="animate-in fade-in zoom-in-95 duration-300">
                     <UserTable
                         users={users}
                         setUsers={setUsers}

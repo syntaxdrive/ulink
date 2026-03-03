@@ -119,7 +119,7 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
                             <Link
                                 key={community.id}
                                 to={`/app/communities/${community.slug}`}
-                                className="group relative bg-white dark:bg-bg-cardDark rounded-[2.5rem] border border-stone-200/60 dark:border-zinc-800 p-8 hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] dark:hover:shadow-none dark:hover:border-zinc-700 hover:-translate-y-2 transition-all duration-500 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4"
+                                className="group relative dark-card bg-white dark:bg-bg-cardDark rounded-[2.5rem] border border-stone-200/60 dark:border-zinc-800 p-8 hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] dark:hover:shadow-none dark:hover:border-zinc-700 hover:-translate-y-2 transition-all duration-500 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4"
                                 style={{ animationDelay: `${idx * 50}ms` }}
                             >
                                 <div className="flex justify-between items-start mb-6">

@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
-
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
 
 export function useFeed(communityId?: string) {
@@ -76,7 +76,10 @@ export function useFeed(communityId?: string) {
             .subscribe();
 
         return () => {
-            supabase.removeChannel(channel);
+            if (channel) {
+                channel.unsubscribe();
+                supabase.removeChannel(channel);
+            }
         };
     }, [communityId]);
 
@@ -105,6 +108,22 @@ export function useFeed(communityId?: string) {
                     name,
                     slug,
                     icon_url
+                ),
+                original_post:original_post_id (
+                    id,
+                    content,
+                    image_url,
+                    image_urls,
+                    video_url,
+                    created_at,
+                    author_id,
+                    profiles:author_id (
+                        id,
+                        name,
+                        username,
+                        avatar_url,
+                        is_verified
+                    )
                 )
             `)
             .order('created_at', { ascending: false })
@@ -122,16 +141,31 @@ export function useFeed(communityId?: string) {
         if (error) {
             console.error('Error fetching posts:', JSON.stringify(error, null, 2));
             // Fallback: minimal select without potentially missing FK joins or columns
+            const fallbackQuery = `
+                *, 
+                profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), 
+                community: community_id(id, name, slug, icon_url),
+                original_post: original_post_id (
+                    id,
+                    content,
+                    image_url,
+                    image_urls,
+                    video_url,
+                    created_at,
+                    author_id,
+                    profiles:author_id (id, name, username, avatar_url, is_verified)
+                )
+            `;
             const fallback = communityId
                 ? await supabase
                     .from('posts')
-                    .select(`*, profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), community: community_id(id, name, slug, icon_url)`)
+                    .select(fallbackQuery)
                     .eq('community_id', communityId)
                     .order('created_at', { ascending: false })
                     .limit(POSTS_PER_PAGE * pageNumber)
                 : await supabase
                     .from('posts')
-                    .select(`*, profiles: author_id(id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), community: community_id(id, name, slug, icon_url)`)
+                    .select(fallbackQuery)
                     .or('community_id.is.null,shared_to_feed.eq.true')
                     .order('created_at', { ascending: false })
                     .limit(POSTS_PER_PAGE * pageNumber);
@@ -332,7 +366,6 @@ export function useFeed(communityId?: string) {
                 username,
                 avatar_url,
                 is_verified,
-                gold_verified,
                 headline,
                 role,
                 email,
@@ -354,7 +387,7 @@ export function useFeed(communityId?: string) {
                     )
                 )
                     `)
-            .ilike('content', `% ${query}% `)
+            .ilike('content', `%${query}%`)
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -428,11 +461,22 @@ export function useFeed(communityId?: string) {
         const { data } = await supabase
             .from('posts')
             .select(`
-            *,
-            profiles: author_id(id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year),
+                *,
+                profiles: author_id(id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year),
+                community: community_id(id, name, slug, icon_url),
+                original_post: original_post_id (
+                    id,
+                    content,
+                    image_url,
+                    image_urls,
+                    video_url,
+                    created_at,
+                    author_id,
+                    profiles:author_id (id, name, username, avatar_url, is_verified)
+                ),
                 likes(user_id),
                 comments(id)
-                    `)
+            `)
             .eq('id', postId)
             .single();
 
@@ -466,28 +510,55 @@ export function useFeed(communityId?: string) {
         const finalCommunityId = targetCommunityId || communityId;
 
         try {
-            // Upload Images
+            // ── Upload Images ──────────────────────────────────────────────────
+            // Strategy: Try Cloudinary first (f_auto, q_auto, fl_lossy = ~70% smaller).
+            // On ANY failure, fall back to Supabase silently so the post still goes through.
             for (const file of imageFiles) {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}_${Math.random()}.${fileExt} `;
-                const filePath = `posts / ${fileName} `;
-                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, file);
+                let uploadedUrl: string | null = null;
 
-                if (uploadError) {
-                    console.error('Error uploading file:', file.name, uploadError);
-                    continue;
+                // Attempt 1: Cloudinary
+                if (cloudinaryService.isConfigured()) {
+                    try {
+                        const result = await cloudinaryService.uploadImage(file, {
+                            folder: 'ulink/posts',
+                        });
+                        uploadedUrl = result.secureUrl;
+                    } catch (cloudErr) {
+                        console.warn('[Post image] Cloudinary upload failed, falling back to Supabase:', cloudErr);
+                    }
                 }
 
-                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
-                imageUrls.push(publicUrl);
+                // Attempt 2: Supabase fallback (if Cloudinary skipped or failed)
+                if (!uploadedUrl) {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+                    const filePath = `posts/${fileName}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('post-images')
+                        .upload(filePath, file);
+
+                    if (uploadError) {
+                        console.error('[Post image] Supabase upload also failed:', file.name, uploadError);
+                        continue; // skip this file entirely rather than crash
+                    }
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('post-images')
+                        .getPublicUrl(filePath);
+                    uploadedUrl = publicUrl;
+                }
+
+                if (uploadedUrl) imageUrls.push(uploadedUrl);
             }
 
-            // Upload Video
+            // ── Upload Video (Supabase only — not changing this pass) ────────────
             if (videoFile) {
                 const fileExt = videoFile.name.split('.').pop();
-                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt} `;
-                const filePath = `posts / ${fileName} `;
-                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, videoFile);
+                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt}`;
+                const filePath = `posts/${fileName}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('post-images')
+                    .upload(filePath, videoFile);
 
                 if (uploadError) {
                     console.error('Error uploading video:', videoFile.name, uploadError);
@@ -495,9 +566,12 @@ export function useFeed(communityId?: string) {
                     throw uploadError;
                 }
 
-                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
+                const { data: { publicUrl } } = supabase.storage
+                    .from('post-images')
+                    .getPublicUrl(filePath);
                 videoUrl = publicUrl;
             }
+
 
             const mainImageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
 
@@ -696,8 +770,8 @@ export function useFeed(communityId?: string) {
         }
     };
 
-    const postComment = async (postId: string, content: string) => {
-        if (!content.trim()) return;
+    const postComment = async (postId: string, content: string | null, stickerUrl?: string, type: 'text' | 'sticker' | 'image' = 'text', parentId?: string) => {
+        if (!content?.trim() && !stickerUrl) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -707,6 +781,9 @@ export function useFeed(communityId?: string) {
             post_id: postId,
             author_id: user.id,
             content: content,
+            sticker_url: stickerUrl,
+            type: type,
+            parent_id: parentId,
             created_at: new Date().toISOString(),
             profiles: currentUserProfile || { id: user.id, name: 'You' }
         };
@@ -720,7 +797,14 @@ export function useFeed(communityId?: string) {
 
         const { data, error } = await supabase
             .from('comments')
-            .insert({ post_id: postId, author_id: user.id, content: content })
+            .insert({
+                post_id: postId,
+                author_id: user.id,
+                content: content,
+                sticker_url: stickerUrl,
+                type: type,
+                parent_id: parentId
+            })
             .select(`*, profiles: author_id(*)`)
             .single();
 
@@ -733,8 +817,10 @@ export function useFeed(communityId?: string) {
         if (data) {
             setComments(prev => ({ ...prev, [postId]: prev[postId].map(c => c.id === tempId ? data : c) }));
 
-            // Notify mentioned users in comment
-            notifyMentionedUsers(content, postId, user.id, 'comment');
+            // Notify mentioned users in comment if content exists
+            if (content) {
+                notifyMentionedUsers(content, postId, user.id, 'comment');
+            }
         }
     };
 

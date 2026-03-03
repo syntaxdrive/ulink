@@ -16,13 +16,15 @@
 
     :root.dark {
         --background: #09090B;
-        --foreground: #FAFAFA;
+        --foreground: #E4E4E7;
         --card: #18181B;
-        /* Zinc 900 */
         --card-foreground: #FAFAFA;
         --muted: #A1A1AA;
         --border: #27272A;
-        /* Zinc 800 */
+    }
+
+    html {
+        scroll-behavior: smooth;
     }
 
     body {
@@ -31,44 +33,236 @@
         transition: background-color 0.3s ease, color 0.3s ease;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
     }
 
-    /* Accessibility & Global Resets for Dark Mode Visibility */
+    /* Apply Space Grotesk to all headings globally — same premium style as Communities page */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: "Space Grotesk", sans-serif;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+    }
+
+    /* Buttons and nav labels use Space Grotesk too for consistency */
+    button,
+    [role="tab"] {
+        font-family: "Space Grotesk", sans-serif;
+    }
+
+    /* =====================================================
+       DARK MODE — Comprehensive Tailwind class overrides
+       Using targeted selectors (no blanket div/span/p hacks)
+       ===================================================== */
+
+    /* --- Surfaces & Backgrounds --- */
+    .dark .bg-white,
+    /* Catches opacity-variant classes like bg-white/80, bg-white/90 */
+    .dark [class~="bg-white\/80"],
+    .dark [class~="bg-white\/90"],
+    .dark [class~="bg-white\/95"] {
+        background-color: #18181B !important;
+    }
+
+    /* Custom token classes: bg-bg-cardDark, bg-bg-dark (from tailwind.config.js) */
+    .dark [class~="bg-bg-cardDark"],
+    .dark [class~="dark:bg-bg-cardDark"],
+    .dark [class~="bg-bg-dark"] {
+        background-color: #09090B !important;
+    }
+
+    /* Direct element overrides for key structural containers */
+    .dark article {
+        background-color: #18181B !important;
+    }
+
+    .dark aside {
+        background-color: #0D0D0F !important;
+        border-right-color: #27272A !important;
+    }
+
+    .dark .bg-stone-50,
+    .dark .bg-slate-50,
+    .dark .bg-gray-50 {
+        background-color: #1C1C1F !important;
+    }
+
+    .dark .bg-stone-100,
+    .dark .bg-slate-100,
+    .dark .bg-gray-100 {
+        background-color: #27272A !important;
+    }
+
+    .dark .bg-stone-200,
+    .dark .bg-slate-200,
+    .dark .bg-gray-200 {
+        background-color: #3F3F46 !important;
+    }
+
+    .dark .bg-stone-300,
+    .dark .bg-slate-300,
+    .dark .bg-gray-300 {
+        background-color: #52525B !important;
+    }
+
+    /* --- Text Colors --- */
+    .dark .text-stone-900,
+    .dark .text-stone-800,
+    .dark .text-slate-900,
+    .dark .text-slate-800,
+    .dark .text-gray-900,
+    .dark .text-gray-800 {
+        color: #FAFAFA !important;
+    }
+
+    .dark .text-stone-700,
+    .dark .text-slate-700,
+    .dark .text-gray-700 {
+        color: #E4E4E7 !important;
+    }
+
+    .dark .text-stone-600,
+    .dark .text-slate-600,
+    .dark .text-gray-600 {
+        color: #D4D4D8 !important;
+    }
+
+    .dark .text-stone-500,
+    .dark .text-slate-500,
+    .dark .text-gray-500 {
+        color: #A1A1AA !important;
+    }
+
+    .dark .text-stone-400,
+    .dark .text-slate-400,
+    .dark .text-gray-400 {
+        color: #71717A !important;
+    }
+
+    /* Default text for elements WITHOUT an explicit text color class.
+       Using :not([class*="text-"]) so elements with dark:text-emerald-300
+       or any other Tailwind text utility keep their intended color. */
     .dark h1,
     .dark h2,
     .dark h3,
     .dark h4,
     .dark h5,
     .dark h6 {
-        color: #FFFFFF !important;
+        color: #FAFAFA !important;
     }
 
-    .dark p,
-    .dark span:not([class*="text-"]),
-    .dark div:not([class*="text-"]) {
-        color: #D4D4D8 !important;
-        /* Zinc 300 - High Contrast AA */
+    .dark p:not([class*="text-"]) {
+        color: #D4D4D8;
     }
 
-    .dark .bg-white {
-        background-color: var(--card) !important;
+    .dark label:not([class*="text-"]) {
+        color: #E4E4E7;
     }
 
-    .dark .text-slate-900,
-    .dark .text-stone-900,
-    .dark .text-gray-900,
-    .dark .text-slate-800,
-    .dark .text-stone-800 {
-        color: #FFFFFF !important;
+    /* Spans without any color class also get a readable default */
+    .dark span:not([class*="text-"]):not([class*="bg-"]):not([class*="border-"]) {
+        color: inherit;
     }
 
-    .dark .text-slate-500,
-    .dark .text-stone-500,
-    .dark .text-gray-500,
-    .dark .text-slate-400,
-    .dark .text-stone-400 {
-        color: #A1A1AA !important;
-        /* Zinc 400 - Contrast 4.5:1 on Zinc 900 */
+    /* --- Borders --- */
+    .dark .border-stone-50,
+    .dark .border-stone-100,
+    .dark .border-slate-100,
+    .dark .border-gray-100 {
+        border-color: #27272A !important;
+    }
+
+    .dark .border-stone-200,
+    .dark .border-slate-200,
+    .dark .border-gray-200 {
+        border-color: #3F3F46 !important;
+    }
+
+    .dark .border-stone-300,
+    .dark .border-slate-300,
+    .dark .border-gray-300 {
+        border-color: #52525B !important;
+    }
+
+    /* --- Dividers --- */
+    .dark .divide-stone-100>*+*,
+    .dark .divide-stone-200>*+* {
+        border-color: #27272A !important;
+    }
+
+    /* --- Form Inputs --- */
+    .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    .dark textarea,
+    .dark select {
+        background-color: #27272A !important;
+        color: #FAFAFA !important;
+        border-color: #3F3F46 !important;
+    }
+
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+        color: #71717A !important;
+    }
+
+    /* --- Hover states on stone surfaces --- */
+    .dark .hover\:bg-stone-50:hover,
+    .dark .hover\:bg-slate-50:hover {
+        background-color: #27272A !important;
+    }
+
+    .dark .hover\:bg-stone-100:hover,
+    .dark .hover\:bg-slate-100:hover {
+        background-color: #3F3F46 !important;
+    }
+
+    /* --- Mobile post containers: stretch edge-to-edge on mobile --- */
+    @media (max-width: 767px) {
+        .dark article {
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+        }
+    }
+
+    /* --- Scrollbar --- */
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #3f3f46;
+    }
+
+    /* --- dark-card utility: use on any sidebar/panel widget --- */
+    .dark .dark-card {
+        background-color: #18181B !important;
+        border-color: #27272A !important;
+    }
+
+    .dark .dark-card p:not([class*="text-"]) {
+        color: #A1A1AA;
+    }
+
+    .dark .dark-card h1,
+    .dark .dark-card h2,
+    .dark .dark-card h3,
+    .dark .dark-card h4 {
+        color: #FAFAFA !important;
+    }
+}
+
+/* -------------------------------------------------------
+   Mobile: post containers stretch edge-to-edge (light + dark)
+   Mirrors the native feel of Twitter/Instagram on mobile
+   ------------------------------------------------------- */
+@media (max-width: 767px) {
+    article.post-card {
+        border-radius: 0 !important;
+        border-left-width: 0 !important;
+        border-right-width: 0 !important;
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
     }
 }
 
@@ -80,6 +274,32 @@
 .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* Smooth scroll utility for overflow containers */
+.smooth-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+}
+
+/* Page transition animation */
+@keyframes pageIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-transition {
+    animation: pageIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: opacity, transform;
 }
 
 /* Like particle burst animation */

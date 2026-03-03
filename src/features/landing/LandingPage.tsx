@@ -37,6 +37,14 @@ export default function LandingPage() {
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll);
+
+        // Capture referral code if present
+        const params = new URLSearchParams(window.location.search);
+        const ref = params.get('ref');
+        if (ref) {
+            sessionStorage.setItem('referral_code', ref);
+        }
+
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -58,26 +66,26 @@ export default function LandingPage() {
                 description="UniLink Nigeria is the #1 platform for university students to share resources, join study groups, and find career opportunities."
                 keywords={['Nigerian Universities', 'Study Groups', 'Past Questions', 'Student Jobs', 'UniLink', 'Campus Network', 'Internships Nigeria']}
             />
-            <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900 overflow-x-hidden">
+            <div className="min-h-screen bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 font-sans selection:bg-emerald-100 selection:text-emerald-900 overflow-x-hidden">
                 {/* Hero Background Image */}
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white z-10"></div>
-                    <img src={campusHero} alt="Campus" className="w-full h-full object-cover opacity-30" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white dark:from-zinc-950/60 dark:via-zinc-950/80 dark:to-zinc-950 z-10"></div>
+                    <img src={campusHero} alt="Campus" className="w-full h-full object-cover opacity-30 dark:opacity-15" />
                 </div>
 
                 {/* Navbar */}
-                <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b border-transparent ${scrolled ? 'bg-white/80 backdrop-blur-xl border-slate-200/50 py-3 shadow-sm' : 'bg-transparent py-6'}`}>
+                <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b border-transparent ${scrolled ? 'bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-slate-200/50 dark:border-zinc-800/50 py-3 shadow-sm' : 'bg-transparent py-6'}`}>
                     <div className="max-w-7xl mx-auto px-6 md:px-8 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="relative group">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
                                 <img src="/icon-512.png" alt="UniLink" className="relative w-10 h-10 rounded-lg shadow-sm" />
                             </div>
-                            <span className="font-display font-bold text-2xl tracking-tight text-slate-900">UniLink</span>
+                            <span className="font-display font-bold text-2xl tracking-tight text-slate-900 dark:text-white">UniLink</span>
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <Link to="/about" className="hidden md:block text-sm font-medium text-slate-600 hover:text-emerald-700 transition-colors">
+                            <Link to="/about" className="hidden md:block text-sm font-medium text-slate-600 dark:text-zinc-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                                 About Us
                             </Link>
                             <a
@@ -100,17 +108,17 @@ export default function LandingPage() {
 
                             {/* Left Content */}
                             <div className="lg:col-span-6 relative z-10 text-center lg:text-left">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 text-sm font-semibold mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 hover:scale-105 transition-transform cursor-default">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-sm text-slate-600 dark:text-zinc-300 text-sm font-semibold mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 hover:scale-105 transition-transform cursor-default">
                                     <Sparkles className="w-4 h-4 text-emerald-500" />
                                     <span>The #1 Network for Nigerian Students</span>
                                 </div>
 
-                                <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight mb-8 leading-[1.1] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 text-slate-900">
+                                <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight mb-8 leading-[1.1] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 text-slate-900 dark:text-white">
                                     Your Campus. <br />
                                     Your <span className="text-emerald-600">Future.</span>
                                 </h1>
 
-                                <p className="text-xl text-slate-600 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+                                <p className="text-xl text-slate-600 dark:text-zinc-400 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
                                     Join the professional community built for Nigerian universities. Connect with peers, find internships, and launch your career—all in one place.
                                 </p>
 
@@ -118,7 +126,7 @@ export default function LandingPage() {
                                     <button
                                         onClick={handleGoogleLogin}
                                         disabled={loading}
-                                        className="h-14 px-8 rounded-full bg-slate-900 text-white font-bold text-lg hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-200 w-full sm:w-auto group relative overflow-hidden"
+                                        className="h-14 px-8 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-lg hover:bg-slate-800 dark:hover:bg-zinc-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-200 dark:shadow-none w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                                         <svg className="w-6 h-6 bg-white rounded-full p-1 relative z-10" viewBox="0 0 24 24">
@@ -129,11 +137,21 @@ export default function LandingPage() {
                                         </svg>
                                         <span className="relative z-10">Continue with Google</span>
                                     </button>
+                                    <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500 text-center lg:text-left">
+                                        By continuing, you agree to our{' '}
+                                        <Link to="/legal/terms" className="text-emerald-600 hover:text-emerald-700 font-semibold underline decoration-emerald-200">
+                                            Terms of Service
+                                        </Link>{' '}
+                                        and{' '}
+                                        <Link to="/legal/privacy" className="text-emerald-600 hover:text-emerald-700 font-semibold underline decoration-emerald-200">
+                                            Privacy Policy
+                                        </Link>.
+                                    </p>
 
                                     {/* Android Download Button points to dedicated page */}
                                     <Link
                                         to="/download"
-                                        className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 w-full sm:w-auto group relative overflow-hidden"
+                                        className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20 w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                         {/* Official Android Robot Logo */}
@@ -155,7 +173,7 @@ export default function LandingPage() {
                                     </Link>
                                 </div>
 
-                                <p className="mt-3 text-xs text-slate-400 text-center lg:text-left animate-in fade-in duration-1000 delay-500">
+                                <p className="mt-3 text-xs text-slate-400 dark:text-zinc-600 text-center lg:text-left animate-in fade-in duration-1000 delay-500">
                                     Free · No Play Store needed · Enable "Install unknown apps" to install
                                 </p>
                             </div>
@@ -165,31 +183,31 @@ export default function LandingPage() {
 
 
                                 <div className="relative transform transition-transform hover:scale-[1.02] duration-500 group">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/10 to-transparent rounded-2xl transform translate-x-4 translate-y-4 -z-10 blur-sm"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/10 dark:from-white/5 to-transparent rounded-2xl transform translate-x-4 translate-y-4 -z-10 blur-sm"></div>
                                     <img
                                         src={appMockup}
                                         alt="App Dashboard"
-                                        className="w-full rounded-2xl shadow-2xl border border-slate-200/50 bg-white"
+                                        className="w-full rounded-2xl shadow-2xl border border-slate-200/50 dark:border-zinc-700/50 bg-white dark:bg-zinc-900"
                                     />
 
                                     {/* Floating Badges */}
-                                    <div className="absolute -left-6 top-1/3 bg-white p-4 rounded-xl shadow-xl border border-slate-100 animate-bounce delay-100 hidden md:flex items-center gap-3">
-                                        <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
+                                    <div className="absolute -left-6 top-1/3 bg-white dark:bg-zinc-800 p-4 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-700 animate-bounce delay-100 hidden md:flex items-center gap-3">
+                                        <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600">
                                             <CheckCircle2 className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-slate-900 text-sm">Opportunities</p>
-                                            <p className="text-xs text-slate-500">Verified Internships</p>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">Opportunities</p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">Verified Internships</p>
                                         </div>
                                     </div>
 
-                                    <div className="absolute -right-6 bottom-1/4 bg-white p-4 rounded-xl shadow-xl border border-slate-100 animate-bounce delay-700 hidden md:flex items-center gap-3">
-                                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                                    <div className="absolute -right-6 bottom-1/4 bg-white dark:bg-zinc-800 p-4 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-700 animate-bounce delay-700 hidden md:flex items-center gap-3">
+                                        <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600">
                                             <Users className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-slate-900 text-sm">Community</p>
-                                            <p className="text-xs text-slate-500">Connect with Peers</p>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">Community</p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">Connect with Peers</p>
                                         </div>
                                     </div>
                                 </div>
@@ -199,8 +217,8 @@ export default function LandingPage() {
                 </main>
 
                 {/* Features Grid */}
-                <section className="py-24 bg-slate-50 relative">
-                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+                <section className="py-24 bg-slate-50 dark:bg-zinc-900 relative">
+                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-zinc-700 to-transparent"></div>
 
                     <div className="max-w-7xl mx-auto px-6 md:px-8">
                         <div className="text-center max-w-3xl mx-auto mb-20">
@@ -217,7 +235,7 @@ export default function LandingPage() {
                                 {
                                     icon: Globe,
                                     color: "text-emerald-600",
-                                    bg: "bg-emerald-50",
+                                    bg: "bg-emerald-50 dark:bg-emerald-900/20",
                                     title: "Campus Network",
                                     desc: "Connect with students from universities across Nigeria. Share ideas, collaborate on projects, and build a network that lasts a lifetime.",
                                     image: campusNetworking
@@ -225,7 +243,7 @@ export default function LandingPage() {
                                 {
                                     icon: Briefcase,
                                     color: "text-emerald-600",
-                                    bg: "bg-emerald-50",
+                                    bg: "bg-emerald-50 dark:bg-emerald-900/20",
                                     title: "Jobs & Internships",
                                     desc: "Stop searching aimlessly. Get access to verified job openings and internships tailored specifically for Nigerian students.",
                                     image: studentProfessional
@@ -233,21 +251,21 @@ export default function LandingPage() {
                                 {
                                     icon: Shield,
                                     color: "text-emerald-600",
-                                    bg: "bg-emerald-50",
+                                    bg: "bg-emerald-50 dark:bg-emerald-900/20",
                                     title: "Verified Profiles",
                                     desc: "Authenticity matters. Our verification system ensures you're connecting with real students and genuine organizations.",
                                     image: studentsCollaboration
                                 }
                             ].map((feature, i) => (
-                                <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 hover:border-emerald-200 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group overflow-hidden">
-                                    <div className="mb-6 rounded-2xl overflow-hidden h-48 bg-slate-100">
+                                <div key={i} className="bg-white dark:bg-zinc-800 p-6 rounded-3xl border border-slate-200 dark:border-zinc-700 hover:border-emerald-200 dark:hover:border-emerald-700 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group overflow-hidden">
+                                    <div className="mb-6 rounded-2xl overflow-hidden h-48 bg-slate-100 dark:bg-zinc-700">
                                         <img src={feature.image} alt={feature.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </div>
                                     <div className={`w-12 h-12 ${feature.bg} ${feature.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
                                         <feature.icon className="w-6 h-6" />
                                     </div>
-                                    <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                                    <p className="text-slate-600 leading-relaxed text-sm">
+                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">{feature.title}</h3>
+                                    <p className="text-slate-600 dark:text-zinc-400 leading-relaxed text-sm">
                                         {feature.desc}
                                     </p>
                                 </div>
@@ -257,28 +275,28 @@ export default function LandingPage() {
                 </section>
 
                 {/* Download Section */}
-                <section id="download" className="py-24 bg-white relative overflow-hidden">
+                <section id="download" className="py-24 bg-white dark:bg-zinc-950 relative overflow-hidden">
                     <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute -top-32 -right-32 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-60" />
-                        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-50 rounded-full blur-3xl opacity-60" />
+                        <div className="absolute -top-32 -right-32 w-96 h-96 bg-emerald-50 dark:bg-emerald-900/10 rounded-full blur-3xl opacity-60" />
+                        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-50 dark:bg-teal-900/10 rounded-full blur-3xl opacity-60" />
                     </div>
 
                     <div className="max-w-5xl mx-auto px-6 md:px-8 relative">
                         {/* Header */}
                         <div className="text-center mb-14">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold mb-6">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-semibold mb-6">
                                 <Download className="w-4 h-4" />
                                 Get the App
                             </div>
-                            <h2 className="text-3xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+                            <h2 className="text-3xl md:text-5xl font-display font-bold text-slate-900 dark:text-white mb-4">
                                 UniLink in your pocket
                             </h2>
-                            <p className="text-lg text-slate-500 max-w-xl mx-auto">
+                            <p className="text-lg text-slate-500 dark:text-zinc-400 max-w-xl mx-auto">
                                 Download the Android app and stay connected with your campus community anywhere, anytime.
                             </p>
                         </div>
 
-                        {/* Download card */}
+                        {/* Download card — already dark themed, looks great in both modes */}
                         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl overflow-hidden shadow-2xl">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
                                 {/* Left: info */}
@@ -342,13 +360,13 @@ export default function LandingPage() {
                         </div>
 
                         {/* Share nudge */}
-                        <p className="text-center text-slate-400 text-sm mt-8">
+                        <p className="text-center text-slate-400 dark:text-zinc-500 text-sm mt-8">
                             📲 No Play Store needed — just download & install. Share with your classmates!
                         </p>
                     </div>
                 </section>
 
-                {/* Footer */}
+                {/* Footer — already dark (slate-900), great in both modes */}
                 <footer className="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
                     <div className="max-w-7xl mx-auto px-6 md:px-8">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">

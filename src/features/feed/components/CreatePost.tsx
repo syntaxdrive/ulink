@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
 import { compressImages, formatFileSize } from '../../../lib/mediaCompression';
+import { checkClientRateLimit } from '../../../utils/rateLimit';
 
 interface CreatePostProps {
     onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;
@@ -168,6 +169,13 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
         e.preventDefault();
         if (!content.trim() && imageFiles.length === 0 && !videoFile && !showPoll) return;
 
+        // Client-side rate limit check
+        const rl = checkClientRateLimit('post');
+        if (!rl.allowed) {
+            alert(rl.message);
+            return;
+        }
+
         let finalPollOptions: string[] | undefined;
         if (showPoll) {
             finalPollOptions = pollOptions.filter(o => o.trim());
@@ -185,9 +193,14 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
             removeVideo();
             setShowPoll(false);
             setPollOptions(['', '']);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Failed to create post');
+            const msg = error?.message || '';
+            if (msg.includes('Rate limit exceeded')) {
+                alert(msg);
+            } else {
+                alert('Failed to create post');
+            }
         } finally {
             setIsPosting(false);
         }
@@ -268,9 +281,9 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                                 <button
                                     type="button"
                                     onClick={() => removeImage(index)}
-                                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors backdrop-blur-sm shadow-sm ring-1 ring-white/20"
                                 >
-                                    <X className="w-3 h-3" />
+                                    <X className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         ))}
@@ -284,9 +297,9 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                         <button
                             type="button"
                             onClick={removeVideo}
-                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors backdrop-blur-sm shadow-sm ring-1 ring-white/20"
                         >
-                            <X className="w-3 h-3" />
+                            <X className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 )}

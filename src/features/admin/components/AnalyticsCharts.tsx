@@ -1,12 +1,34 @@
 import { useMemo } from 'react';
+import { TrendingUp, Activity, Calendar, Target, Users, Award } from 'lucide-react';
 import type { Profile } from '../../../types';
-import { TrendingUp, Users, Activity, Calendar, Award, Target } from 'lucide-react';
 
 interface AnalyticsChartsProps {
     users: Profile[];
+    activities?: Activity[];
 }
 
-export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
+interface Activity {
+    activity_type: string;
+    user_id: string;
+    user_name: string;
+    user_avatar: string | null;
+    description: string;
+    created_at: string;
+}
+
+export default function AnalyticsCharts({ users, activities = [] }: AnalyticsChartsProps) {
+    // Activity distribution
+    const activityStats = useMemo(() => {
+        const stats = { posts: 0, comments: 0, jobs: 0, signups: 0 };
+        activities.forEach(a => {
+            if (a.activity_type === 'post') stats.posts++;
+            if (a.activity_type === 'comment') stats.comments++;
+            if (a.activity_type === 'job') stats.jobs++;
+            if (a.activity_type === 'signup') stats.signups++;
+        });
+        return stats;
+    }, [activities]);
+
     // Calculate growth metrics
     const growthMetrics = useMemo(() => {
         if (users.length === 0) return { daily: 0, weekly: 0, monthly: 0, total: 0 };
@@ -47,135 +69,116 @@ export default function AnalyticsCharts({ users }: AnalyticsChartsProps) {
             .slice(0, 5);
     }, [users]);
 
-    // Role distribution
-    const roleStats = useMemo(() => {
-        const stats = { students: 0, orgs: 0, verified: 0 };
-        users.forEach(u => {
-            if (u.role === 'org') stats.orgs++;
-            else stats.students++;
-            if (u.is_verified) stats.verified++;
-        });
-        return stats;
-    }, [users]);
+
 
     return (
         <div className="space-y-6">
             {/* Key Metrics for Investors */}
-            <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-[2rem] p-6 md:p-8 text-white shadow-xl">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
-                    <TrendingUp className="w-6 h-6 md:w-8 md:h-8" />
-                    Platform Growth
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[2.5rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                    <TrendingUp className="w-48 h-48" />
+                </div>
+
+                <h2 className="text-3xl md:text-4xl font-black mb-2 flex items-center gap-3 tracking-tighter uppercase italic">
+                    <TrendingUp className="w-8 h-8 md:w-10 md:h-10" />
+                    Growth Analytics
                 </h2>
-                <p className="text-emerald-100 mb-6 text-sm md:text-base">Real-time user acquisition metrics</p>
+                <p className="text-emerald-100/80 mb-8 text-sm md:text-lg font-medium">Real-time platform acquisition & engagement metrics</p>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Activity className="w-4 h-4 text-emerald-200" />
-                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 24h</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/20 shadow-lg hover:bg-white/20 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-4 h-4 text-emerald-300" />
+                            <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Last 24h</p>
                         </div>
-                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.daily}</p>
-                        <p className="text-xs text-emerald-200 mt-1">new users</p>
+                        <p className="text-3xl md:text-5xl font-black tracking-tighter">{growthMetrics.daily}</p>
+                        <p className="text-xs text-emerald-200/60 mt-2 font-bold uppercase">New signups</p>
                     </div>
 
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Calendar className="w-4 h-4 text-emerald-200" />
-                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 7 days</p>
+                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/20 shadow-lg hover:bg-white/20 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="w-4 h-4 text-emerald-300" />
+                            <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">7 Days</p>
                         </div>
-                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.weekly}</p>
-                        <p className="text-xs text-emerald-200 mt-1">new users</p>
+                        <p className="text-3xl md:text-5xl font-black tracking-tighter">{growthMetrics.weekly}</p>
+                        <p className="text-xs text-emerald-200/60 mt-2 font-bold uppercase">New signups</p>
                     </div>
 
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Target className="w-4 h-4 text-emerald-200" />
-                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Last 30 days</p>
+                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/20 shadow-lg hover:bg-white/20 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Target className="w-4 h-4 text-emerald-300" />
+                            <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">30 Days</p>
                         </div>
-                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.monthly}</p>
-                        <p className="text-xs text-emerald-200 mt-1">new users</p>
+                        <p className="text-3xl md:text-5xl font-black tracking-tighter">{growthMetrics.monthly}</p>
+                        <p className="text-xs text-emerald-200/60 mt-2 font-bold uppercase">New signups</p>
                     </div>
 
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Users className="w-4 h-4 text-emerald-200" />
-                            <p className="text-xs md:text-sm text-emerald-200 font-medium">Total</p>
+                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-5 border border-white/20 shadow-lg hover:bg-white/20 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Users className="w-4 h-4 text-emerald-300" />
+                            <p className="text-xs text-emerald-300 font-bold uppercase tracking-widest">Total</p>
                         </div>
-                        <p className="text-2xl md:text-4xl font-bold">{growthMetrics.total}</p>
-                        <p className="text-xs text-emerald-200 mt-1">registered</p>
+                        <p className="text-3xl md:text-5xl font-black tracking-tighter">{growthMetrics.total}</p>
+                        <p className="text-xs text-emerald-200/60 mt-2 font-bold uppercase">Members</p>
                     </div>
                 </div>
             </div>
 
-            {/* Secondary Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {/* Engagement Rate */}
-                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <Award className="w-5 h-5 text-green-600" />
+            {/* Engagement & Distribution */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Activity Breakdown */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-stone-200 dark:border-zinc-800 shadow-sm">
+                    <h3 className="font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-emerald-500" />
+                        Engagement Mix
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                            <p className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-500 mb-1">Posts</p>
+                            <p className="text-2xl font-bold text-stone-900 dark:text-white">{activityStats.posts}</p>
                         </div>
-                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Engagement Rate</h3>
+                        <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                            <p className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-500 mb-1">Comments</p>
+                            <p className="text-2xl font-bold text-stone-900 dark:text-white">{activityStats.comments}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                            <p className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-500 mb-1">Jobs</p>
+                            <p className="text-2xl font-bold text-stone-900 dark:text-white">{activityStats.jobs}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                            <p className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-500 mb-1">Conversion</p>
+                            <p className="text-2xl font-bold text-stone-900 dark:text-white">{engagementRate}%</p>
+                        </div>
                     </div>
-                    <p className="text-3xl md:text-5xl font-bold text-green-600">{engagementRate}%</p>
-                    <p className="text-xs md:text-sm text-stone-500 mt-2">{roleStats.verified} verified users</p>
                 </div>
 
-                {/* Student Count */}
-                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <Users className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Students</h3>
-                    </div>
-                    <p className="text-3xl md:text-5xl font-bold text-blue-600">{roleStats.students}</p>
-                    <p className="text-xs md:text-sm text-stone-500 mt-2">
-                        {Math.round((roleStats.students / users.length) * 100)}% of total
-                    </p>
-                </div>
-
-                {/* Organizations */}
-                <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                            <Target className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <h3 className="font-bold text-stone-900 text-sm md:text-base">Organizations</h3>
-                    </div>
-                    <p className="text-3xl md:text-5xl font-bold text-orange-600">{roleStats.orgs}</p>
-                    <p className="text-xs md:text-sm text-stone-500 mt-2">
-                        {Math.round((roleStats.orgs / users.length) * 100)}% of total
-                    </p>
-                </div>
-            </div>
-
-            {/* Top Universities - Mobile Optimized */}
-            <div className="bg-white rounded-2xl p-4 md:p-6 border border-stone-200 shadow-sm">
-                <h3 className="font-bold text-stone-900 mb-4 md:mb-6 text-base md:text-lg">Top Universities</h3>
-                <div className="space-y-3 md:space-y-4">
-                    {topUniversities.map(([uni, count], index) => (
-                        <div key={uni} className="group">
-                            <div className="flex justify-between items-center mb-2">
-                                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                                    <span className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald-100 text-emerald-600 font-bold text-xs md:text-sm flex items-center justify-center">
-                                        {index + 1}
-                                    </span>
-                                    <span className="font-medium text-stone-700 text-sm md:text-base truncate">{uni}</span>
+                {/* Top Universities */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-stone-200 dark:border-zinc-800 shadow-sm">
+                    <h3 className="font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <Award className="w-5 h-5 text-blue-500" />
+                        Top Universities
+                    </h3>
+                    <div className="space-y-4">
+                        {topUniversities.map(([uni, count], index) => (
+                            <div key={uni} className="group">
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-300 font-bold text-sm flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                            {index + 1}
+                                        </span>
+                                        <span className="font-bold text-stone-700 dark:text-zinc-300 text-sm truncate">{uni}</span>
+                                    </div>
+                                    <span className="font-black text-stone-900 dark:text-white text-base ml-2">{count}</span>
                                 </div>
-                                <span className="font-bold text-stone-900 text-base md:text-lg ml-2">{count}</span>
+                                <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-1000"
+                                        style={{ width: `${(count / users.length) * 100}%` }}
+                                    />
+                                </div>
                             </div>
-                            <div className="w-full bg-stone-100 h-2 md:h-3 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full rounded-full bg-emerald-600 transition-all duration-500"
-                                    style={{ width: `${(count / users.length) * 100}%` }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                    {topUniversities.length === 0 && (
-                        <p className="text-stone-400 text-sm text-center py-4">No university data yet</p>
-                    )}
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

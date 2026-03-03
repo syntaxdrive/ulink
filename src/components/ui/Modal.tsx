@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -14,6 +15,9 @@ interface ModalProps {
 export default function Modal({ isOpen, onClose, title, children, footer, size = 'md', hideHeader = false }: ModalProps) {
     if (!isOpen) return null;
 
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return null;
+
     const sizeClasses = {
         'sm': 'max-w-sm',
         'md': 'max-w-md',
@@ -22,11 +26,11 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
         '2xl': 'max-w-2xl',
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            {/* Backdrop */}
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center">
+            {/* Backdrop - only on desktop */}
             <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm hidden sm:block"
                 onClick={onClose}
             />
 
@@ -35,10 +39,11 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
                 className={`
                     relative w-full ${sizeClasses[size]} 
                     bg-white dark:bg-zinc-900 
-                    rounded-t-3xl sm:rounded-3xl 
+                    h-full sm:h-auto
+                    sm:max-h-[85vh]
+                    flex flex-col 
+                    sm:rounded-3xl
                     shadow-2xl 
-                    max-h-[95vh] sm:max-h-[90vh]
-                    flex flex-col
                     animate-in 
                     slide-in-from-bottom sm:fade-in sm:zoom-in-95 
                     duration-200
@@ -46,7 +51,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
             >
                 {/* Header */}
                 {!hideHeader && (
-                    <div className="flex-shrink-0 px-6 py-4 border-b border-stone-200 dark:border-zinc-800 flex justify-between items-center bg-stone-50 dark:bg-zinc-900/50 rounded-t-3xl">
+                    <div className="flex-shrink-0 px-6 py-4 border-b border-stone-200 dark:border-zinc-800 flex justify-between items-center bg-stone-50/50 dark:bg-zinc-900/50 rounded-t-none sm:rounded-t-3xl safe-top">
                         <h2 className="font-bold text-lg text-stone-900 dark:text-zinc-100">{title}</h2>
                         <button
                             onClick={onClose}
@@ -58,13 +63,13 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
                 )}
 
                 {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
                     {children}
                 </div>
 
                 {/* Footer - Sticky at bottom */}
                 {footer && (
-                    <div className="flex-shrink-0 border-t border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4">
+                    <div className="flex-shrink-0 border-t border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 sm:px-6 py-4 safe-bottom sm:rounded-b-3xl">
                         {footer}
                     </div>
                 )}
@@ -84,7 +89,14 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                     background: #9ca3af;
                 }
+                .safe-top {
+                    padding-top: max(1rem, env(safe-area-inset-top));
+                }
+                .safe-bottom {
+                    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+                }
             `}</style>
-        </div>
+        </div>,
+        modalRoot
     );
 }

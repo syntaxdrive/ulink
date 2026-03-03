@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Flame, Newspaper, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ExternalLink, Flame, Newspaper, MessageCircle } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 interface NewsItem {
     title: string;
@@ -91,6 +94,14 @@ export default function NewsSlider() {
         fetchNews();
     }, [activeCategory]);
 
+    const openInAppBrowser = async (url: string) => {
+        if (Capacitor.isNativePlatform()) {
+            await Browser.open({ url });
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
     if (loading) {
         return (
             <div className="w-full overflow-hidden px-4 mb-4">
@@ -118,9 +129,9 @@ export default function NewsSlider() {
                         Top Stories
                     </h3>
                 </div>
-                <span className="text-xs font-semibold text-stone-500 bg-stone-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                    Curated
-                </span>
+                <Link to="/app/news" className="text-xs font-bold text-emerald-600 dark:text-emerald-500 hover:underline">
+                    See All
+                </Link>
             </div>
 
             {/* Category Selector */}
@@ -150,12 +161,9 @@ export default function NewsSlider() {
             ) : (
                 <div className="flex gap-4 overflow-x-auto no-scrollbar px-4 pb-2 snap-x snap-mandatory">
                     {news.map((item, id) => (
-                        <a
+                        <div
                             key={id}
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="relative min-w-[260px] max-w-[260px] md:min-w-[300px] md:max-w-[300px] h-48 rounded-2xl overflow-hidden snap-center flex-shrink-0 flex flex-col justify-end group/card text-left transition-transform active:scale-95 border border-stone-200/50 dark:border-zinc-800/50 shadow-sm"
+                            className="relative min-w-[260px] max-w-[260px] md:min-w-[300px] md:max-w-[300px] h-48 rounded-2xl overflow-hidden snap-center flex-shrink-0 flex flex-col justify-end group/card text-left border border-stone-200/50 dark:border-zinc-800/50 shadow-sm"
                         >
                             {/* Background Image */}
                             <img
@@ -165,21 +173,36 @@ export default function NewsSlider() {
                             />
 
                             {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
 
                             {/* Content */}
-                            <div className="relative z-10 p-4">
+                            <div className="relative z-10 p-4 flex flex-col h-full">
                                 <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase mb-1.5 block">
                                     {item.pubDate}
                                 </span>
-                                <h4 className="text-white font-bold text-sm leading-tight mb-1.5 line-clamp-2 shadow-black drop-shadow-md">
+                                <h4 className="text-white font-bold text-sm leading-tight mb-auto line-clamp-3 shadow-black drop-shadow-md">
                                     {item.title}
                                 </h4>
-                                <div className="flex items-center gap-1.5 text-xs text-stone-300 font-medium opacity-80 group-hover/card:text-emerald-300 transition-colors">
-                                    Read article <ExternalLink className="w-3 h-3" />
+
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                                    <button
+                                        onClick={() => openInAppBrowser(item.link)}
+                                        className="text-[10px] font-bold text-emerald-400 hover:text-white transition-colors flex items-center gap-1 uppercase tracking-tight"
+                                    >
+                                        Read More
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                    </button>
+
+                                    <Link
+                                        to="/app/communities"
+                                        className="text-[10px] font-bold text-stone-400 hover:text-emerald-400 transition-colors flex items-center gap-1 uppercase tracking-tight"
+                                    >
+                                        <MessageCircle className="w-2.5 h-2.5" />
+                                        Discuss
+                                    </Link>
                                 </div>
                             </div>
-                        </a>
+                        </div>
                     ))}
 
                     {/* spacer for end padding in flex layout */}

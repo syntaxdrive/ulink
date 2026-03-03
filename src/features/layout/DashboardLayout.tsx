@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper } from 'lucide-react';
+import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
 import { signInWithGoogle } from '../../lib/auth-helpers';
@@ -15,8 +15,13 @@ import { useNotifications } from '../notifications/hooks/useNotifications';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useUIStore } from '../../stores/useUIStore';
 import { useLocalNotifications } from '../../hooks/usePushNotifications';
+import GlobalAudioPlayer from '../../components/audio/GlobalAudioPlayer';
 
-export default function DashboardLayout() {
+export interface DashboardLayoutProps {
+    session: Session | null;
+}
+
+export default function DashboardLayout({ session }: DashboardLayoutProps) {
     const navigate = useNavigate();
     const location = useLocation();
     const { isImmersive, isDarkMode, toggleDarkMode } = useUIStore();
@@ -32,7 +37,6 @@ export default function DashboardLayout() {
 
     const [userProfile, setUserProfile] = useState<Profile | null>(null);
     const [isGuest, setIsGuest] = useState(false);
-    const isNative = Capacitor.isNativePlatform();
 
     const [notificationPermission, setNotificationPermission] = useState(() =>
         'Notification' in window ? Notification.permission : 'denied'
@@ -87,8 +91,6 @@ export default function DashboardLayout() {
 
         // In-App Toast
         setToast({ title, message: body, isVisible: true, onClick });
-
-        if (document.visibilityState === 'hidden') playNotificationSound();
     };
 
     const audioCtxRef = useRef<AudioContext | null>(null);
@@ -140,12 +142,7 @@ export default function DashboardLayout() {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
-                if (isNative) {
-                    setIsGuest(true);
-                    return;
-                }
-                await supabase.auth.signOut();
-                navigate('/');
+                setIsGuest(true);
                 return;
             }
 
@@ -205,6 +202,7 @@ export default function DashboardLayout() {
                                 if (sender) senderName = sender.name;
                             }
 
+                            playNotificationSound();
                             handleNotification(
                                 `New message from ${senderName}`,
                                 payload.new.content || 'Sent an attachment',
@@ -216,14 +214,39 @@ export default function DashboardLayout() {
                 .on(
                     'postgres_changes',
                     { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-                    (_payload) => {
+                    (payload) => {
                         if (locationRef.current.startsWith('/app/notifications')) {
                             return;
                         }
+
+                        const notif = payload.new;
+                        let targetUrl = '/app/notifications';
+
+                        // Check action_url or data for better targeting
+                        if (notif.action_url) {
+                            let url = notif.action_url;
+                            if (!url.startsWith('/app/')) {
+                                url = url.replace('/posts/', '/post/');
+                                if (!url.startsWith('/')) url = '/' + url;
+                                const routes = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+                                if (routes.some(r => url.startsWith(r))) url = '/app' + url;
+                            }
+                            targetUrl = url;
+                        } else if (notif.data?.post_id) {
+                            targetUrl = `/app/post/${notif.data.post_id}`;
+                        } else if (notif.data?.sender_id || notif.sender_id) {
+                            targetUrl = `/app/profile/${notif.data?.sender_id || notif.sender_id}`;
+                        }
+
+                        // Always play sound if not on notifications page
+                        if (!locationRef.current.startsWith('/app/notifications')) {
+                            playNotificationSound();
+                        }
+
                         handleNotification(
-                            'New Notification',
-                            'You have a new notification',
-                            () => navigate('/app/notifications')
+                            notif.title || 'New Notification',
+                            notif.message || 'You have a new notification',
+                            () => navigate(targetUrl)
                         );
                     }
                 )
@@ -233,9 +256,12 @@ export default function DashboardLayout() {
         setupRealtime();
 
         return () => {
-            if (channel) supabase.removeChannel(channel);
+            if (channel) {
+                channel.unsubscribe();
+                supabase.removeChannel(channel);
+            }
         };
-    }, []);
+    }, [session?.user?.id]);
 
     // Activity Heartbeat
     useEffect(() => {
@@ -279,6 +305,7 @@ export default function DashboardLayout() {
 
     const secondaryNavItems = [
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
+        { icon: Newspaper, label: 'News Feed', path: '/app/news' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
         { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
         ...(!isGuest ? [{ icon: Settings, label: 'Settings', path: '/app/settings' }] : []),
@@ -295,7 +322,7 @@ export default function DashboardLayout() {
     };
 
     const bottomNavItems = navItems.filter(item =>
-        ['Home', 'Network', 'Challenge', 'Messages', 'Profile'].includes(item.label)
+        ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
     );
 
     return (
@@ -312,7 +339,10 @@ export default function DashboardLayout() {
                     >
                         <Menu className="w-6 h-6" />
                         {(unreadNotifications > 0) && (
-                            <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+                            <span className="absolute top-2 right-2 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 ring-2 ring-white"></span>
+                            </span>
                         )}
                     </button>
                     <div className="flex items-center gap-2">
@@ -325,7 +355,9 @@ export default function DashboardLayout() {
                             </button>
                         ) : (
                             <>
-                                <span className="font-display font-bold text-lg text-slate-900 dark:text-white italic tracking-tighter">UniLink</span>
+                                <span className="font-display font-black text-xl tracking-[-0.03em] text-slate-900 dark:text-white">
+                                    UniLink
+                                </span>
                                 <img src="/icon-512.png" alt="UniLink" className="w-8 h-8 rounded-lg shadow-sm" />
                                 <button
                                     onClick={toggleDarkMode}
@@ -386,8 +418,11 @@ export default function DashboardLayout() {
                                         <div className="relative">
                                             <item.icon className="w-5 h-5" />
                                             {getBadgeCount(item.label) > 0 && (
-                                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                                    {getBadgeCount(item.label)}
+                                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                                        {getBadgeCount(item.label)}
+                                                    </span>
                                                 </span>
                                             )}
                                         </div>
@@ -485,17 +520,18 @@ export default function DashboardLayout() {
                     <div className="flex items-center gap-3">
                         <img src="/icon-512.png" alt="UniLink" className="w-10 h-10 shadow-sm rounded-xl" />
                         <div>
-                            <h1 className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+                            <h1 className="text-xl font-display font-black tracking-[-0.03em] text-slate-900 dark:text-white">
                                 UniLink
                             </h1>
-                            <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 tracking-wide">
+                            <div className="text-xs font-medium text-slate-400 dark:text-zinc-500 tracking-wide flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                                 Student Network
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <nav className="flex-1 px-4 py-6 overflow-y-auto space-y-1">
+                <nav className="flex-1 px-4 py-6 overflow-y-auto smooth-scroll space-y-1">
                     <div className="px-4 mb-3">
                         <span className="text-xs font-semibold text-slate-400 tracking-wider">MAIN</span>
                     </div>
@@ -515,8 +551,11 @@ export default function DashboardLayout() {
                             <div className="relative">
                                 <item.icon className="w-5 h-5" strokeWidth={1.5} />
                                 {getBadgeCount(item.label) > 0 && (
-                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
-                                        {getBadgeCount(item.label)}
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                                            {getBadgeCount(item.label)}
+                                        </span>
                                     </span>
                                 )}
                             </div>
@@ -559,14 +598,19 @@ export default function DashboardLayout() {
                             <div className="flex items-center gap-3 mb-4 px-2">
                                 <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
                                     <img
-                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&size=128&background=random`}
                                         alt={userProfile?.name}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
                                 <div className="overflow-hidden">
-                                    <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{userProfile?.name || 'User'}</p>
-                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate uppercase tracking-tight opacity-70">
+                                    <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">
+                                        {userProfile?.name || 'User'}
+                                    </p>
+                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black truncate uppercase tracking-tight">
+                                        @{userProfile?.username || 'handle'}
+                                    </p>
+                                    <p className="text-[9px] text-slate-500 dark:text-zinc-400 font-medium truncate uppercase tracking-tighter opacity-70">
                                         {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
                                     </p>
                                 </div>
@@ -627,10 +671,26 @@ export default function DashboardLayout() {
             </aside>
 
 
-            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-16'}`}>
-                <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-6 md:p-10 pb-32"}>
+            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-16'}`}>
+                <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-4 md:p-8 pb-32"}>
                     <ErrorBoundary>
-                        <Outlet />
+                        {/* Skip page-transition on any route that renders position:fixed modals/overlays.
+                            CSS transform+opacity animations create a stacking context that confines
+                            fixed-position children to the animated ancestor rather than the viewport. */}
+                        {(() => {
+                            const skipTransition =
+                                location.pathname === '/app/messages' ||
+                                location.pathname.startsWith('/app/communities/') ||
+                                location.pathname.startsWith('/app/profile/') ||
+                                location.pathname.startsWith('/app/post/');
+                            return skipTransition ? (
+                                <Outlet />
+                            ) : (
+                                <div key={location.pathname} className="page-transition">
+                                    <Outlet />
+                                </div>
+                            );
+                        })()}
                     </ErrorBoundary>
                 </div>
             </main>
@@ -652,8 +712,11 @@ export default function DashboardLayout() {
                         <div className="relative">
                             <item.icon className="w-6 h-6" strokeWidth={1.5} />
                             {getBadgeCount(item.label) > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
-                                    {getBadgeCount(item.label)}
+                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                                        {getBadgeCount(item.label)}
+                                    </span>
                                 </span>
                             )}
                         </div>
@@ -681,6 +744,8 @@ export default function DashboardLayout() {
                 onClose={() => setShowInstallModal(false)}
                 isIOS={isIOs}
             />
+
+            <GlobalAudioPlayer />
         </div>
     );
 }

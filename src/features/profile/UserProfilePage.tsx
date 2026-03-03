@@ -5,6 +5,9 @@ import { type Profile } from '../../types';
 import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
+import { SEO } from '../../components/SEO/SEO';
+import { nativeShare } from '../../utils/shareUtils';
+import { getBaseUrl } from '../../config';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
@@ -235,7 +238,7 @@ export default function UserProfilePage() {
             updateMetaTags({
                 title: profile.name,
                 description: profile.headline || profile.about || `${profile.name} on UniLink - Connect with students across Nigerian universities`,
-                image: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=400&background=random`,
+                image: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=random`,
                 url: window.location.href
             });
         }
@@ -383,6 +386,15 @@ export default function UserProfilePage() {
 
     return (
         <div className="max-w-5xl mx-auto pb-20">
+            {/* OG/Twitter card meta via Helmet */}
+            <SEO
+                title={profile.name}
+                description={profile.headline || profile.about || `${profile.name} on UniLink — Connect with students across Nigerian universities`}
+                ogImage={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=random`}
+                ogType="profile"
+                canonicalUrl={`${window.location.origin}/app/profile/${profile.username || profile.id}`}
+            />
+
             <Link to="/app/network" className="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 hover:text-slate-800 mb-6 transition-colors font-medium">
                 <ArrowLeft className="w-4 h-4" /> Back to Network
             </Link>
@@ -411,10 +423,10 @@ export default function UserProfilePage() {
                             <div className="relative mb-4 inline-block group/avatar">
                                 <div
                                     onClick={() => setIsFullScreen(true)}
-                                    className={`w-32 h-32 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white dark:border-bg-cardDark shadow-lg overflow-hidden bg-white dark:bg-bg-cardDark relative z-10 cursor-pointer group hover:ring-4 hover:ring-indigo-500/20 transition-all`}
+                                    className={`w-40 h-40 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white dark:border-zinc-900 shadow-xl overflow-hidden bg-white dark:bg-zinc-900 relative z-10 cursor-pointer group hover:ring-8 hover:ring-indigo-500/10 transition-all duration-300`}
                                 >
                                     <img
-                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`}
+                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`}
                                         alt={profile.name}
                                         className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'} group-hover:scale-110 transition-transform duration-300`}
                                     />
@@ -424,14 +436,28 @@ export default function UserProfilePage() {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        navigator.clipboard.writeText(window.location.href);
-                                        alert('Profile link copied to clipboard!');
+                                        const profileUrl = `${window.location.origin}/app/profile/${profile.username || profile.id}`;
+                                        const shareData = {
+                                            title: `${profile.name} on UniLink Nigeria`,
+                                            text: profile.headline || `Check out ${profile.name}'s profile on UniLink Nigeria!`,
+                                            url: profileUrl,
+                                        };
+                                        if (navigator.share) {
+                                            try { await navigator.share(shareData); return; } catch { /* cancelled */ }
+                                        }
+                                        // Fallback: clipboard
+                                        try {
+                                            await navigator.clipboard.writeText(profileUrl);
+                                            alert('Profile link copied to clipboard!');
+                                        } catch {
+                                            prompt('Copy this link:', profileUrl);
+                                        }
                                     }}
                                     className="absolute bottom-0 right-0 z-20 p-2.5 bg-white dark:bg-bg-cardDark text-slate-500 dark:text-zinc-400 hover:text-indigo-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 hover:shadow-xl"
-                                    title="Copy Profile Link"
+                                    title="Share Profile"
                                 >
                                     <Share className="w-4 h-4" />
                                 </button>
@@ -445,7 +471,7 @@ export default function UserProfilePage() {
                                     <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
                                 ) : null}
                             </h1>
-                            <p className="text-stone-400 font-medium text-sm mb-3">@{profile.username || profile.id.slice(0, 6)}</p>
+                            <p className="text-indigo-600 dark:text-indigo-400 font-bold text-sm mb-3">@{profile.username || profile.id.slice(0, 6)}</p>
 
                             {/* Organization Badge */}
                             {isOrganization && (
@@ -538,9 +564,17 @@ export default function UserProfilePage() {
                                 <Mail className="w-5 h-5" />
                             </a>
                             <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(window.location.href);
-                                    alert('Link copied to clipboard!');
+                                onClick={async () => {
+                                    if (profile) {
+                                        const url = `${getBaseUrl()}/app/profile/${profile.username || profile.id}`;
+                                        const title = `${profile.name} on UniLink`;
+                                        const text = `Check out ${profile.name}'s profile on UniLink! ${profile.headline || profile.university || ''}`;
+                                        const shared = await nativeShare(title, text, url);
+                                        if (!shared) {
+                                            navigator.clipboard.writeText(url);
+                                            alert('Profile link copied to clipboard!');
+                                        }
+                                    }
                                 }}
                                 className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all"
                                 title="Share Profile"
@@ -1040,11 +1074,11 @@ export default function UserProfilePage() {
                 >
                     {/* Close Button */}
                     <button
-                        onClick={() => setIsFullScreen(false)}
-                        className="absolute top-4 right-4 p-3 bg-white dark:bg-bg-cardDark/10 hover:bg-white dark:bg-bg-cardDark/20 text-white rounded-full transition-all hover:scale-110 z-10"
+                        onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
+                        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 active:scale-95 z-[110] border border-white/20 backdrop-blur-md"
                         title="Close (ESC)"
                     >
-                        <X className="w-6 h-6" />
+                        <X className="w-7 h-7" />
                     </button>
 
                     {/* Profile Info Overlay */}
@@ -1062,14 +1096,16 @@ export default function UserProfilePage() {
 
                     {/* Image Container */}
                     <div
-                        className="relative max-w-4xl max-h-[90vh] animate-in zoom-in duration-300"
+                        className="relative w-full max-w-2xl aspect-square animate-in zoom-in duration-300 flex items-center justify-center"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <img
-                            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff&size=1024`}
-                            alt={profile.name}
-                            className={`max-w-full max-h-[90vh] ${isOrganization ? 'rounded-2xl object-contain' : 'rounded-full object-cover'} shadow-2xl`}
-                        />
+                        <div className={`w-full h-full ${isOrganization ? 'rounded-3xl' : 'rounded-full'} overflow-hidden border-4 border-white/10 shadow-2xl bg-zinc-900`}>
+                            <img
+                                src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff&size=1024`}
+                                alt={profile.name}
+                                className={`w-full h-full ${isOrganization ? 'object-contain p-8' : 'object-cover'}`}
+                            />
+                        </div>
                     </div>
 
                     {/* Instructions */}
@@ -1087,11 +1123,11 @@ export default function UserProfilePage() {
                 >
                     {/* Close Button */}
                     <button
-                        onClick={() => setIsViewingBackground(false)}
-                        className="absolute top-4 right-4 p-3 bg-white dark:bg-bg-cardDark/10 hover:bg-white dark:bg-bg-cardDark/20 text-white rounded-full transition-all hover:scale-110 z-10"
+                        onClick={(e) => { e.stopPropagation(); setIsViewingBackground(false); }}
+                        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 active:scale-95 z-[110] border border-white/20 backdrop-blur-md"
                         title="Close (ESC)"
                     >
-                        <X className="w-6 h-6" />
+                        <X className="w-7 h-7" />
                     </button>
 
                     {/* Profile Info Overlay */}

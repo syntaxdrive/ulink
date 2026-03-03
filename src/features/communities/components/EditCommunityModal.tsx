@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Globe, Lock, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { type Community } from '../../../types';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
 interface EditCommunityModalProps {
     isOpen: boolean;
@@ -45,33 +46,43 @@ export default function EditCommunityModal({ isOpen, onClose, community, onUpdat
 
             // Upload new icon if provided
             if (iconFile) {
-                const iconExt = iconFile.name.split('.').pop();
-                const iconPath = `community-icons/${community.slug}-${Date.now()}.${iconExt}`;
-                const { error: iconError } = await supabase.storage
-                    .from('community-images')
-                    .upload(iconPath, iconFile);
-
-                if (!iconError) {
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('community-images')
-                        .getPublicUrl(iconPath);
-                    iconUrl = publicUrl;
+                if (cloudinaryService.isConfigured()) {
+                    try {
+                        const result = await cloudinaryService.uploadImage(iconFile, { folder: 'ulink/community-icons' });
+                        iconUrl = result.secureUrl;
+                    } catch (cloudErr) {
+                        console.warn('[Edit community icon] Cloudinary failed, falling back to Supabase:', cloudErr);
+                        const iconExt = iconFile.name.split('.').pop();
+                        const iconPath = `community-icons/${community.slug}-${Date.now()}.${iconExt}`;
+                        const { error: iconError } = await supabase.storage.from('community-images').upload(iconPath, iconFile);
+                        if (!iconError) iconUrl = supabase.storage.from('community-images').getPublicUrl(iconPath).data.publicUrl;
+                    }
+                } else {
+                    const iconExt = iconFile.name.split('.').pop();
+                    const iconPath = `community-icons/${community.slug}-${Date.now()}.${iconExt}`;
+                    const { error: iconError } = await supabase.storage.from('community-images').upload(iconPath, iconFile);
+                    if (!iconError) iconUrl = supabase.storage.from('community-images').getPublicUrl(iconPath).data.publicUrl;
                 }
             }
 
             // Upload new cover if provided
             if (coverFile) {
-                const coverExt = coverFile.name.split('.').pop();
-                const coverPath = `community-covers/${community.slug}-${Date.now()}.${coverExt}`;
-                const { error: coverError } = await supabase.storage
-                    .from('community-images')
-                    .upload(coverPath, coverFile);
-
-                if (!coverError) {
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('community-images')
-                        .getPublicUrl(coverPath);
-                    coverUrl = publicUrl;
+                if (cloudinaryService.isConfigured()) {
+                    try {
+                        const result = await cloudinaryService.uploadImage(coverFile, { folder: 'ulink/community-covers' });
+                        coverUrl = result.secureUrl;
+                    } catch (cloudErr) {
+                        console.warn('[Edit community cover] Cloudinary failed, falling back to Supabase:', cloudErr);
+                        const coverExt = coverFile.name.split('.').pop();
+                        const coverPath = `community-covers/${community.slug}-${Date.now()}.${coverExt}`;
+                        const { error: coverError } = await supabase.storage.from('community-images').upload(coverPath, coverFile);
+                        if (!coverError) coverUrl = supabase.storage.from('community-images').getPublicUrl(coverPath).data.publicUrl;
+                    }
+                } else {
+                    const coverExt = coverFile.name.split('.').pop();
+                    const coverPath = `community-covers/${community.slug}-${Date.now()}.${coverExt}`;
+                    const { error: coverError } = await supabase.storage.from('community-images').upload(coverPath, coverFile);
+                    if (!coverError) coverUrl = supabase.storage.from('community-images').getPublicUrl(coverPath).data.publicUrl;
                 }
             }
 
@@ -142,8 +153,8 @@ export default function EditCommunityModal({ isOpen, onClose, community, onUpdat
                     </button>
                 </div>
 
-                {/* Scrollable Form */}
-                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
+                {/* Scrollable Form Body */}
+                <form id="edit-community-form" onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
                     {/* Name */}
                     <div>
                         <label className="block text-sm font-bold text-stone-700 mb-1.5">Community Name</label>
@@ -271,31 +282,33 @@ export default function EditCommunityModal({ isOpen, onClose, community, onUpdat
                         </div>
                     </div>
 
-                    {/* Submit Button */}
-                    <div className="pt-2 sm:pt-3 sticky bottom-0 bg-white -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 space-y-3">
-                        <button
-                            type="submit"
-                            disabled={loading || !name}
-                            className="w-full py-3 sm:py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
-                        >
-                            {loading ? 'Updating...' : 'Save Changes'}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleDelete}
-                            disabled={loading}
-                            className="w-full py-3 sm:py-3.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl transition-all border border-red-100 flex items-center justify-center gap-2 text-sm sm:text-base"
-                        >
-                            {loading ? 'Processing...' : (
-                                <>
-                                    <Trash2 className="w-4 h-4" />
-                                    Delete Community
-                                </>
-                            )}
-                        </button>
-                    </div>
                 </form>
+
+                {/* Sticky Footer — always visible, outside the scroll area */}
+                <div className="flex-shrink-0 border-t border-stone-100 bg-white px-4 sm:px-6 py-3 sm:py-4 space-y-2.5">
+                    <button
+                        type="submit"
+                        form="edit-community-form"
+                        disabled={loading || !name}
+                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    >
+                        {loading ? 'Updating...' : 'Save Changes'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={loading}
+                        className="w-full py-3 bg-red-50 hover:bg-red-100 active:scale-[0.98] text-red-600 font-bold rounded-xl transition-all border border-red-100 flex items-center justify-center gap-2 text-sm"
+                    >
+                        {loading ? 'Processing...' : (
+                            <>
+                                <Trash2 className="w-4 h-4" />
+                                Delete Community
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

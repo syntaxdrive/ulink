@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { Loader2, X, AtSign, Image as ImageIcon, Instagram, Twitter, Upload, Linkedin, Globe, Facebook } from 'lucide-react';
 import type { Profile } from '../../../types';
 import Modal from '../../../components/ui/Modal';
+import { cloudinaryService } from '../../../services/cloudinaryService';
 
 interface EditProfileModalProps {
     user: Profile;
@@ -179,18 +180,28 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
 
             if (bgFile) {
                 try {
-                    const fileExt = bgFile.name.split('.').pop();
-                    const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
-                    const { error: uploadError } = await supabase.storage
-                        .from('uploads')
-                        .upload(fileName, bgFile, { upsert: true });
-
-                    if (uploadError) throw uploadError;
-
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('uploads')
-                        .getPublicUrl(fileName);
-                    bgUrl = publicUrl;
+                    if (cloudinaryService.isConfigured()) {
+                        try {
+                            const file = new File([bgFile], `bg_${Date.now()}.jpg`, { type: bgFile.type });
+                            const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/backgrounds' });
+                            bgUrl = result.secureUrl;
+                        } catch (cloudErr) {
+                            console.warn('[EditProfile bg] Cloudinary failed, falling back to Supabase:', cloudErr);
+                            const fileExt = bgFile.name.split('.').pop();
+                            const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
+                            const { error: uploadError } = await supabase.storage
+                                .from('uploads').upload(fileName, bgFile, { upsert: true });
+                            if (uploadError) throw uploadError;
+                            bgUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                        }
+                    } else {
+                        const fileExt = bgFile.name.split('.').pop();
+                        const fileName = `backgrounds/${user.id}_${Date.now()}.${fileExt}`;
+                        const { error: uploadError } = await supabase.storage
+                            .from('uploads').upload(fileName, bgFile, { upsert: true });
+                        if (uploadError) throw uploadError;
+                        bgUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                    }
                 } catch (uploadErr: any) {
                     console.error('Background upload failed:', uploadErr.message);
                     // Continue saving profile data even if image upload fails
@@ -200,16 +211,28 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
             let avatarUrl = user.avatar_url;
             if (avatarFile) {
                 try {
-                    const fileExt = avatarFile.name.split('.').pop();
-                    const fileName = `avatars/${user.id}_${Date.now()}.${fileExt}`;
-                    const { error: uploadError } = await supabase.storage
-                        .from('uploads')
-                        .upload(fileName, avatarFile, { upsert: true });
-
-                    if (uploadError) throw uploadError;
-
-                    const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
-                    avatarUrl = publicUrl;
+                    if (cloudinaryService.isConfigured()) {
+                        try {
+                            const file = new File([avatarFile], `avatar_${Date.now()}.jpg`, { type: avatarFile.type });
+                            const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/avatars' });
+                            avatarUrl = result.secureUrl;
+                        } catch (cloudErr) {
+                            console.warn('[EditProfile avatar] Cloudinary failed, falling back to Supabase:', cloudErr);
+                            const fileExt = avatarFile.name.split('.').pop();
+                            const fileName = `avatars/${user.id}_${Date.now()}.${fileExt}`;
+                            const { error: uploadError } = await supabase.storage
+                                .from('uploads').upload(fileName, avatarFile, { upsert: true });
+                            if (uploadError) throw uploadError;
+                            avatarUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                        }
+                    } else {
+                        const fileExt = avatarFile.name.split('.').pop();
+                        const fileName = `avatars/${user.id}_${Date.now()}.${fileExt}`;
+                        const { error: uploadError } = await supabase.storage
+                            .from('uploads').upload(fileName, avatarFile, { upsert: true });
+                        if (uploadError) throw uploadError;
+                        avatarUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                    }
                 } catch (uploadErr: any) {
                     console.error('Avatar upload failed:', uploadErr.message);
                     // Continue saving profile data even if image upload fails
@@ -310,76 +333,68 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                     </div>
                 )}
 
-                <div className="relative mb-8">
-                    {/* Background Image */}
-                    <div className="relative w-full h-32 rounded-xl overflow-hidden bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 group">
-                        {bgPreview ? (
-                            <img src={bgPreview} alt="Background" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="flex items-center justify-center w-full h-full text-stone-400 dark:text-zinc-600">
-                                <ImageIcon className="w-8 h-8" />
-                            </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                            onClick={() => bgInputRef.current?.click()}>
-                            <Upload className="w-6 h-6 text-white" />
+                {/* Background Image */}
+                <div
+                    className="relative w-full h-32 rounded-xl overflow-hidden bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 group cursor-pointer"
+                    onClick={() => bgInputRef.current?.click()}
+                >
+                    {bgPreview ? (
+                        <img src={bgPreview} alt="Background" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-full text-stone-400 dark:text-zinc-600 gap-1">
+                            <ImageIcon className="w-7 h-7" />
+                            <span className="text-xs font-medium">Click to upload cover photo</span>
                         </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <Upload className="w-6 h-6 text-white" />
                     </div>
-                    <input
-                        type="file"
-                        ref={bgInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleBgChange}
-                    />
+                </div>
+                <input type="file" ref={bgInputRef} className="hidden" accept="image/*" onChange={handleBgChange} />
 
-                    {/* Avatar Upload (Overlapping) */}
-                    <div className="absolute -bottom-12 left-6">
-                        <div className="relative group/avatar">
-                            <div className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-900 shadow-lg overflow-hidden bg-white dark:bg-zinc-900">
-                                <img
-                                    src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`}
-                                    alt="Avatar"
-                                    className="w-full h-full object-cover"
-                                />
-                                <div
-                                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all cursor-pointer rounded-full"
-                                    onClick={() => avatarInputRef.current?.click()}
-                                >
-                                    <Upload className="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-                            <input
-                                type="file"
-                                ref={avatarInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleAvatarChange}
+                {/* Avatar upload — flat layout, no absolute positioning */}
+                <div className="flex items-center gap-4">
+                    <div className="relative group/avatar flex-shrink-0">
+                        <div className="w-20 h-20 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg overflow-hidden bg-stone-100 dark:bg-zinc-800">
+                            <img
+                                src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`}
+                                alt="Avatar"
+                                className="w-full h-full object-cover"
                             />
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all"
+                        >
+                            <Upload className="w-4 h-4 text-white" />
+                        </button>
+                        <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm font-semibold text-stone-700 dark:text-zinc-300">Profile Photo</p>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => avatarInputRef.current?.click()}
+                                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
+                            >
+                                Upload photo
+                            </button>
+                            <span className="text-stone-300 dark:text-zinc-700">·</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowAvatarPicker(v => !v)}
+                                className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+                            >
+                                {showAvatarPicker ? 'Hide avatars' : 'Choose avatar'}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-stone-400 dark:text-zinc-600">JPG, PNG up to 10MB</p>
                     </div>
                 </div>
 
-                {/* Avatar actions — rendered in normal flow so they're never clipped */}
-                <div className="pt-14 flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => avatarInputRef.current?.click()}
-                        className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
-                    >
-                        Upload photo
-                    </button>
-                    <span className="text-stone-300 dark:text-zinc-700">·</span>
-                    <button
-                        type="button"
-                        onClick={() => setShowAvatarPicker(v => !v)}
-                        className="text-xs font-semibold text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
-                    >
-                        {showAvatarPicker ? 'Hide avatars' : 'Choose avatar'}
-                    </button>
-                </div>
-
-                {/* Avatar Picker — inline, never clipped */}
+                {/* Avatar Picker grid */}
                 {showAvatarPicker && (
                     <div className="bg-stone-50 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-700 rounded-2xl p-3">
                         <p className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Pick an avatar</p>
@@ -390,8 +405,8 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                                     type="button"
                                     onClick={() => handleSelectPresetAvatar(url)}
                                     className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${avatarPreview === url
-                                            ? 'border-stone-900 dark:border-zinc-100 ring-2 ring-stone-400 dark:ring-zinc-500'
-                                            : 'border-stone-200 dark:border-zinc-700 hover:border-stone-400'
+                                        ? 'border-emerald-500 ring-2 ring-emerald-300 dark:ring-emerald-700'
+                                        : 'border-stone-200 dark:border-zinc-700 hover:border-stone-400'
                                         }`}
                                 >
                                     <img src={url} alt={`Avatar ${i + 1}`} className="w-full h-full object-cover" />

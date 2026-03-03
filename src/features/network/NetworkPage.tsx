@@ -47,7 +47,7 @@ export default function NetworkPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-20">
             {/* Header & Tabs */}
-            <div className="sticky top-0 bg-[#FAFAFA]/95 dark:bg-zinc-950/95 backdrop-blur-md z-30 pt-4 pb-4 space-y-4">
+            <div className="sticky top-0 bg-[#FAFAFA]/95 dark:bg-zinc-950/95 backdrop-blur-md z-30 pt-4 pb-4 px-4 sm:px-0 space-y-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 font-display transition-colors">Your Network</h1>
                     <p className="text-slate-500 dark:text-zinc-400 font-medium transition-colors">Connect with students, alumni, and communities.</p>
@@ -79,11 +79,6 @@ export default function NetworkPage() {
                             }`}
                     >
                         Grow
-                        {suggestions.length > 0 && (
-                            <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'grow' ? 'bg-white/20 text-white dark:text-zinc-900' : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'}`}>
-                                {suggestions.length}
-                            </span>
-                        )}
                     </button>
                     <button
                         onClick={() => setActiveTab('network')}
@@ -199,13 +194,17 @@ export default function NetworkPage() {
                 ))}
 
                 {filteredProfiles.length === 0 && (
-                    <div className="col-span-full text-center py-12">
-                        <p className="text-stone-400">
+                    <div className="col-span-full text-center py-16">
+                        <p className="text-stone-400 dark:text-zinc-500 font-medium">
                             {searchQuery.trim()
-                                ? 'No users found for your search.'
-                                : activeTab === 'grow'
-                                    ? 'You\u2019ve connected with everyone — impressive!'
-                                    : 'You haven\u2019t connected with anyone yet.'}
+                                ? `No users found for "${searchQuery}".`
+                                : activeFilter === 'university'
+                                    ? `No ${activeTab === 'grow' ? 'suggestions' : 'connections'} from ${userProfile?.university || 'your university'} yet.`
+                                    : activeFilter === 'verified'
+                                        ? `No verified ${activeTab === 'grow' ? 'suggestions' : 'connections'} yet.`
+                                        : activeTab === 'grow'
+                                            ? 'You’ve connected with everyone — impressive!'
+                                            : 'You haven’t connected with anyone yet.'}
                         </p>
                     </div>
                 )}

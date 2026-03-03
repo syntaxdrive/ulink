@@ -28,12 +28,14 @@ export async function notifyMentionedUsers(
     if (usernames.length === 0) return;
 
     try {
-        // Get user IDs from usernames
-        const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id')
-            .in('username', usernames)
-            .neq('id', senderId); // Don't notify self
+        // Get sender's name and user IDs from usernames
+        const [senderRes, profilesRes] = await Promise.all([
+            supabase.from('profiles').select('name').eq('id', senderId).single(),
+            supabase.from('profiles').select('id').in('username', usernames).neq('id', senderId)
+        ]);
+
+        const senderName = senderRes.data?.name || 'Someone';
+        const profiles = profilesRes.data;
 
         if (!profiles || profiles.length === 0) return;
 
@@ -42,8 +44,12 @@ export async function notifyMentionedUsers(
             user_id: profile.id,
             type: 'mention',
             sender_id: senderId,
-            post_id: entityType === 'post' ? entityId : null,
-            comment_id: entityType === 'comment' ? entityId : null,
+            content: `${senderName} mentioned you in a ${entityType}`,
+            data: {
+                post_id: entityType === 'post' ? entityId : null,
+                comment_id: entityType === 'comment' ? entityId : null,
+            },
+            action_url: `/app/post/${entityId}`,
             created_at: new Date().toISOString()
         }));
 

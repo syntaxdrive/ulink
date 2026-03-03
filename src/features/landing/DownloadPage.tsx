@@ -4,14 +4,14 @@ import { useUIStore } from '../../stores/useUIStore';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 export default function DownloadPage() {
-    const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.4/UniLink-Nigeria.apk";
+    const APK_URL = "https://github.com/syntaxdrive/ulink/releases/download/v1.0.0/UniLink-Nigeria-v1.0.0.apk";
     const { isDarkMode, toggleDarkMode } = useUIStore();
     const { isInstallable, install } = usePWAInstall();
 
     const handleDownload = () => {
         const link = document.createElement('a');
         link.href = APK_URL;
-        link.download = 'UniLink-Nigeria.apk';
+        link.download = 'UniLink-Nigeria-v1.0.0.apk';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -68,7 +68,7 @@ export default function DownloadPage() {
                                 >
                                     <Smartphone className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <div className="text-left">
-                                        <div className="text-[10px] font-medium leading-none uppercase tracking-widest">Recommended</div>
+                                        <div className="text-[10px] opacity-75 font-normal leading-none uppercase tracking-widest">v1.0.0 Now Available</div>
                                         <div className="text-lg">Install UniLink App</div>
                                     </div>
                                 </button>
@@ -82,7 +82,7 @@ export default function DownloadPage() {
                                 <Download className={`w-6 h-6 group-hover:animate-bounce text-white`} />
                                 <div className="text-left">
                                     <div className="text-[10px] font-medium leading-none uppercase tracking-widest">Android APK</div>
-                                    <div className="text-lg">Download UniLink-Nigeria.apk</div>
+                                    <div className="text-lg">Download UniLink-Nigeria-v1.0.0.apk</div>
                                 </div>
                             </button>
                         </div>

@@ -124,10 +124,18 @@ export function useChat() {
             });
 
         return () => {
-            supabase.removeChannel(channel);
-            presence.untrack().then(() => supabase.removeChannel(presence));
+            if (channel) {
+                channel.unsubscribe();
+                supabase.removeChannel(channel);
+            }
+            if (presence) {
+                presence.untrack().then(() => {
+                    presence.unsubscribe();
+                    supabase.removeChannel(presence);
+                });
+            }
         };
-    }, [userId]);
+    }, [userId, fetchConversations]);
 
     // Active Chat Messages & Subscription
     useEffect(() => {
@@ -194,7 +202,10 @@ export function useChat() {
             .subscribe();
 
         return () => {
-            supabase.removeChannel(channel);
+            if (channel) {
+                channel.unsubscribe();
+                supabase.removeChannel(channel);
+            }
         };
     }, [activeChat, userId, markAsRead]);
 

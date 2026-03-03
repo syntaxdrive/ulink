@@ -4,10 +4,11 @@ import { type Profile, type Project, type Certificate } from '../../types';
 import {
     Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin,
     Globe, MapPin, Briefcase, BadgeCheck, Upload, Share, Instagram, Twitter,
-    Facebook, Youtube, MessageCircle, FileText, Download, Eye
+    Facebook, Youtube, MessageCircle, FileText, Download, Eye, AtSign
 } from 'lucide-react';
 import ImageCropper from '../../components/ImageCropper';
 import ProfileCompletion from '../../components/ProfileCompletion';
+import { cloudinaryService } from '../../services/cloudinaryService';
 
 export default function ProfilePage() {
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -22,6 +23,7 @@ export default function ProfilePage() {
     const [expectedGradYear, setExpectedGradYear] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
     const [about, setAbout] = useState('');
+    const [username, setUsername] = useState('');
     const [bgUrl, setBgUrl] = useState('');
 
     // Skills
@@ -80,6 +82,7 @@ export default function ProfilePage() {
         setExpectedGradYear(data.expected_graduation_year ? data.expected_graduation_year.toString() : '');
         setAvatarUrl(data.avatar_url || '');
         setAbout(data.about || '');
+        setUsername(data.username || '');
         setSkills(data.skills || []);
         setProjects(data.projects || []);
         setCertificates(data.certificates || []);
@@ -117,7 +120,7 @@ export default function ProfilePage() {
                         email: user.email!,
                         name: user.user_metadata.name || user.email?.split('@')[0] || 'User',
                         role: (user.user_metadata?.role as 'student' | 'org') || 'student',
-                        avatar_url: `https://ui-avatars.com/api/?name=${user.email}&background=random`
+                        avatar_url: `https://ui-avatars.com/api/?name=${user.email}&size=512&background=random`
                     })
                     .select()
                     .single();
@@ -175,25 +178,34 @@ export default function ProfilePage() {
 
         try {
             setSaving(true);
-            const fileName = `${profile.id}/avatar_${Date.now()}.jpg`;
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(fileName, croppedBlob, { upsert: true });
+            let publicUrl: string;
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(fileName);
+            // Attempt 1: Cloudinary (f_auto,q_auto on delivery = ~70% smaller avatar)
+            if (cloudinaryService.isConfigured()) {
+                try {
+                    const file = new File([croppedBlob], `avatar_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/avatars' });
+                    publicUrl = result.secureUrl;
+                } catch (cloudErr) {
+                    console.warn('[Avatar] Cloudinary failed, falling back to Supabase:', cloudErr);
+                    // Attempt 2: Supabase fallback
+                    const fileName = `${profile.id}/avatar_${Date.now()}.jpg`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('avatars').upload(fileName, croppedBlob, { upsert: true });
+                    if (uploadError) throw uploadError;
+                    publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+                }
+            } else {
+                // Cloudinary not configured — use Supabase
+                const fileName = `${profile.id}/avatar_${Date.now()}.jpg`;
+                const { error: uploadError } = await supabase.storage
+                    .from('avatars').upload(fileName, croppedBlob, { upsert: true });
+                if (uploadError) throw uploadError;
+                publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+            }
 
             setAvatarUrl(publicUrl);
-
-            // Save to database
-            await supabase
-                .from('profiles')
-                .update({ avatar_url: publicUrl })
-                .eq('id', profile.id);
-
+            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
             setShowAvatarCropper(false);
         } catch (error) {
             console.error('Error uploading avatar:', error);
@@ -208,25 +220,32 @@ export default function ProfilePage() {
 
         try {
             setSaving(true);
-            const fileName = `backgrounds/${profile.id}_${Date.now()}.jpg`;
-            const { error: uploadError } = await supabase.storage
-                .from('uploads')
-                .upload(fileName, croppedBlob, { upsert: true });
+            let publicUrl: string;
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('uploads')
-                .getPublicUrl(fileName);
+            // Attempt 1: Cloudinary
+            if (cloudinaryService.isConfigured()) {
+                try {
+                    const file = new File([croppedBlob], `bg_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/backgrounds' });
+                    publicUrl = result.secureUrl;
+                } catch (cloudErr) {
+                    console.warn('[Background] Cloudinary failed, falling back to Supabase:', cloudErr);
+                    const fileName = `backgrounds/${profile.id}_${Date.now()}.jpg`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('uploads').upload(fileName, croppedBlob, { upsert: true });
+                    if (uploadError) throw uploadError;
+                    publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                }
+            } else {
+                const fileName = `backgrounds/${profile.id}_${Date.now()}.jpg`;
+                const { error: uploadError } = await supabase.storage
+                    .from('uploads').upload(fileName, croppedBlob, { upsert: true });
+                if (uploadError) throw uploadError;
+                publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+            }
 
             setBgUrl(publicUrl);
-
-            // Save to database
-            await supabase
-                .from('profiles')
-                .update({ background_image_url: publicUrl })
-                .eq('id', profile.id);
-
+            await supabase.from('profiles').update({ background_image_url: publicUrl }).eq('id', profile.id);
             setShowBgCropper(false);
         } catch (error) {
             console.error('Error uploading background:', error);
@@ -323,8 +342,16 @@ export default function ProfilePage() {
 
         setSaving(true);
         try {
+            // Validation
+            if (username && username.length < 3) {
+                alert('Username must be at least 3 characters');
+                setSaving(false);
+                return;
+            }
+
             const updates: any = {
                 name,
+                username: username || null,
                 headline,
                 location,
                 avatar_url: avatarUrl,
@@ -354,7 +381,13 @@ export default function ProfilePage() {
                 .update(updates)
                 .eq('id', profile.id);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '23505') {
+                    alert('This username is already taken. Please choose another one.');
+                    return;
+                }
+                throw error;
+            }
 
             setProfile({ ...profile, ...updates });
 
@@ -495,7 +528,7 @@ export default function ProfilePage() {
                                 {/* Avatar */}
                                 <div className="w-32 h-32 rounded-full border-4 border-white dark:border-zinc-900 overflow-hidden mb-4 relative group shadow-lg bg-white">
                                     <img
-                                        src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`}
+                                        src={avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=512&background=10b981&color=fff`}
                                         alt="Profile"
                                         className="w-full h-full object-cover"
                                     />
@@ -529,6 +562,26 @@ export default function ProfilePage() {
                                             className="w-full px-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-stone-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 mt-1"
                                             placeholder={isStudent ? "Your Name" : "Company Name"}
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-semibold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">Username</label>
+                                        <div className="relative mt-1">
+                                            <AtSign className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 dark:text-zinc-600" />
+                                            <input
+                                                type="text"
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                                className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-700 dark:text-zinc-300 focus:outline-none focus:border-emerald-500"
+                                                placeholder="username"
+                                            />
+                                        </div>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-[10px] text-stone-400 dark:text-zinc-500">unilink.ng/app/profile/{username || 'username'}</p>
+                                            {username && username.length >= 3 && (
+                                                <span className="text-[10px] text-emerald-500 font-bold">Valid format</span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div>

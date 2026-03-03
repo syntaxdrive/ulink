@@ -9,6 +9,8 @@ interface NotificationStore {
     setRequests: (requests: NotificationItem[]) => void;
     setGeneralNotifications: (notifs: GeneralNotification[]) => void;
     addGeneralNotification: (notif: GeneralNotification) => void;
+    markAsRead: (id: string) => void;
+    markAllAsRead: () => void;
     removeRequest: (id: string) => void;
     removeGeneralNotifications: (ids: string[]) => void;
     clearGeneralNotifications: () => void;
@@ -26,6 +28,12 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         if (state.generalNotifications.some(n => n.id === notif.id)) return state;
         return { generalNotifications: [notif, ...state.generalNotifications] };
     }),
+    markAsRead: (id) => set((state) => ({
+        generalNotifications: state.generalNotifications.map(n => n.id === id ? { ...n, read: true } : n)
+    })),
+    markAllAsRead: () => set((state) => ({
+        generalNotifications: state.generalNotifications.map(n => ({ ...n, read: true }))
+    })),
     removeRequest: (id) => set((state) => ({ requests: state.requests.filter(r => r.id !== id) })),
     removeGeneralNotifications: (ids) => set((state) => ({
         generalNotifications: state.generalNotifications.filter(n => !ids.includes(n.id))

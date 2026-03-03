@@ -4,7 +4,9 @@ import { useFeed } from './hooks/useFeed';
 import PostItem from './components/PostItem';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useFeedStore } from '../../stores/useFeedStore';
-import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
+import { updateMetaTags, resetMetaTags, truncateForMeta } from '../../utils/metaTags';
+import { getBaseUrl } from '../../config';
+import { SEO } from '../../components/SEO/SEO';
 
 export default function PostPage() {
     const { postId } = useParams();
@@ -47,19 +49,25 @@ export default function PostPage() {
             const postContent = post.content || '';
             const postImage = post.image_url || post.image_urls?.[0];
 
+            // DOM mutation for immediate effect (works even if Helmet is slow)
             updateMetaTags({
-                title: `${authorName}'s Post`,
-                description: postContent,
-                image: postImage || `${window.location.origin}/icon-512.png`,
-                url: window.location.href
+                title: `${authorName}'s Post on UniLink`,
+                description: truncateForMeta(postContent, 160),
+                image: postImage || `${getBaseUrl()}/icon-512.png`,
+                url: `${getBaseUrl()}/app/post/${post.id}`
             });
         }
 
-        // Reset meta tags when component unmounts
-        return () => {
-            resetMetaTags();
-        };
+        return () => { resetMetaTags(); };
     }, [post]);
+
+    // Derive values for Helmet SEO component
+    const postAuthor = post?.profiles?.name || 'UniLink User';
+    const postContent = post?.content || '';
+    const postImage = post?.image_url || post?.image_urls?.[0] || `${getBaseUrl()}/icon-512.png`;
+    const postUrl = post ? `${getBaseUrl()}/app/post/${post.id}` : getBaseUrl();
+    const postTitle = post ? `${postAuthor}'s Post on UniLink` : 'Post | UniLink';
+    const postDesc = truncateForMeta(postContent, 160) || 'View this post on UniLink Nigeria.';
 
     if (loading) {
         return (
@@ -82,6 +90,15 @@ export default function PostPage() {
 
     return (
         <div className="max-w-2xl mx-auto pb-20">
+            {/* OG/Twitter card meta via Helmet — picked up by bots/crawlers */}
+            <SEO
+                title={postTitle}
+                description={postDesc}
+                ogImage={postImage}
+                ogType="article"
+                canonicalUrl={postUrl}
+            />
+
             <button
                 onClick={() => navigate(-1)}
                 className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-6 transition-colors font-medium"

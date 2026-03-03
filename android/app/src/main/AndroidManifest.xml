@@ -44,6 +44,23 @@
                 <data android:scheme="com.syntaxdrive.ulink" />
             </intent-filter>
 
+            <!-- Share Target: Allow sharing text and images TO UniLink -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
             <!-- Supabase OAuth redirect (auth deep link) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -64,6 +81,9 @@
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <!-- Required for the Admin Dashboard Radio broadcast feature -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

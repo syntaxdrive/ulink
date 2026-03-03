@@ -1,56 +1,30 @@
 import { Link } from 'react-router-dom';
-import { Camera, GraduationCap, FileText, ChevronRight, X, Globe } from 'lucide-react';
-import { useState } from 'react';
+import { Camera, GraduationCap, FileText, ChevronRight, X, Globe, MapPin, Briefcase } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { calculateProfileCompletion } from '../../../utils/profileCompletion';
 
 export default function ProfileCompletionBanner({ profile }: { profile: any }) {
     const [dismissed, setDismissed] = useState(false);
 
     if (!profile || dismissed) return null;
 
-    // Calculate completion score
-    let completedSteps = 0;
-    const totalSteps = 8;
-    const missing: { icon: any, label: string }[] = [];
+    const { checks, percentage } = useMemo(() => calculateProfileCompletion(profile), [profile]);
 
-    // 1. Avatar
-    if (profile.avatar_url) completedSteps++;
-    else missing.push({ icon: Camera, label: 'Add Profile Photo' });
+    const missing = checks
+        .filter(c => !c.completed)
+        .map(c => {
+            let icon = FileText;
+            if (c.label === 'Profile Photo') icon = Camera;
+            if (c.label === 'Cover Photo') icon = Camera;
+            if (c.label === 'University') icon = GraduationCap;
+            if (c.label === 'Location') icon = MapPin;
+            if (c.label === 'Skills') icon = Briefcase;
+            if (c.label === 'Social Links') icon = Globe;
+            return { icon, label: `Add ${c.label.split(' / ')[0]}` };
+        });
 
-    // 2. Headline
-    if (profile.headline) completedSteps++;
-    else missing.push({ icon: FileText, label: 'Add Headline' });
-
-    // 3. University/Industry
-    if (profile.role === 'org') {
-        if (profile.industry) completedSteps++;
-        else missing.push({ icon: FileText, label: 'Add Industry' });
-    } else {
-        if (profile.university) completedSteps++;
-        else missing.push({ icon: GraduationCap, label: 'Add University' });
-    }
-
-    // 4. Bio
-    if (profile.about) completedSteps++;
-    else missing.push({ icon: FileText, label: 'Add Bio' });
-
-    // 5. Background Image
-    if (profile.background_image_url) completedSteps++;
-    else missing.push({ icon: Camera, label: 'Add Cover Photo' });
-
-    // 6. Location
-    if (profile.location) completedSteps++;
-    else missing.push({ icon: FileText, label: 'Add Location' });
-
-    // 7. Skills
-    if (profile.skills && profile.skills.length > 0) completedSteps++;
-    else missing.push({ icon: FileText, label: 'Add Skills' });
-
-    // 8. Social links (any)
-    const hasSocials = profile.instagram_url || profile.twitter_url || profile.linkedin_url || profile.website_url || profile.facebook_url;
-    if (hasSocials) completedSteps++;
-    else missing.push({ icon: Globe, label: 'Add Social Links' });
-
-    const percentage = Math.round((completedSteps / totalSteps) * 100);
+    const completedSteps = checks.filter(c => c.completed).length;
+    const totalSteps = checks.length;
 
     // If fully complete, don't show the banner
     if (completedSteps === totalSteps) return null;

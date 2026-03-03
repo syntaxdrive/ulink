@@ -25,6 +25,7 @@ import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
 import CoursesPage from './features/learn/CoursesPage';
 import LeaderboardPage from './features/leaderboard/LeaderboardPage';
 import CampusChallengePage from './features/challenge/CampusChallengePage';
+import NewsPage from './features/news/NewsPage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
 import { HelmetProvider } from 'react-helmet-async';
@@ -33,6 +34,7 @@ import { useUIStore } from './stores/useUIStore';
 
 import { Capacitor } from '@capacitor/core';
 import { initializeNativeAuth } from './lib/auth-helpers';
+import DeepLinkHelper from './components/DeepLinkHelper';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -101,6 +103,7 @@ function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
+        <DeepLinkHelper />
         <UpdateNotification />
         {/* Default SEO Tags */}
         <SEO
@@ -117,6 +120,14 @@ function App() {
                 : (isNative ? <Navigate to="/app" replace /> : <LandingPage />)
             }
           />
+          <Route
+            path="/signup"
+            element={
+              session
+                ? <Navigate to="/app" replace />
+                : <LandingPage />
+            }
+          />
           <Route path="/about" element={<AboutPage />} />
           <Route
             path="/onboarding"
@@ -124,7 +135,7 @@ function App() {
           />
           <Route
             path="/app"
-            element={(session || isNative) ? <DashboardLayout /> : <Navigate to="/" replace />}
+            element={<DashboardLayout session={session} />}
           >
             <Route index element={<FeedPage />} />
             <Route path="post/:postId" element={<PostPage />} />
@@ -137,6 +148,7 @@ function App() {
             <Route path="learn" element={<CoursesPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="challenge" element={<CampusChallengePage />} />
+            <Route path="news" element={<NewsPage />} />
             <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
             <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
             <Route path="profile/:userId" element={<UserProfilePage />} />

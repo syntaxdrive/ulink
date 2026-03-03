@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward } from 'lucide-react';
+import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 
 export const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
@@ -70,7 +70,7 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
         >
             {/* Avatar for received messages */}
             {!isMe && activeChat && (
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 mb-1 shadow-sm shrink-0 border border-white">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 dark:bg-zinc-800 mb-1 shadow-sm shrink-0 border border-white dark:border-zinc-900">
                     <img
                         src={activeChat.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}`}
                         alt="Avatar"
@@ -81,15 +81,15 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
 
             <div
                 className={`max-w-[85%] md:max-w-[70%] px-4 py-2 rounded-2xl text-sm relative z-10 shadow-sm transition-transform duration-200 ${isMe
-                    ? 'bg-emerald-600 text-white rounded-br-none'
-                    : 'bg-white border border-stone-100 text-stone-800 rounded-bl-none'
+                    ? 'bg-emerald-600 dark:bg-emerald-600 text-white rounded-br-none'
+                    : 'bg-white dark:bg-zinc-900 border border-stone-100 dark:border-zinc-800 text-stone-800 dark:text-zinc-100 rounded-bl-none'
                     } ${showMenu ? 'scale-105 shadow-md ring-2 ring-emerald-500/20' : ''}`}
             >
                 {/* Quoted Message Preview */}
                 {quoteContent && (
                     <div className={`mb-2 p-2 rounded-lg text-xs border-l-2 flex flex-col select-none ${isMe
                         ? 'bg-emerald-800/40 border-emerald-400 text-emerald-100'
-                        : 'bg-stone-100 border-stone-300 text-stone-500'
+                        : 'bg-stone-100 dark:bg-zinc-800/50 border-stone-300 dark:border-zinc-600 text-stone-500 dark:text-zinc-400'
                         }`}>
                         <span className="font-bold opacity-75 text-[10px] uppercase mb-0.5">Replying to</span>
                         <span className="line-clamp-2 italic">"{quoteContent}"</span>
@@ -116,7 +116,7 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                             rel="noopener noreferrer"
                             className={`mt-2 flex items-center gap-3 p-3 rounded-xl border transition-colors group/file ${isMe
                                 ? 'bg-emerald-700/50 border-emerald-500/30 hover:bg-emerald-700/70 text-emerald-50'
-                                : 'bg-stone-50 border-stone-200 hover:bg-stone-100 text-stone-700'
+                                : 'bg-stone-50 dark:bg-zinc-800/50 border-stone-200 dark:border-zinc-700 hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
                                 }`}
                         >
                             <div className={`p-2 rounded-lg ${isMe ? 'bg-emerald-800/50' : 'bg-stone-200'}`}>
@@ -135,11 +135,11 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
 
                 {/* Audio Message */}
                 {msg.audio_url && (
-                    <div className={`mt-2 flex items-center gap-3 p-3 rounded-xl min-w-[200px] ${isMe ? 'bg-emerald-800/20' : 'bg-stone-100'
+                    <div className={`mt-2 flex items-center gap-3 p-3 rounded-xl min-w-[200px] ${isMe ? 'bg-emerald-800/20' : 'bg-stone-100 dark:bg-zinc-800/50'
                         }`}>
                         <button
                             onClick={togglePlay}
-                            className={`p-2 rounded-full shrink-0 transition-colors ${isMe ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'bg-stone-900 text-white hover:bg-stone-700'
+                            className={`p-2 rounded-full shrink-0 transition-colors ${isMe ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'bg-stone-900 dark:bg-black text-white hover:bg-stone-700 dark:hover:bg-zinc-900'
                                 }`}
                         >
                             {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
@@ -193,33 +193,50 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                 {/* Context Menu Popover */}
                 {showMenu && (
                     <>
-                        <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
                         <div
-                            className={`absolute z-50 bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} bg-white rounded-xl shadow-xl border border-stone-100 py-1 min-w-[140px] animate-in zoom-in-95 duration-200 overflow-hidden`}
+                            className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-[2px]"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowMenu(false);
+                            }}
+                            onTouchStart={(e) => {
+                                e.stopPropagation();
+                                setShowMenu(false);
+                            }}
+                        />
+                        <div
+                            className={`absolute z-[101] bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-stone-100 dark:border-zinc-800 py-1 min-w-[160px] animate-in zoom-in-95 duration-200 overflow-hidden`}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
                                 onClick={() => { setShowMenu(false); onReply(msg); }}
-                                className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-3 active:bg-stone-100"
+                                className="w-full text-left px-4 py-3 text-sm text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center gap-3 active:bg-stone-100 dark:active:bg-zinc-700"
                             >
-                                <Reply className="w-4 h-4" /> Reply
+                                <Reply className="w-4 h-4 text-emerald-600" /> Reply
                             </button>
                             {onForward && (
                                 <button
                                     onClick={() => { setShowMenu(false); onForward(msg); }}
-                                    className="w-full text-left px-4 py-3 text-sm text-stone-700 hover:bg-stone-50 flex items-center gap-3 active:bg-stone-100 border-t border-stone-50"
+                                    className="w-full text-left px-4 py-3 text-sm text-stone-700 dark:text-zinc-200 hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center gap-3 active:bg-stone-100 dark:active:bg-zinc-700 border-t border-stone-50 dark:border-zinc-800"
                                 >
-                                    <Forward className="w-4 h-4" /> Forward
+                                    <Forward className="w-4 h-4 text-blue-500" /> Forward
                                 </button>
                             )}
                             {isMe && onDelete && (
                                 <button
                                     onClick={() => { setShowMenu(false); onDelete(msg.id); }}
-                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 border-t border-stone-50 active:bg-red-50"
+                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 border-t border-stone-50 dark:border-zinc-800 active:bg-red-50 dark:active:bg-red-900/30"
                                 >
                                     <Trash2 className="w-4 h-4" /> Delete
                                 </button>
                             )}
+                            <button
+                                onClick={() => setShowMenu(false)}
+                                className="w-full text-left px-4 py-3 text-sm text-stone-400 dark:text-zinc-500 hover:bg-stone-50 dark:hover:bg-zinc-800 flex items-center gap-3 border-t border-stone-50 dark:border-zinc-800 active:bg-stone-100 dark:active:bg-zinc-700"
+                            >
+                                <X className="w-4 h-4" /> Cancel
+                            </button>
                         </div>
                     </>
                 )}
