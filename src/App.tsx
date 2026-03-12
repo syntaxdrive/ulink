@@ -61,6 +61,11 @@ function App() {
     }
   }, [setDarkMode]);
 
+  // Lock to portrait — silently no-ops on desktop or unsupported browsers
+  useEffect(() => {
+    (window.screen?.orientation as any)?.lock?.('portrait').catch(() => {});
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

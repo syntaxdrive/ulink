@@ -67,13 +67,18 @@ function PdfViewer({ url, name: _name }: { url: string; name: string }) {
             if (!canvas) return;
             renderedRef.current.add(pageNum);
             try {
+                const dpr = window.devicePixelRatio || 1;
                 const containerWidth = (container.clientWidth || 320) - 32;
                 const pdfPage = await pdf.getPage(pageNum);
                 const baseVp = pdfPage.getViewport({ scale: 1 });
-                const viewport = pdfPage.getViewport({ scale: (containerWidth / baseVp.width) * scale });
+                const cssScale = (containerWidth / baseVp.width) * scale;
+                // Render at physical pixel density so text is crisp on retina/HiDPI screens
+                const viewport = pdfPage.getViewport({ scale: cssScale * dpr });
                 const ctx = canvas.getContext('2d')!;
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
+                canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+                canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
                 renderTasksRef.current[pageNum - 1]?.cancel?.();
                 const task = pdfPage.render({ canvasContext: ctx, viewport });
                 renderTasksRef.current[pageNum - 1] = task;
@@ -517,12 +522,6 @@ export default function DocumentViewer({ doc, course, onClose }: Props) {
                         </span>
                     )}
                 </button>
-                <button onClick={() => openAI()}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors flex-shrink-0 ${showAI ? 'bg-violet-600 dark:bg-violet-500 text-white shadow-md shadow-violet-500/30' : 'bg-violet-100 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/40'}`}>
-                    <Brain className="w-4 h-4" />
-                    <span className="hidden sm:inline">{showAI ? 'UAI' : 'Ask UAI'}</span>
-                    {docText === undefined && <Loader className="w-3 h-3 animate-spin opacity-60" />}
-                </button>
                 <a href={doc.public_url} target="_blank" rel="noopener noreferrer"
                     className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0" title="Open in browser">
                     <ExternalLink className="w-4 h-4" />
@@ -553,10 +552,29 @@ export default function DocumentViewer({ doc, course, onClose }: Props) {
 
                 {/* Document — shrinks to give room when AI panel is open */}
                 <div
-                    className="flex flex-col min-h-0 overflow-hidden"
+                    className="flex flex-col min-h-0 overflow-hidden relative"
                     style={showAI ? { flex: 'none', height: `${(1 - aiPanelFraction) * 100}%` } : { flex: '1 1 0' }}
                 >
                     <DocContent doc={doc} />
+
+                    {/* Floating UAI button — always anchored to bottom-right of document area */}
+                    <button
+                        onClick={() => showAI ? setShowAI(false) : openAI()}
+                        className={`absolute bottom-5 right-5 z-20 flex items-center justify-center rounded-full shadow-xl transition-all duration-200 active:scale-95 ${
+                            showAI
+                                ? 'w-12 h-12 bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/40'
+                                : 'w-14 h-14 bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/50 hover:shadow-violet-500/60 hover:scale-105'
+                        }`}
+                        title={showAI ? 'Close UAI' : 'Ask UAI'}
+                    >
+                        {showAI
+                            ? <X className="w-5 h-5" />
+                            : <Brain className="w-6 h-6" />
+                        }
+                        {!showAI && docText === undefined && (
+                            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-zinc-950 animate-pulse" />
+                        )}
+                    </button>
                 </div>
 
                 {/* AI Chat Panel — resizable bottom panel */}
