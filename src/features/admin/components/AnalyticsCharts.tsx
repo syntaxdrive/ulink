@@ -38,9 +38,9 @@ export default function AnalyticsCharts({ users, activities = [] }: AnalyticsCha
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        const dailySignups = users.filter(u => new Date(u.created_at) >= oneDayAgo).length;
-        const weeklySignups = users.filter(u => new Date(u.created_at) >= oneWeekAgo).length;
-        const monthlySignups = users.filter(u => new Date(u.created_at) >= oneMonthAgo).length;
+        const dailySignups = users.filter(u => u.created_at && new Date(u.created_at) >= oneDayAgo).length;
+        const weeklySignups = users.filter(u => u.created_at && new Date(u.created_at) >= oneWeekAgo).length;
+        const monthlySignups = users.filter(u => u.created_at && new Date(u.created_at) >= oneMonthAgo).length;
 
         return {
             daily: dailySignups,

@@ -40,13 +40,13 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                 if (preSelectedUser?.email) recipients = [preSelectedUser.email];
                 break;
             case 'all':
-                recipients = allUsers.map(u => u.email).filter(Boolean);
+                recipients = allUsers.map(u => u.email).filter(Boolean) as string[];
                 break;
             case 'verified':
-                recipients = allUsers.filter(u => u.is_verified).map(u => u.email).filter(Boolean);
+                recipients = allUsers.filter(u => u.is_verified).map(u => u.email).filter(Boolean) as string[];
                 break;
             case 'unverified':
-                recipients = allUsers.filter(u => !u.is_verified).map(u => u.email).filter(Boolean);
+                recipients = allUsers.filter(u => !u.is_verified).map(u => u.email).filter(Boolean) as string[];
                 break;
         }
 

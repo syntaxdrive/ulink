@@ -146,7 +146,8 @@ export function useChat() {
                 .from('messages')
                 .select('*')
                 .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
-                .order('created_at', { ascending: true });
+                .order('created_at', { ascending: true })
+                .limit(100);
 
             setMessages(data || []);
             markAsRead(activeChat.id);

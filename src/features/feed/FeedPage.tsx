@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, UserRound, Globe, Zap, Trophy, Users, Flame, TrendingUp, Sparkles } from 'lucide-react';
+import { Search, UserRound, Globe, Zap, Trophy, Users, Flame, TrendingUp, Sparkles, Mic2 } from 'lucide-react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAudioStore } from '../../stores/useAudioStore';
 import CreatePost from './components/CreatePost';
 import PostItem from './components/PostItem';
 import SuggestedConnections from './components/SuggestedConnections';
@@ -18,7 +19,19 @@ import NewsSlider from './components/NewsSlider';
 
 
 
-function LiveTicker({ postCount }: { postCount: number }) {
+// Module-level name cache: each user name is fetched at most once per browser session
+const _nameCache = new Map<string, string>();
+async function resolveName(userId: string): Promise<string> {
+    if (_nameCache.has(userId)) return _nameCache.get(userId)!;
+    const { data } = await supabase.from('profiles').select('name').eq('id', userId).single();
+    const name = data?.name?.split(' ')[0] || 'Someone';
+    _nameCache.set(userId, name);
+    return name;
+}
+
+type FeedEvent = { type: 'post' | 'like' | 'comment'; userId: string };
+
+function LiveTicker({ postCount, latestFeedEvent }: { postCount: number; latestFeedEvent: FeedEvent | null }) {
     const [message, setMessage] = useState('🌐 UniLink is live — students are active right now');
     const [visible, setVisible] = useState(true);
     const [isRealEvent, setIsRealEvent] = useState(false);
@@ -32,34 +45,18 @@ function LiveTicker({ postCount }: { postCount: number }) {
         }, 250);
     };
 
-    // Fetch name helper
-    const getName = async (userId: string): Promise<string> => {
-        const { data } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', userId)
-            .single();
-        return data?.name?.split(' ')[0] || 'Someone';
-    };
-
+    // Resolve name and show ticker message when a new feed event arrives
     useEffect(() => {
-        const channel = supabase
-            .channel('live-ticker')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload) => {
-                const name = await getName(payload.new.author_id);
-                showMessage(`✍️ ${name} just posted something new`, true);
-            })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, async (payload) => {
-                const name = await getName(payload.new.author_id);
-                showMessage(`💬 ${name} just dropped a comment`, true);
-            })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, async (payload) => {
-                const name = await getName(payload.new.user_id);
-                showMessage(`❤️ ${name} liked a post`, true);
-            })
-            .subscribe();
+        if (!latestFeedEvent) return;
+        resolveName(latestFeedEvent.userId).then(name => {
+            if (latestFeedEvent.type === 'post') showMessage(`✍️ ${name} just posted something new`, true);
+            else if (latestFeedEvent.type === 'comment') showMessage(`💬 ${name} just dropped a comment`, true);
+            else showMessage(`❤️ ${name} liked a post`, true);
+        });
+    }, [latestFeedEvent]);
 
-        // Rotate idle messages when nothing is happening
+    // Idle message rotation
+    useEffect(() => {
         const IDLE = [
             '🌐 UniLink is live — students are active right now',
             '⚡ Campus challenge is heating up — join now!',
@@ -69,7 +66,6 @@ function LiveTicker({ postCount }: { postCount: number }) {
         ];
         let idleIdx = 0;
         const idleTimer = setInterval(() => {
-            // Only show idle if no real event is currently displayed
             setIsRealEvent(prev => {
                 if (!prev) {
                     idleIdx = (idleIdx + 1) % IDLE.length;
@@ -78,12 +74,7 @@ function LiveTicker({ postCount }: { postCount: number }) {
                 return prev;
             });
         }, 6000);
-
-        // Clear "real" flag after a few seconds so idle rotation resumes
-        return () => {
-            supabase.removeChannel(channel);
-            clearInterval(idleTimer);
-        };
+        return () => clearInterval(idleTimer);
     }, []);
 
     // Reset isRealEvent after 8s so idle rotation can resume
@@ -112,6 +103,137 @@ function LiveTicker({ postCount }: { postCount: number }) {
 }
 
 
+function PodcastSidebarWidget() {
+    const [podcasts, setPodcasts] = useState<any[]>([]);
+
+    useEffect(() => {
+        supabase
+            .from('podcasts')
+            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name)')
+            .eq('status', 'approved')
+            .order('followers_count', { ascending: false })
+            .limit(3)
+            .then(({ data }) => { if (data?.length) setPodcasts(data); });
+    }, []);
+
+    if (podcasts.length === 0) return null;
+
+    return (
+        <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 flex items-center gap-2">
+                    <Mic2 className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                    Campus Podcasts
+                </h3>
+                <NavLink to="/app/podcasts" className="text-xs text-emerald-600 dark:text-emerald-500 font-semibold hover:underline">
+                    See all
+                </NavLink>
+            </div>
+            <div className="space-y-2">
+                {podcasts.map(p => (
+                    <NavLink
+                        key={p.id}
+                        to={`/app/podcasts/${p.id}`}
+                        className="flex items-center gap-3 group hover:bg-stone-50 dark:hover:bg-zinc-800 rounded-xl p-1.5 -mx-1.5 transition-colors"
+                    >
+                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                            {p.cover_url ? (
+                                <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
+                                    <Mic2 className="w-5 h-5 text-white/80" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-stone-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                {p.title}
+                            </p>
+                            <p className="text-xs text-stone-400 dark:text-zinc-500">
+                                {p.creator?.name} · {p.episodes_count} ep{p.episodes_count !== 1 ? 's' : ''}
+                            </p>
+                        </div>
+                    </NavLink>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ── Mobile podcast strip (visible below lg breakpoint only) ────
+function MobilePodcastStrip() {
+    const navigate = useNavigate();
+    const [podcasts, setPodcasts] = useState<any[]>([]);
+    const { currentTrack, isPlaying } = useAudioStore();
+
+    useEffect(() => {
+        supabase
+            .from('podcasts')
+            .select('id, title, cover_url, category, creator:profiles!creator_id(name)')
+            .eq('status', 'approved')
+            .order('followers_count', { ascending: false })
+            .limit(8)
+            .then(({ data }) => { if (data?.length) setPodcasts(data); });
+    }, []);
+
+    if (podcasts.length === 0) return null;
+
+    const GRADIENTS: Record<string, string> = {
+        Technology: 'from-blue-600 to-cyan-500', Business: 'from-amber-500 to-orange-600',
+        Education: 'from-purple-600 to-violet-500', Entertainment: 'from-pink-500 to-rose-600',
+        Health: 'from-green-500 to-emerald-600', Sports: 'from-orange-500 to-red-500',
+        News: 'from-red-600 to-rose-500', Comedy: 'from-yellow-400 to-orange-400',
+        Arts: 'from-violet-500 to-purple-600', Other: 'from-slate-500 to-zinc-600',
+    };
+
+    return (
+        <div className="lg:hidden px-4 mb-2">
+            <div className="flex items-center justify-between mb-2.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-black uppercase text-stone-400 dark:text-zinc-500 tracking-widest">
+                    <Mic2 className="w-3 h-3 text-emerald-500" /> Campus Podcasts
+                </span>
+                <NavLink to="/app/podcasts" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-500">
+                    See all
+                </NavLink>
+            </div>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+                {podcasts.map(p => {
+                    const isActive = currentTrack?.source === p.title;
+                    const g = GRADIENTS[p.category] ?? GRADIENTS.Other;
+                    return (
+                        <button
+                            key={p.id}
+                            onClick={() => navigate(`/app/podcasts/${p.id}`)}
+                            className="group shrink-0 w-28 text-left"
+                        >
+                            <div className={`aspect-square w-28 rounded-2xl overflow-hidden bg-gradient-to-br ${g} mb-1.5 shadow-sm`}>
+                                {p.cover_url ? (
+                                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Mic2 className="w-7 h-7 text-white/60" />
+                                    </div>
+                                )}
+                                {isActive && isPlaying && (
+                                    <div className="absolute bottom-2 right-2 flex gap-0.5 items-end h-3">
+                                        {[0.6,1,0.8,0.4].map((h,j) => (
+                                            <div key={j} className="w-0.5 bg-white rounded-full animate-bounce" style={{ height: `${h*100}%`, animationDuration: `${0.4+j*0.15}s` }} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs font-bold text-stone-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                {p.title}
+                            </p>
+                            <p className="text-[10px] text-stone-400 dark:text-zinc-500 truncate">{p.creator?.name}</p>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export default function FeedPage() {
     const navigate = useNavigate();
     const {
@@ -134,7 +256,8 @@ export default function FeedPage() {
         currentUserProfile,
         hasMore,
         loadingMore,
-        loadMorePosts
+        loadMorePosts,
+        latestFeedEvent,
     } = useFeed();
 
     const { posts: sponsoredPosts } = useSponsoredPosts();
@@ -143,6 +266,26 @@ export default function FeedPage() {
     const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
     const [peopleResults, setPeopleResults] = useState<any[]>([]);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
+    const [shareContent, setShareContent] = useState<string | null>(null);
+
+    // PWA Share Target — intercept ?title, ?text, ?url injected by Android when
+    // the user shares a link/page directly to UniLink from another app.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const title = params.get('title') || '';
+        const text = params.get('text') || '';
+        const url = params.get('url') || '';
+
+        if (title || text || url) {
+            const parts: string[] = [];
+            if (title) parts.push(title);
+            if (text && text !== title && text !== url) parts.push(text);
+            if (url) parts.push(url);
+            setShareContent(parts.join('\n\n'));
+            // Remove params from the URL so they don't persist or re-trigger
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+    }, []);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -297,7 +440,7 @@ export default function FeedPage() {
                                     </div>
                                 </div>
                             )}
-                            <LiveTicker postCount={posts.length} />
+                            <LiveTicker postCount={posts.length} latestFeedEvent={latestFeedEvent} />
                         </div>
                     )}
 
@@ -318,7 +461,7 @@ export default function FeedPage() {
                     {/* Create Post */}
                     {currentUserId && (
                         <div className="mb-1">
-                            <CreatePost onCreate={createPost} user={currentUserProfile} />
+                            <CreatePost onCreate={createPost} user={currentUserProfile} initialContent={shareContent ?? undefined} />
                         </div>
                     )}
 
@@ -332,6 +475,9 @@ export default function FeedPage() {
                         )}
                         <NewsSlider />
                     </div>
+
+                    {/* Mobile Podcast Strip */}
+                    {!searchQuery && <MobilePodcastStrip />}
 
                     {/* People Search Results */}
                     {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (
@@ -489,6 +635,9 @@ export default function FeedPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Podcast Preview */}
+                    <PodcastSidebarWidget />
 
                     {/* Trending Topics */}
                     <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">

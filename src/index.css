@@ -276,6 +276,57 @@
     scrollbar-width: none;
 }
 
+/* -------------------------------------------------------
+   Safe-area inset utilities (iOS notch / Dynamic Island)
+   Used in standalone PWA mode with black-translucent status bar
+   ------------------------------------------------------- */
+
+/* pb-safe — used by the mobile bottom nav so it clears the home indicator */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* pt-safe — use on top app bars so content isn't hidden behind the status bar */
+.pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* mb-safe, mt-safe — margin variants */
+.mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* safe-inset — full safe area padding on all sides (used by standalone sign-in screen) */
+.safe-inset {
+    padding-top: env(safe-area-inset-top, 24px);
+    padding-bottom: env(safe-area-inset-bottom, 24px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Mobile header: grows to include the status-bar safe area on iOS.
+   h-16 = 4rem base, plus whatever the notch/island needs on top. */
+.mobile-header-h {
+    height: calc(4rem + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Matching top offset so the scrollable main content starts below the header */
+.pt-mobile-header {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+}
+
+/* Bottom padding = nav height + safe area inset so scrollable content
+   doesn't end up hidden behind the bottom nav bar on iOS */
+.scroll-pb-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Prevent rubber-band / bounce overscroll highlighting the background */
+html, body {
+    overscroll-behavior: none;
+}
+
 /* Smooth scroll utility for overflow containers */
 .smooth-scroll {
     overflow-y: auto;

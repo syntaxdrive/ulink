@@ -14,7 +14,8 @@ export function useSponsoredPosts() {
             const { data, error } = await supabase
                 .from('sponsored_posts')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(20);
 
             if (error) throw error;
             setPosts(data || []);

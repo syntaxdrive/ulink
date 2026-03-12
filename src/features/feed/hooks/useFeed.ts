@@ -22,19 +22,24 @@ export function useFeed(communityId?: string) {
     // Pagination State
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [page, setPage] = useState(1);
+    const [feedCursor, setFeedCursor] = useState<string | null>(null);
     const POSTS_PER_PAGE = 30;
+
+    // Ticker event surfaced to FeedPage so LiveTicker doesn't need its own channel
+    const [latestFeedEvent, setLatestFeedEvent] = useState<{ type: 'post' | 'like' | 'comment'; userId: string } | null>(null);
 
     useEffect(() => {
         const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setCurrentUserId(user.id);
-                // Background fetch profile synchronously before posts if possible
-                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('id, name, username, avatar_url, role, is_admin, is_verified, gold_verified, university, headline, points, bio, year_of_study, expected_graduation_year, company_name, website')
+                    .eq('id', user.id)
+                    .single();
                 if (data) {
                     setCurrentUserProfile(data);
-                    // Pass current profile to ensure first fetch has accurate author info
                     await fetchPosts(user.id);
                 } else {
                     await fetchPosts(user.id);
@@ -45,33 +50,47 @@ export function useFeed(communityId?: string) {
         };
         init();
 
-        // Realtime Subscription with proper filtering
+        // Single realtime channel for posts, likes, comments — shared with LiveTicker via latestFeedEvent
         const channel = supabase
             .channel('public:posts')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-                // Filter posts based on context to prevent cross-contamination
                 const newPost = payload.new as any;
 
                 if (communityId) {
-                    // In community: only show posts from THIS community
                     if (newPost.community_id !== communityId) return;
                 } else {
-                    // In main feed: only show posts with no community, or ones shared to feed
                     if (newPost.community_id && !newPost.shared_to_feed) return;
                 }
 
                 fetchSinglePost(newPost.id);
+                if (!communityId) setLatestFeedEvent({ type: 'post', userId: newPost.author_id });
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
                 removePost(payload.old.id);
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, (payload: any) => {
                 const postId = payload.new?.post_id || payload.old?.post_id;
-                if (postId) fetchSinglePost(postId);
+                const actorId = payload.new?.user_id || payload.old?.user_id;
+                if (!postId) return;
+                // Optimistic counter update — avoids a DB fetch per like event
+                const post = useFeedStore.getState().posts.find(p => p.id === postId);
+                if (post) {
+                    const delta = payload.eventType === 'INSERT' ? 1 : -1;
+                    updatePost({ ...post, likes_count: Math.max(0, (post.likes_count || 0) + delta) });
+                }
+                if (actorId && !communityId) setLatestFeedEvent({ type: 'like', userId: actorId });
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload: any) => {
                 const postId = payload.new?.post_id || payload.old?.post_id;
-                if (postId) fetchSinglePost(postId);
+                const actorId = payload.new?.author_id;
+                if (!postId) return;
+                // Optimistic counter update — avoids a DB fetch per comment event
+                const post = useFeedStore.getState().posts.find(p => p.id === postId);
+                if (post) {
+                    const delta = payload.eventType === 'INSERT' ? 1 : -1;
+                    updatePost({ ...post, comments_count: Math.max(0, (post.comments_count || 0) + delta) });
+                }
+                if (actorId && !communityId) setLatestFeedEvent({ type: 'comment', userId: actorId });
             })
             .subscribe();
 
@@ -83,9 +102,12 @@ export function useFeed(communityId?: string) {
         };
     }, [communityId]);
 
-    const fetchPosts = async (userId?: string, pageNumber = 1) => {
-        const isInitial = pageNumber === 1;
+    const fetchPosts = async (userId?: string, isLoadMore = false) => {
+        const isInitial = !isLoadMore;
         if (isInitial) setLoading(true);
+
+        // Cursor-based pagination: each page fetches exactly POSTS_PER_PAGE new rows
+        const cursor = isLoadMore ? feedCursor : null;
 
         // Simple, safe query — no self-referential or potentially unregistered FK joins
         let query = supabase
@@ -127,7 +149,9 @@ export function useFeed(communityId?: string) {
                 )
             `)
             .order('created_at', { ascending: false })
-            .limit(POSTS_PER_PAGE * pageNumber);
+            .limit(POSTS_PER_PAGE);
+
+        if (cursor) query = query.lt('created_at', cursor);
 
         if (communityId) {
             query = query.eq('community_id', communityId);
@@ -162,13 +186,15 @@ export function useFeed(communityId?: string) {
                     .select(fallbackQuery)
                     .eq('community_id', communityId)
                     .order('created_at', { ascending: false })
-                    .limit(POSTS_PER_PAGE * pageNumber)
+                    .limit(POSTS_PER_PAGE)
+                    .lt('created_at', cursor || new Date().toISOString())
                 : await supabase
                     .from('posts')
                     .select(fallbackQuery)
                     .or('community_id.is.null,shared_to_feed.eq.true')
                     .order('created_at', { ascending: false })
-                    .limit(POSTS_PER_PAGE * pageNumber);
+                    .limit(POSTS_PER_PAGE)
+                    .lt('created_at', cursor || new Date().toISOString());
 
             if (fallback.error) {
                 console.error('Fallback fetch failed:', JSON.stringify(fallback.error, null, 2));
@@ -331,8 +357,23 @@ export function useFeed(communityId?: string) {
             // Sort finally by score descending
             formatted.sort((a: any, b: any) => b._algorithmic_score - a._algorithmic_score);
 
-            setPosts(formatted);
-            setHasMore(formatted.length >= POSTS_PER_PAGE * pageNumber);
+            if (isLoadMore) {
+                // Append-only: preserve existing sorted posts, add new batch at the end
+                setPosts([...useFeedStore.getState().posts, ...formatted]);
+            } else {
+                // Initial load: full algorithmic sort and replace
+                setPosts(formatted);
+            }
+
+            setHasMore(formatted.length >= POSTS_PER_PAGE);
+
+            // Advance cursor to the oldest post in this batch so next load-more starts from there
+            if (formatted.length > 0) {
+                const oldest = formatted.reduce((a: any, b: any) =>
+                    a.created_at < b.created_at ? a : b
+                );
+                setFeedCursor(oldest.created_at);
+            }
         }
         if (isInitial) setLoading(false);
     };
@@ -340,9 +381,7 @@ export function useFeed(communityId?: string) {
     const loadMorePosts = async () => {
         if (loadingMore || !hasMore) return;
         setLoadingMore(true);
-        const nextPage = page + 1;
-        setPage(nextPage);
-        await fetchPosts(currentUserId || undefined, nextPage);
+        await fetchPosts(currentUserId || undefined, true);
         setLoadingMore(false);
     };
 
@@ -918,6 +957,7 @@ export function useFeed(communityId?: string) {
         currentUserProfile,
         hasMore,
         loadingMore,
-        loadMorePosts
+        loadMorePosts,
+        latestFeedEvent,
     };
 }

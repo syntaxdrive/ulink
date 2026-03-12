@@ -19,16 +19,20 @@ export function useNetwork() {
     const fetchNetworkData = useCallback(async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) { setLoading(false); return; }
 
         // Fetch my profile
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (profile) setUserProfile(profile);
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+        if (profile) setUserProfile(profile as any);
 
         // 1. Fetch all my connections (accepted & pending)
         const { data: allConnections } = await supabase
             .from('connections')
-            .select('*')
+            .select('id, requester_id, recipient_id, status')
             .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
 
         const connectedIds = new Set<string>();
@@ -58,25 +62,30 @@ export function useNetwork() {
                 .select('*')
                 .in('id', connectedProfileIds);
 
-            if (networkProfiles) setMyNetwork(networkProfiles);
+            if (networkProfiles) setMyNetwork(networkProfiles as any);
         } else {
             setMyNetwork([]);
         }
 
-        // 3. Fetch all users — filter/sort client-side for reliability
+        // 3. Fetch candidate profiles for suggestions — select(*) guarantees
+        //    success even if optional columns (points, gold_verified) don't exist.
         const excludeIds = new Set([user.id, ...Array.from(connectedIds), ...Array.from(pendingIds)]);
 
-        const { data: allProfiles } = await supabase
+        const { data: allProfiles, error: profilesError } = await supabase
             .from('profiles')
             .select('*')
+            .neq('id', user.id)
             .order('created_at', { ascending: false })
             .limit(500);
 
-        if (allProfiles) {
+        if (profilesError) {
+            console.error('[useNetwork] profiles fetch error:', profilesError);
+            setSuggestions([]);
+        } else if (allProfiles) {
             const myUni = profile?.university?.toLowerCase().trim();
-            const filtered = allProfiles.filter((p: Profile) => !excludeIds.has(p.id));
-            // Sort: same university first, then gold verified, then verified, then newest
-            filtered.sort((a: Profile, b: Profile) => {
+            const filtered = allProfiles.filter((p: any) => !excludeIds.has(p.id));
+            // Sort: same university first, then gold verified, then verified
+            filtered.sort((a: any, b: any) => {
                 const aUni = a.university?.toLowerCase().trim();
                 const bUni = b.university?.toLowerCase().trim();
                 const aSameUni = myUni && aUni === myUni ? 0 : 1;
@@ -86,7 +95,7 @@ export function useNetwork() {
                 if ((b.is_verified ? 1 : 0) !== (a.is_verified ? 1 : 0)) return (b.is_verified ? 1 : 0) - (a.is_verified ? 1 : 0);
                 return 0;
             });
-            setSuggestions(filtered);
+            setSuggestions(filtered as any);
         }
 
         setLoading(false);
@@ -104,26 +113,26 @@ export function useNetwork() {
         if (!user) return;
 
         try {
+            // Try the RPC first
             const { data, error } = await supabase.rpc('search_all_users', {
                 current_user_id: user.id,
                 search_query: query.trim()
             });
 
-            if (error) {
-                console.error('Search error:', error);
-                // Fallback to client-side search if function doesn't exist yet
-                const allProfiles = [...suggestions, ...myNetwork];
-                const filtered = allProfiles.filter(profile =>
-                    (profile.name || '').toLowerCase().includes(query.toLowerCase()) ||
-                    (profile.university && profile.university.toLowerCase().includes(query.toLowerCase())) ||
-                    (profile.headline && profile.headline.toLowerCase().includes(query.toLowerCase()))
-                );
-                setSearchResults(filtered);
-            } else if (data) {
+            if (!error && data) {
                 setSearchResults(data);
+            } else {
+                // Fallback: direct ilike query
+                const q = query.trim().toLowerCase();
+                const { data: fallback } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .or(`name.ilike.%${q}%,username.ilike.%${q}%,university.ilike.%${q}%,headline.ilike.%${q}%`)
+                    .neq('id', user.id)
+                    .limit(50);
+                setSearchResults((fallback as any) || []);
             }
-        } catch (error) {
-            console.error('Search failed:', error);
+        } catch {
             setSearchResults([]);
         } finally {
             setSearching(false);

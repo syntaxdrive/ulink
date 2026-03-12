@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Course, CourseCategory, CourseDocument, UserDocumentDownload } from '../types/courses';
-import { ACCEPTED_DOC_TYPES, MAX_DOC_SIZE_BYTES } from '../types/courses';
+import { ACCEPTED_DOC_TYPES, MAX_DOC_SIZE_BYTES, resolveDocMimeType } from '../types/courses';
 import { extractYouTubeId, getYouTubeThumbnail } from '../utils/youtube';
-import { cloudinaryService } from '../services/cloudinaryService';
 
 export function useCourses(category?: CourseCategory, searchQuery?: string) {
     const [courses, setCourses] = useState<Course[]>([]);
@@ -139,28 +138,38 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
 
         if (error) throw error;
 
-        // Upload document if provided
+        // Add course to state immediately so the upload's state patch can find it by id
+        setCourses(prev => [{
+            ...newCourse,
+            course_documents: [],
+            user_has_liked: false,
+            user_has_enrolled: false,
+        }, ...prev]);
+
+        // Upload document if provided — uploadDocumentToCourse will patch state once done
         if (data.documentFile && newCourse) {
             await uploadDocumentToCourse(newCourse.id, data.documentFile, user.id);
         }
 
-        setCourses(prev => [newCourse, ...prev]);
         return newCourse;
     };
 
-    // Upload a document to an existing course — via Cloudinary CDN
+    // Upload a document to an existing course — Cloudinary first, Supabase Storage fallback
     const uploadDocumentToCourse = async (
         courseId: string,
         file: File,
         userId?: string,
-        onProgress?: (pct: number) => void
+        _onProgress?: (pct: number) => void
     ): Promise<CourseDocument | null> => {
         const { data: { user } } = await supabase.auth.getUser();
         const uid = userId || user?.id;
         if (!uid) throw new Error('Not authenticated');
 
-        // Validate type
-        if (!ACCEPTED_DOC_TYPES[file.type]) {
+        // Resolve MIME type — mobile browsers (iOS Safari, Android) often return empty file.type
+        const resolvedType = resolveDocMimeType(file);
+
+        // Validate type with resolved MIME
+        if (!ACCEPTED_DOC_TYPES[resolvedType]) {
             throw new Error(`File type not supported. Accepted: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT`);
         }
 
@@ -169,23 +178,32 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
             throw new Error(`File too large. Maximum size is 25MB.`);
         }
 
-        // Upload to Cloudinary (raw resource type = stored as-is, served via CDN)
-        const result = await cloudinaryService.uploadDocument(file, {
-            folder: `ulink/course-documents/${courseId}`,
-            onProgress,
-        });
+        let publicUrl = '';
+        let storagePath = '';
+        let uploadedBytes = file.size;
 
-        // Store metadata in DB (only the URL + public_id, no binary data)
+        // Documents go directly to Supabase Storage (public bucket) — Cloudinary raw resources
+        // require authenticated access by default, causing 401s when viewing in-app.
+        const ext = file.name.split('.').pop() ?? 'bin';
+        const fileName = `course-documents/${courseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: storageErr } = await supabase.storage
+            .from('uploads')
+            .upload(fileName, file, { upsert: true });
+        if (storageErr) throw new Error(`Upload failed: ${storageErr.message}`);
+        publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+        storagePath = fileName;
+
+        // Store metadata in DB
         const { data: doc, error: dbError } = await supabase
             .from('course_documents')
             .insert({
                 course_id: courseId,
                 uploader_id: uid,
                 name: file.name,
-                storage_path: result.publicId,   // Cloudinary public_id as path reference
-                public_url: result.secureUrl,
-                file_type: file.type,
-                file_size: result.bytes,          // Use actual uploaded size (may differ if CDN compressed)
+                storage_path: storagePath,
+                public_url: publicUrl,
+                file_type: resolvedType,  // use resolved type, not raw file.type
+                file_size: uploadedBytes,
             })
             .select()
             .single();

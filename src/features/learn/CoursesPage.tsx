@@ -1,10 +1,14 @@
 import { useState, useRef } from 'react';
-import { Plus, Search, BookOpen, Users, Heart, Upload, Hash, AlertCircle, FileText, Download, Library, X, ExternalLink, Film, File } from 'lucide-react';
+import { Plus, Search, BookOpen, Users, Heart, Upload, Hash, AlertCircle, FileText, Download, Library, X, ExternalLink, Film, File, Play, Trash2, Sparkles, Brain } from 'lucide-react';
 import { useCourses } from '../../hooks/useCourses';
 import type { CourseCategory, CourseLevel, UserDocumentDownload } from '../../types/courses';
-import { COURSE_CATEGORIES, COURSE_LEVELS, ACCEPTED_DOC_TYPES, MAX_DOC_SIZE_MB, MAX_DOC_SIZE_BYTES, getDocIcon, formatFileSize } from '../../types/courses';
+import { COURSE_CATEGORIES, COURSE_LEVELS, ACCEPTED_DOC_TYPES, ACCEPTED_DOC_ATTR, MAX_DOC_SIZE_MB, MAX_DOC_SIZE_BYTES, getDocIcon, formatFileSize, resolveDocMimeType } from '../../types/courses';
 import { isValidYouTubeUrl, extractYouTubeId, getYouTubeThumbnail } from '../../utils/youtube';
 import Modal from '../../components/ui/Modal';
+import CourseAIChat from './components/CourseAIChat';
+import DocumentViewer from './components/DocumentViewer';
+import type { Course } from '../../types/courses';
+import type { CourseDocument } from '../../types/courses';
 
 type Tab = 'browse' | 'library';
 
@@ -16,8 +20,12 @@ export default function CoursesPage() {
     const [library, setLibrary] = useState<UserDocumentDownload[]>([]);
     const [libraryLoading, setLibraryLoading] = useState(false);
     const [libraryLoaded, setLibraryLoaded] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [watchingCourse, setWatchingCourse] = useState<{ id: string; youtubeId: string; title: string } | null>(null);
+    const [aiCourse, setAiCourse] = useState<Course | null>(null);
+    const [viewingDoc, setViewingDoc] = useState<{ doc: CourseDocument; course: Course } | null>(null);
 
-    const { courses, loading, createCourse, toggleLike, toggleEnrollment, trackDownload, fetchMyLibrary, currentUserId } = useCourses(
+    const { courses, loading, createCourse, deleteCourse, toggleLike, toggleEnrollment, incrementViews, trackDownload, fetchMyLibrary, currentUserId } = useCourses(
         selectedCategory === 'All' ? undefined : selectedCategory as CourseCategory,
         searchQuery
     );
@@ -46,19 +54,22 @@ export default function CoursesPage() {
         }
     };
 
-    const handleDownload = async (docId: string, url: string, name: string) => {
-        // Track first, then open — non-blocking
+    const handleDownload = async (docId: string, url: string, _name: string) => {
         trackDownload(docId);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = name;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.click();
-        // Refresh library if open
+        window.open(url, '_blank', 'noopener,noreferrer');
         if (activeTab === 'library') {
             const data = await fetchMyLibrary();
             setLibrary(data);
+        }
+    };
+
+    const handleDeleteCourse = async (courseId: string) => {
+        try {
+            await deleteCourse(courseId);
+        } catch (e: any) {
+            alert(e?.message || 'Failed to delete course.');
+        } finally {
+            setConfirmDeleteId(null);
         }
     };
 
@@ -179,33 +190,55 @@ export default function CoursesPage() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 px-3">
                         {filteredCourses.map((course) => (
                             <article
                                 key={course.id}
-                                className="bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all group rounded-2xl overflow-hidden hover:shadow-lg hover:shadow-stone-100 dark:hover:shadow-none"
+                                className="relative bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all group rounded-2xl overflow-hidden hover:shadow-lg hover:shadow-stone-100 dark:hover:shadow-none"
                             >
                                 {/* Thumbnail — only for video courses */}
-                                {course.content_type !== 'document' && course.thumbnail_url && (
-                                    <div className="relative aspect-video bg-black overflow-hidden">
-                                        <img
-                                            src={course.thumbnail_url}
-                                            alt={course.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                                        <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-lg text-xs text-white font-medium flex items-center gap-1">
-                                            <Film className="w-3 h-3" />
-                                            {course.category}
-                                        </div>
-                                        {course.content_type === 'both' && (
-                                            <div className="absolute top-2 left-2 px-2 py-1 bg-emerald-600/90 backdrop-blur-sm rounded-lg text-xs text-white font-medium flex items-center gap-1">
-                                                <FileText className="w-3 h-3" />
-                                                +Docs
+                                {course.content_type !== 'document' && course.thumbnail_url && (() => {
+                                    const ytId = course.youtube_url ? extractYouTubeId(course.youtube_url) : null;
+                                    const isClickable = !!ytId;
+                                    const El = isClickable ? 'button' : 'div';
+                                    return (
+                                        <El
+                                            {...(isClickable ? {
+                                                onClick: () => {
+                                                    incrementViews(course.id);
+                                                    setWatchingCourse({ id: course.id, youtubeId: ytId!, title: course.title });
+                                                },
+                                                className: 'relative aspect-video bg-black overflow-hidden w-full group/thumb cursor-pointer'
+                                            } : {
+                                                className: 'relative aspect-video bg-black overflow-hidden'
+                                            })}
+                                        >
+                                            <img
+                                                src={course.thumbnail_url}
+                                                alt={course.title}
+                                                className={`w-full h-full object-cover transition-transform duration-300 ${isClickable ? 'group-hover/thumb:scale-105 group-hover/thumb:brightness-75' : 'group-hover:scale-105'}`}
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                            {isClickable && (
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                                                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-red-600/90 flex items-center justify-center shadow-xl">
+                                                        <Play className="w-4 h-4 md:w-6 md:h-6 text-white fill-current ml-1" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-lg text-xs text-white font-medium flex items-center gap-1">
+                                                <Film className="w-3 h-3" />
+                                                {course.category}
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                            {course.content_type === 'both' && (
+                                                <div className="absolute top-2 left-2 px-2 py-1 bg-emerald-600/90 backdrop-blur-sm rounded-lg text-xs text-white font-medium flex items-center gap-1">
+                                                    <FileText className="w-3 h-3" />
+                                                    +Docs
+                                                </div>
+                                            )}
+                                        </El>
+                                    );
+                                })()}
 
                                 {/* Document-only banner */}
                                 {course.content_type === 'document' && (
@@ -225,7 +258,7 @@ export default function CoursesPage() {
                                 )}
 
                                 {/* Content */}
-                                <div className="p-4">
+                                <div className="p-3 md:p-4">
                                     {/* Author */}
                                     <div className="flex items-center gap-2 mb-3">
                                         <img
@@ -233,24 +266,33 @@ export default function CoursesPage() {
                                             alt={course.profiles?.name}
                                             className="w-6 h-6 rounded-full"
                                         />
-                                        <div className="flex flex-col leading-none">
-                                            <span className="text-[12px] font-bold text-stone-900 dark:text-zinc-100">{course.profiles?.name}</span>
-                                            <span className="text-[10px] text-stone-400 dark:text-zinc-600">@{course.profiles?.username}</span>
+                                        <div className="flex flex-col leading-none flex-1 min-w-0">
+                                            <span className="text-[12px] font-bold text-stone-900 dark:text-zinc-100 truncate">{course.profiles?.name}</span>
+                                            <span className="hidden md:block text-[10px] text-stone-400 dark:text-zinc-600">@{course.profiles?.username}</span>
                                         </div>
+                                        {currentUserId === course.author_id && (
+                                            <button
+                                                onClick={() => setConfirmDeleteId(course.id)}
+                                                className="p-1.5 text-stone-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors flex-shrink-0"
+                                                title="Delete course"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                     </div>
 
-                                    <h3 className="font-semibold text-[15px] text-stone-900 dark:text-zinc-100 mb-2 line-clamp-2 leading-tight">
+                                    <h3 className="font-semibold text-[13px] md:text-[15px] text-stone-900 dark:text-zinc-100 mb-2 line-clamp-1 md:line-clamp-2 leading-tight">
                                         {course.title}
                                     </h3>
 
                                     {course.description && (
-                                        <p className="text-sm text-stone-600 dark:text-zinc-400 mb-3 line-clamp-2 leading-relaxed">
+                                        <p className="hidden md:block text-sm text-stone-600 dark:text-zinc-400 mb-3 line-clamp-2 leading-relaxed">
                                             {course.description}
                                         </p>
                                     )}
 
                                     {course.tags && course.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5 mb-3">
+                                        <div className="hidden md:flex flex-wrap gap-1.5 mb-3">
                                             {course.tags.slice(0, 3).map((tag, idx) => (
                                                 <span
                                                     key={idx}
@@ -269,15 +311,15 @@ export default function CoursesPage() {
                                             {course.course_documents.map((doc) => (
                                                 <button
                                                     key={doc.id}
-                                                    onClick={() => handleDownload(doc.id, doc.public_url, doc.name)}
+                                                    onClick={() => setViewingDoc({ doc, course })}
                                                     className="w-full flex items-center gap-2 px-3 py-2 bg-stone-50 dark:bg-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-colors group/doc border border-stone-200/60 dark:border-zinc-700"
                                                 >
                                                     <span className="text-lg flex-shrink-0">{getDocIcon(doc.file_type)}</span>
                                                     <div className="flex-1 min-w-0 text-left">
                                                         <p className="text-xs font-semibold text-stone-800 dark:text-zinc-200 truncate">{doc.name}</p>
-                                                        <p className="text-[10px] text-stone-400 dark:text-zinc-600">{formatFileSize(doc.file_size)} · {doc.downloads_count} downloads</p>
+                                                        <p className="text-[10px] text-stone-400 dark:text-zinc-600">{formatFileSize(doc.file_size)} · {doc.downloads_count} opens</p>
                                                     </div>
-                                                    <Download className="w-3.5 h-3.5 text-stone-400 group-hover/doc:text-emerald-600 transition-colors flex-shrink-0" />
+                                                    <Sparkles className="w-3.5 h-3.5 text-violet-400 opacity-0 group-hover/doc:opacity-100 transition-opacity flex-shrink-0" />
                                                 </button>
                                             ))}
                                         </div>
@@ -299,26 +341,77 @@ export default function CoursesPage() {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => toggleEnrollment(course.id)}
-                                            className={`flex-1 py-2 rounded-xl font-medium text-sm transition-colors ${course.user_has_enrolled
-                                                ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-500'
-                                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                                }`}
-                                        >
-                                            {course.user_has_enrolled ? 'Enrolled ✓' : 'Enroll'}
-                                        </button>
-                                        <button
-                                            onClick={() => toggleLike(course.id)}
-                                            className={`p-2 rounded-xl transition-colors ${course.user_has_liked
-                                                ? 'bg-red-50 dark:bg-red-950/30 text-red-500'
-                                                : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700'
-                                                }`}
-                                        >
-                                            <Heart className={`w-5 h-5 ${course.user_has_liked ? 'fill-current' : ''}`} />
-                                        </button>
+                                    <div className="space-y-2">
+                                        {/* Watch — only for video/both */}
+                                        {(course.content_type === 'video' || course.content_type === 'both') && course.youtube_url && (() => {
+                                            const ytId = extractYouTubeId(course.youtube_url);
+                                            if (!ytId) return null;
+                                            return (
+                                                <button
+                                                    onClick={() => {
+                                                        incrementViews(course.id);
+                                                        setWatchingCourse({ id: course.id, youtubeId: ytId, title: course.title });
+                                                    }}
+                                                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors"
+                                                >
+                                                    <Play className="w-4 h-4 fill-current" />
+                                                    Watch Now
+                                                </button>
+                                            );
+                                        })()}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => toggleEnrollment(course.id)}
+                                                className={`flex-1 py-2 rounded-xl font-medium text-sm transition-colors ${course.user_has_enrolled
+                                                    ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-500'
+                                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                    }`}
+                                            >
+                                                {course.user_has_enrolled ? 'Enrolled ✓' : 'Enroll'}
+                                            </button>
+                                            <button
+                                                onClick={() => setAiCourse(course)}
+                                                className="p-2 rounded-xl bg-violet-100 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/40 transition-colors"
+                                                title="Ask UAI"
+                                            >
+                                                <Brain className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => toggleLike(course.id)}
+                                                className={`p-2 rounded-xl transition-colors ${course.user_has_liked
+                                                    ? 'bg-red-50 dark:bg-red-950/30 text-red-500'
+                                                    : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700'
+                                                    }`}
+                                            >
+                                                <Heart className={`w-5 h-5 ${course.user_has_liked ? 'fill-current' : ''}`} />
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    {/* Delete confirmation overlay */}
+                                    {confirmDeleteId === course.id && (
+                                        <div className="absolute inset-0 bg-white/97 dark:bg-zinc-900/97 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-4 z-10 p-6">
+                                            <Trash2 className="w-8 h-8 text-red-500" />
+                                            <div className="text-center">
+                                                <p className="font-semibold text-stone-900 dark:text-zinc-100">Delete this course?</p>
+                                                <p className="text-sm text-stone-500 dark:text-zinc-400 mt-1">All attached documents will also be removed.</p>
+                                            </div>
+                                            <div className="flex gap-3 w-full">
+                                                <button
+                                                    onClick={() => setConfirmDeleteId(null)}
+                                                    className="flex-1 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 text-sm font-medium text-stone-600 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteCourse(course.id)}
+                                                    className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </article>
                         ))}
@@ -395,6 +488,61 @@ export default function CoursesPage() {
                 </div>
             )}
 
+            {/* In-app Document Viewer */}
+            {viewingDoc && (
+                <DocumentViewer
+                    doc={viewingDoc.doc}
+                    course={viewingDoc.course}
+                    onClose={() => setViewingDoc(null)}
+                />
+            )}
+
+            {/* AI Study Chat */}
+            {aiCourse && (
+                <CourseAIChat
+                    course={aiCourse}
+                    onClose={() => setAiCourse(null)}
+                />
+            )}
+
+            {/* Video Player Modal */}
+            {watchingCourse && (
+                <div className="fixed inset-0 z-50 flex flex-col bg-black">
+                    {/* Top bar */}
+                    <div className="flex items-center gap-3 px-4 py-3 bg-black/80 backdrop-blur-sm flex-shrink-0">
+                        <button
+                            onClick={() => setWatchingCourse(null)}
+                            className="p-2 rounded-xl text-white hover:bg-white/10 transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-white font-semibold text-sm flex-1 truncate">{watchingCourse.title}</h2>
+                        <a
+                            href={`https://www.youtube.com/watch?v=${watchingCourse.youtubeId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                            title="Open on YouTube"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    </div>
+                    {/* Embed — preserves 16:9, fills remaining height on desktop */}
+                    <div className="flex-1 flex items-center justify-center bg-black min-h-0">
+                        <div className="w-full max-w-5xl" style={{ aspectRatio: '16/9', maxHeight: '100%' }}>
+                            <iframe
+                                className="w-full h-full"
+                                src={`https://www.youtube.com/embed/${watchingCourse.youtubeId}?autoplay=1&rel=0`}
+                                title={watchingCourse.title}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Create Course Modal */}
             {showCreateModal && (
                 <CreateCourseModal
@@ -451,13 +599,14 @@ function CreateCourseModal({
 
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnail = videoId ? getYouTubeThumbnail(videoId) : null;
-    const acceptedMimeTypes = Object.keys(ACCEPTED_DOC_TYPES).join(',');
 
     const handleDocChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         setDocError('');
         if (!file) return;
-        if (!ACCEPTED_DOC_TYPES[file.type]) {
+        // Use resolveDocMimeType so iOS/Android empty file.type falls back to extension
+        const resolvedType = resolveDocMimeType(file);
+        if (!ACCEPTED_DOC_TYPES[resolvedType]) {
             setDocError('Unsupported file type. Please upload PDF, DOCX, PPTX, XLSX, or TXT.');
             return;
         }
@@ -592,12 +741,12 @@ function CreateCourseModal({
                             ref={docInputRef}
                             type="file"
                             className="hidden"
-                            accept={acceptedMimeTypes}
+                            accept={ACCEPTED_DOC_ATTR}
                             onChange={handleDocChange}
                         />
                         {docFile ? (
                             <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                                <span className="text-2xl">{getDocIcon(docFile.type)}</span>
+                                <span className="text-2xl">{getDocIcon(resolveDocMimeType(docFile))}</span>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 truncate">{docFile.name}</p>
                                     <p className="text-xs text-stone-500">{formatFileSize(docFile.size)}</p>

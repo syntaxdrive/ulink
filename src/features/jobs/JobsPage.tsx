@@ -139,7 +139,8 @@ export default function JobsPage() {
         const { data, error } = await supabase
             .from('jobs')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(100);
 
         if (!error && data) {
             setJobs(data);

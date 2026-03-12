@@ -21,7 +21,7 @@ export interface Certificate {
 
 export interface Profile {
     id: string;
-    email: string;
+    email?: string;
     name: string;
     username?: string;
     role: 'student' | 'org';
@@ -44,7 +44,7 @@ export interface Profile {
     is_verified?: boolean;
     is_admin?: boolean;
     gold_verified?: boolean; // Computed from gold_verified_users table
-    created_at: string;
+    created_at?: string;
     background_image_url?: string;
     instagram_url?: string;
     twitter_url?: string;
@@ -187,4 +187,37 @@ export interface Job {
     created_at: string;
     creator_id?: string;
     status?: 'active' | 'closed';
+}
+
+export interface Podcast {
+    id: string;
+    creator_id: string;
+    title: string;
+    description?: string;
+    category: string;
+    cover_url?: string;
+    status: 'pending' | 'approved' | 'rejected' | 'suspended';
+    rejection_reason?: string;
+    followers_count: number;
+    episodes_count: number;
+    created_at: string;
+    updated_at: string;
+    creator?: Pick<Profile, 'id' | 'name' | 'username' | 'avatar_url' | 'is_verified'> | null;
+    is_following?: boolean;
+}
+
+export interface PodcastEpisode {
+    id: string;
+    podcast_id: string;
+    title: string;
+    description?: string;
+    audio_url: string;
+    cover_url?: string;
+    duration_seconds: number;
+    episode_number?: number;
+    plays_count: number;
+    is_published: boolean;
+    created_at: string;
+    updated_at: string;
+    podcast?: Podcast;
 }

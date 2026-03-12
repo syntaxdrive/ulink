@@ -1,13 +1,15 @@
 {
+    "id": "/",
     "name": "UniLink - The #1 Nigerian Student Network",
     "short_name": "UniLink",
-    "description": "Connect with students across Nigerian universities. Network with peers, discover opportunities, share knowledge, and build your professional profile. Join thousands of students networking, learning, and growing together.",
-    "start_url": "/",
+    "description": "Connect with students across Nigerian universities. Network with peers, discover opportunities, share knowledge, and build your professional profile.",
+    "start_url": "/app",
     "scope": "/",
     "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
     "background_color": "#FFFFFF",
     "theme_color": "#10B981",
-    "orientation": "any",
+    "orientation": "portrait",
     "categories": [
         "social",
         "education",
@@ -15,7 +17,7 @@
     ],
     "icons": [
         {
-            "src": "/icon-512.png",
+            "src": "/icon-192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any"
@@ -25,12 +27,6 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
-        },
-        {
-            "src": "/icon-512.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "maskable"
         },
         {
             "src": "/icon-512.png",
@@ -77,7 +73,7 @@
     ],
     "prefer_related_applications": false,
     "share_target": {
-        "action": "/app",
+        "action": "/app/feed",
         "method": "GET",
         "params": {
             "title": "title",

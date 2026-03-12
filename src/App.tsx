@@ -26,8 +26,12 @@ import CoursesPage from './features/learn/CoursesPage';
 import LeaderboardPage from './features/leaderboard/LeaderboardPage';
 import CampusChallengePage from './features/challenge/CampusChallengePage';
 import NewsPage from './features/news/NewsPage';
+import PodcastsPage from './features/podcasts/PodcastsPage';
+import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
+import PodcastManagePage from './features/podcasts/PodcastManagePage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
+import PWAInstallBanner from './components/PWAInstallBanner';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
 import { useUIStore } from './stores/useUIStore';
@@ -105,6 +109,7 @@ function App() {
       <BrowserRouter>
         <DeepLinkHelper />
         <UpdateNotification />
+        <PWAInstallBanner />
         {/* Default SEO Tags */}
         <SEO
           title="Home"
@@ -149,6 +154,9 @@ function App() {
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="challenge" element={<CampusChallengePage />} />
             <Route path="news" element={<NewsPage />} />
+            <Route path="podcasts" element={<PodcastsPage />} />
+            <Route path="podcasts/manage" element={session ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
+            <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
             <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
             <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
             <Route path="profile/:userId" element={<UserProfilePage />} />

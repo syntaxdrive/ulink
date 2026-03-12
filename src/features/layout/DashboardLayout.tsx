@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2 } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -12,6 +12,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import InstallGuideModal from '../../components/InstallGuideModal';
 
 import { useNotifications } from '../notifications/hooks/useNotifications';
+import { useNotificationStore } from '../../stores/useNotificationStore';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useUIStore } from '../../stores/useUIStore';
 import { useLocalNotifications } from '../../hooks/usePushNotifications';
@@ -62,8 +63,39 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             alert('Notifications are not supported on this device.');
             return;
         }
+
         const permission = await Notification.requestPermission();
         setNotificationPermission(permission);
+        if (permission !== 'granted') return;
+
+        // Subscribe to Push API and save endpoint to Supabase
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+            if (!vapidKey) return; // Push not configured yet
+
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: vapidKey,
+                });
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Upsert subscription so refreshed endpoints are always current
+            await supabase.from('push_subscriptions').upsert({
+                user_id: user.id,
+                endpoint: sub.endpoint,
+                p256dh: btoa(String.fromCharCode(...new Uint8Array((sub.getKey('p256dh') as ArrayBuffer)))),
+                auth: btoa(String.fromCharCode(...new Uint8Array((sub.getKey('auth') as ArrayBuffer)))),
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+        } catch (err) {
+            console.error('[Push] subscription failed:', err);
+        }
     };
 
     const handleNotification = (title: string, body: string, onClick?: () => void) => {
@@ -137,9 +169,11 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
     useEffect(() => {
         let channel: any;
+        let cancelled = false;
 
         const setupRealtime = async () => {
             const { data: { user } } = await supabase.auth.getUser();
+            if (cancelled) return;
 
             if (!user) {
                 setIsGuest(true);
@@ -149,20 +183,27 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             setIsGuest(false);
 
             // Fetch User Profile
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', user.id)
                 .single();
 
+            if (cancelled) return;
+
             if (profile) {
                 setUserProfile(profile);
-                if (!profile.role) {
+                // Only redirect if genuinely incomplete — not if a stale call fires
+                // while the user is already heading to or on onboarding
+                if (!profile.role && !window.location.pathname.startsWith('/onboarding')) {
                     navigate('/onboarding');
                 }
-            } else {
+            } else if (profileError?.code === 'PGRST116' &&
+                !window.location.pathname.startsWith('/onboarding')) {
+                // No row found at all — genuinely new user
                 navigate('/onboarding');
             }
+            // Any other DB error — stay put, don't disrupt the user
 
             // 1. Fetch Initial Unread Message Count
             const fetchMessageCount = async () => {
@@ -211,52 +252,52 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                         }
                     }
                 )
-                .on(
-                    'postgres_changes',
-                    { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-                    (payload) => {
-                        if (locationRef.current.startsWith('/app/notifications')) {
-                            return;
-                        }
-
-                        const notif = payload.new;
-                        let targetUrl = '/app/notifications';
-
-                        // Check action_url or data for better targeting
-                        if (notif.action_url) {
-                            let url = notif.action_url;
-                            if (!url.startsWith('/app/')) {
-                                url = url.replace('/posts/', '/post/');
-                                if (!url.startsWith('/')) url = '/' + url;
-                                const routes = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
-                                if (routes.some(r => url.startsWith(r))) url = '/app' + url;
-                            }
-                            targetUrl = url;
-                        } else if (notif.data?.post_id) {
-                            targetUrl = `/app/post/${notif.data.post_id}`;
-                        } else if (notif.data?.sender_id || notif.sender_id) {
-                            targetUrl = `/app/profile/${notif.data?.sender_id || notif.sender_id}`;
-                        }
-
-                        // Always play sound if not on notifications page
-                        if (!locationRef.current.startsWith('/app/notifications')) {
-                            playNotificationSound();
-                        }
-
-                        handleNotification(
-                            notif.title || 'New Notification',
-                            notif.message || 'You have a new notification',
-                            () => navigate(targetUrl)
-                        );
-                    }
-                )
                 .subscribe();
+
+            // Watch the notification store (populated by useNotifications hook's own channel)
+            // so we can show toasts without a second Supabase realtime subscription.
+            let lastSeenNotifId = useNotificationStore.getState().generalNotifications[0]?.id ?? null;
+            const unsubNotifStore = useNotificationStore.subscribe((state) => {
+                const newest = state.generalNotifications[0];
+                if (!newest || newest.id === lastSeenNotifId) return;
+                lastSeenNotifId = newest.id;
+
+                if (locationRef.current.startsWith('/app/notifications')) return;
+
+                let targetUrl = '/app/notifications';
+                if (newest.action_url) {
+                    let url = newest.action_url;
+                    if (!url.startsWith('/app/')) {
+                        url = url.replace('/posts/', '/post/');
+                        if (!url.startsWith('/')) url = '/' + url;
+                        const routes = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+                        if (routes.some(r => url.startsWith(r))) url = '/app' + url;
+                    }
+                    targetUrl = url;
+                } else if (newest.data?.post_id) {
+                    targetUrl = `/app/post/${newest.data.post_id}`;
+                } else if (newest.data?.sender_id || newest.sender_id) {
+                    targetUrl = `/app/profile/${newest.data?.sender_id || newest.sender_id}`;
+                }
+
+                playNotificationSound();
+                handleNotification(
+                    newest.title || 'New Notification',
+                    newest.message || 'You have a new notification',
+                    () => navigate(targetUrl)
+                );
+            });
+
+            // Store cleanup fn for unsubbing the store watcher
+            (channel as any)._unsubNotifStore = unsubNotifStore;
         };
 
         setupRealtime();
 
         return () => {
+            cancelled = true;
             if (channel) {
+                (channel as any)._unsubNotifStore?.();
                 channel.unsubscribe();
                 supabase.removeChannel(channel);
             }
@@ -291,6 +332,27 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         navigate('/');
     };
 
+    // Listen for push subscription renewals sent by the service worker
+    // (fires when the browser auto-expires a push subscription after ~60 days)
+    useEffect(() => {
+        if (!('serviceWorker' in navigator)) return;
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.data?.type !== 'PUSH_SUBSCRIPTION_RENEWED') return;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const sub = event.data.subscription;
+            await supabase.from('push_subscriptions').upsert({
+                user_id: user.id,
+                endpoint: sub.endpoint,
+                p256dh: sub.keys?.p256dh,
+                auth: sub.keys?.auth,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+        };
+        navigator.serviceWorker.addEventListener('message', handleMessage);
+        return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+    }, []);
+
     const primaryNavItems = [
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
@@ -306,6 +368,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
     const secondaryNavItems = [
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Newspaper, label: 'News Feed', path: '/app/news' },
+        { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
         { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
         ...(!isGuest ? [{ icon: Settings, label: 'Settings', path: '/app/settings' }] : []),
@@ -325,6 +388,36 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
     );
 
+    // PWA standalone mode — unauthenticated users get a native-feel sign-in screen
+    // instead of the public feed view to keep the full native app experience.
+    const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true;
+
+    if (isGuest && isStandalone) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50/20 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 flex flex-col items-center justify-center p-8 text-center safe-inset">
+                <div className="w-full max-w-xs">
+                    <img src="/icon-512.png" alt="UniLink" className="w-24 h-24 rounded-3xl shadow-2xl mx-auto mb-6" />
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">UniLink Nigeria</h1>
+                    <p className="text-slate-500 dark:text-zinc-400 mb-10 leading-relaxed text-sm">
+                        The #1 network for Nigerian university students. Connect, grow, and thrive.
+                    </p>
+                    <button
+                        onClick={signInWithGoogle}
+                        className="flex items-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-base rounded-2xl shadow-xl transition-all w-full justify-center mb-4"
+                    >
+                        <Globe className="w-5 h-5" />
+                        Continue with Google
+                    </button>
+                    <p className="text-[11px] text-slate-400 dark:text-zinc-600 leading-relaxed">
+                        By continuing, you agree to UniLink's Terms of Service and Privacy Policy.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#FAFAFA] dark:bg-bg-dark text-slate-900 dark:text-white font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
 
@@ -332,7 +425,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
             {/* Mobile Top Bar */}
             {location.pathname !== '/app/learn' && (
-                <header className="md:hidden flex items-center justify-between px-4 h-16 bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 fixed top-0 left-0 right-0 z-40 transition-transform duration-300">
+                <header className="md:hidden flex items-center justify-between px-4 mobile-header-h bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 fixed top-0 left-0 right-0 z-40 transition-transform duration-300">
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
                         className="p-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors relative"
@@ -595,7 +688,10 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                         </button>
                     ) : (
                         <>
-                            <div className="flex items-center gap-3 mb-4 px-2">
+                            <NavLink
+                                to={userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile'}
+                                className="flex items-center gap-3 mb-4 px-2 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                            >
                                 <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
                                     <img
                                         src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&size=128&background=random`}
@@ -614,7 +710,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                                         {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
                                     </p>
                                 </div>
-                            </div>
+                            </NavLink>
 
                             {notificationPermission === 'default' && (
                                 <button
@@ -671,7 +767,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             </aside>
 
 
-            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-16'}`}>
+            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-mobile-header'}`}>
                 <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-4 md:p-8 pb-32"}>
                     <ErrorBoundary>
                         {/* Skip page-transition on any route that renders position:fixed modals/overlays.
@@ -682,7 +778,8 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                                 location.pathname === '/app/messages' ||
                                 location.pathname.startsWith('/app/communities/') ||
                                 location.pathname.startsWith('/app/profile/') ||
-                                location.pathname.startsWith('/app/post/');
+                                location.pathname.startsWith('/app/post/') ||
+                                location.pathname.startsWith('/app/podcasts/');
                             return skipTransition ? (
                                 <Outlet />
                             ) : (

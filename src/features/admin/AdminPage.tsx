@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Building2, Mail, LayoutDashboard, Smile, Zap } from 'lucide-react';
+import { Users, Shield, Building2, Mail, LayoutDashboard, Smile, Zap, Mic2 } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -10,6 +10,7 @@ import ReportsManager from './components/ReportsManager';
 import UserTable from './components/UserTable';
 import AdminReactionsBoard from './components/AdminReactionsBoard';
 import AdminPollCreator from './components/AdminPollCreator';
+import AdminPodcastQueue from './components/AdminPodcastQueue';
 import AdminIntercom from './components/AdminIntercom';
 import RecentActivity from './components/RecentActivity';
 import { Newspaper, TrendingUp } from 'lucide-react';
@@ -40,7 +41,7 @@ export default function AdminPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'board' | 'polls'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'board' | 'polls' | 'podcasts'>('dashboard');
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<Profile[]>([]);
@@ -61,7 +62,7 @@ export default function AdminPage() {
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('is_admin')
             .eq('id', user.id)
             .single();
 
@@ -85,12 +86,13 @@ export default function AdminPage() {
             const { data: activityData } = await supabase.rpc('get_recent_activity', { p_limit: 20 });
             if (activityData) setActivities(activityData);
 
-            // 3. Fetch Recent Users (Full List)
+            // 3. Fetch Recent Users
             const { data: usersData } = await supabase
                 .from('profiles')
                 .select('*')
-                .order('created_at', { ascending: false });
-            if (usersData) setUsers(usersData);
+                .order('created_at', { ascending: false })
+                .limit(200);
+            if (usersData) setUsers(usersData as any);
 
             // 4. Fetch Reports
             const { data: reportsData } = await supabase
@@ -179,6 +181,16 @@ export default function AdminPage() {
                 >
                     <Zap className="w-4 h-4" />
                     Challenges
+                </button>
+                <button
+                    onClick={() => setActiveTab('podcasts')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'podcasts'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
+                >
+                    <Mic2 className="w-4 h-4" />
+                    Podcasts
                 </button>
             </div>
 
@@ -285,9 +297,13 @@ export default function AdminPage() {
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                     <AdminReactionsBoard />
                 </div>
-            ) : (
+            ) : activeTab === 'polls' ? (
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                     <AdminPollCreator />
+                </div>
+            ) : (
+                <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <AdminPodcastQueue />
                 </div>
             )}
 

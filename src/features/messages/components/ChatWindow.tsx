@@ -38,42 +38,32 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-    // Subscribe to Typing Events
+    // Mark conversation as read when new messages arrive
+    useEffect(() => {
+        if (!userId || !activeChat || messages.length === 0) return;
+        const firstMsg = messages[0];
+        if (firstMsg?.conversation_id) {
+            supabase.rpc('mark_conversation_as_read', {
+                target_conversation_id: firstMsg.conversation_id
+            }).then(({ error }) => {
+                if (error) console.error('Error marking read:', error);
+            });
+        }
+    }, [messages.length, userId, activeChat?.id]);
+
+    // Subscribe to typing events — stable subscription, only changes when chat partner changes
     useEffect(() => {
         if (!userId || !activeChat) return;
 
-        // Mark messages as read
-        const markRead = async () => {
-            // Get conversation_id from the first message
-            if (messages.length > 0 && messages[0].conversation_id) {
-                const { error } = await supabase.rpc('mark_conversation_as_read', {
-                    target_conversation_id: messages[0].conversation_id
-                });
-                if (error) console.error('Error marking read:', error);
-            }
-        };
-        markRead();
-
-        // Subscribe to typing ... (existing code below)
-        // Create unique channel ID for this 1-on-1 chat
-        // Use consistent sorting to ensure both users join "chat-room:userA-userB"
         const sortedIds = [userId, activeChat.id].sort((a, b) => a.localeCompare(b));
         const channelId = `chat-room:${sortedIds.join('-')}`;
-
-        console.log(`Subscribing to typing channel: ${channelId}`);
 
         const channel = supabase.channel(channelId)
             .on('broadcast', { event: 'typing' }, (payload) => {
                 if (payload.payload.sender_id === activeChat.id) {
                     setIsTyping(true);
-
-                    // Clear existing timeout
                     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
-                    // Hide after 3 seconds of no activity
-                    typingTimeoutRef.current = setTimeout(() => {
-                        setIsTyping(false);
-                    }, 3000);
+                    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
                 }
             })
             .subscribe();
@@ -82,7 +72,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             supabase.removeChannel(channel);
         };
-    }, [userId, activeChat.id, messages.length]);
+    }, [userId, activeChat.id]);
 
     const handleTyping = async () => {
         if (!userId || !activeChat) return;

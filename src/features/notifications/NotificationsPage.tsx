@@ -296,7 +296,7 @@ export default function NotificationsPage() {
                                                     <div className="flex items-start gap-4">
                                                         <div className={`p-3 rounded-xl ${bgClass}`}>{icon}</div>
                                                         <div className="flex-1">
-                                                            <p className="text-stone-900 text-sm">{notif.content || getDefaultNotifText(notif.type)}</p>
+                                                            <p className="text-stone-900 text-sm">{notif.message || getDefaultNotifText(notif.type)}</p>
                                                             <p className="text-xs text-stone-400 mt-1">
                                                                 {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.created_at).toLocaleDateString()}
                                                             </p>
@@ -313,7 +313,7 @@ export default function NotificationsPage() {
                                                     <div className="flex items-start gap-4">
                                                         <div className={`p-3 rounded-xl ${bgClass}`}>{icon}</div>
                                                         <div className="flex-1">
-                                                            <p className="text-stone-900 text-sm">{notif.content || getDefaultNotifText(notif.type)}</p>
+                                                            <p className="text-stone-900 text-sm">{notif.message || getDefaultNotifText(notif.type)}</p>
                                                             <p className="text-xs text-stone-400 mt-1">
                                                                 {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.created_at).toLocaleDateString()}
                                                             </p>

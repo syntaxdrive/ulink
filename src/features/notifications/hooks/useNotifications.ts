@@ -52,7 +52,9 @@ export interface NotificationItem {
 export interface GeneralNotification {
     id: string;
     type: string;
-    content: string;
+    message: string;
+    title?: string;
+    sender_id?: string;
     created_at: string;
     read: boolean;
     data: any;
@@ -219,7 +221,7 @@ export function useNotifications() {
 
                             fireBrowserNotif(
                                 getNotifTitle(notif.type),
-                                notif.content || 'You have a new notification',
+                                notif.message || notif.title || 'You have a new notification',
                                 notifUrl
                             );
                         }

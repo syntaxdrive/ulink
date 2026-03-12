@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, Smile, X, BarChart2, Plus, Minus, Video } from 'lucide-react';
 import { compressImages, formatFileSize } from '../../../lib/mediaCompression';
 import { checkClientRateLimit } from '../../../utils/rateLimit';
@@ -6,13 +6,14 @@ import { checkClientRateLimit } from '../../../utils/rateLimit';
 interface CreatePostProps {
     onCreate: (content: string, imageFiles: File[], videoFile: File | null, communityId?: string, pollOptions?: string[]) => Promise<void>;
     communityId?: string;
-    user?: any; // Just for types, usually passed down
+    user?: any;
     onPostCreated?: (post: any) => void;
+    initialContent?: string;
 }
 
-export default function CreatePost({ onCreate, communityId, user }: CreatePostProps) {
+export default function CreatePost({ onCreate, communityId, user, initialContent }: CreatePostProps) {
     const MAX_CHARS = 1000;
-    const [content, setContent] = useState('');
+    const [content, setContent] = useState(initialContent || '');
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [previews, setPreviews] = useState<string[]>([]);
@@ -25,6 +26,15 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // When pre-filled from a share action, scroll into view and focus
+    useEffect(() => {
+        if (initialContent) {
+            textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            textareaRef.current?.focus();
+        }
+    }, [initialContent]);
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -221,6 +231,7 @@ export default function CreatePost({ onCreate, communityId, user }: CreatePostPr
                     )}
                     <div className="flex-1 min-w-0">
                         <textarea
+                            ref={textareaRef}
                             className="w-full bg-stone-50/50 dark:bg-zinc-950/50 border border-transparent focus:border-emerald-500/30 rounded-2xl p-4 text-stone-700 dark:text-zinc-200 placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/20 focus:bg-white dark:focus:bg-zinc-900 transition-all resize-none text-lg font-medium"
                             placeholder={user?.role === 'org' ? "Share an update with your contacts..." : "What's on your mind? #Hashtags"}
                             rows={4}

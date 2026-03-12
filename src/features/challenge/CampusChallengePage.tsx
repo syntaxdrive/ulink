@@ -66,7 +66,8 @@ export default function CampusChallengePage() {
             .from('polls')
             .select('*')
             .eq('is_active', true)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(20);
 
         if (!pollsData || pollsData.length === 0) {
             setPolls([]);

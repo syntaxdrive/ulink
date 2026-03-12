@@ -133,6 +133,30 @@ export const ACCEPTED_DOC_TYPES: Record<string, string> = {
     'text/plain': 'TXT',
 };
 
+// Map file extension → MIME type (fallback when file.type is empty, e.g. on iOS/Android)
+export const EXTENSION_TO_MIME: Record<string, string> = {
+    pdf:  'application/pdf',
+    doc:  'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ppt:  'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    xls:  'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    txt:  'text/plain',
+};
+
+/** Resolves the effective MIME type of a file, falling back to extension when file.type is empty */
+export function resolveDocMimeType(file: File): string {
+    if (file.type && ACCEPTED_DOC_TYPES[file.type]) return file.type;
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    return EXTENSION_TO_MIME[ext] ?? file.type ?? '';
+}
+
+/** accept string for <input type="file"> that works on both desktop and mobile */
+export const ACCEPTED_DOC_ATTR =
+    '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,' +
+    Object.keys(ACCEPTED_DOC_TYPES).join(',');
+
 export const MAX_DOC_SIZE_MB = 25;
 export const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
 
