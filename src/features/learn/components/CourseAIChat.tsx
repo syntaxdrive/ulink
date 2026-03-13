@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { streamChatCompletion, buildCourseSystemPrompt, synthesizeSpeech } from '../../../services/aiService';
 import type { ChatMessage, MessageContentPart } from '../../../services/aiService';
 import type { Course } from '../../../types/courses';
+import { findRelevantChunks, isDocumentRelevant } from '../utils/docChunker';
 
 interface Props {
     course: Course;
@@ -481,19 +482,37 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         setIsInterruptible(false);
     };
 
-    const systemPrompt = buildCourseSystemPrompt({
+    // ── Per-query prompt refs ─────────────────────────────────────────────────
+    // Keep mutable state in refs so send() always reads the latest values
+    // without needing them in its dependency array (avoids stale closures).
+    const documentTextRef = useRef(documentText);
+    const otherDocumentsRef = useRef(otherDocuments);
+    const voiceModeRef = useRef(voiceMode);
+    const promptBaseRef = useRef({
         title: course.title,
         description: course.description,
         category: course.category,
         level: course.level,
         tags: course.tags,
-        authorName: course.profiles?.name,
+        authorName: course.profiles?.name ?? null,
         documentNames: course.course_documents?.map(d => d.name),
         activeDocumentName: documentName,
-        activeDocumentText: documentText,
-        otherDocuments,
-        isVoiceMode: voiceMode,
     });
+    useEffect(() => { documentTextRef.current = documentText; }, [documentText]);
+    useEffect(() => { otherDocumentsRef.current = otherDocuments; }, [otherDocuments]);
+    useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+    useEffect(() => {
+        promptBaseRef.current = {
+            title: course.title,
+            description: course.description,
+            category: course.category,
+            level: course.level,
+            tags: course.tags,
+            authorName: course.profiles?.name ?? null,
+            documentNames: course.course_documents?.map(d => d.name),
+            activeDocumentName: documentName,
+        };
+    }, [course, documentName]);
 
     const suggested = getSuggestedQuestions(course);
 
@@ -829,8 +848,33 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         abortRef.current = controller;
         let fullResponseText = '';
 
+        // Build a per-query system prompt — send only the document chunks that
+        // are relevant to this specific message, not the entire document every time.
+        const isVoice = voiceModeRef.current;
+        const activeText = documentTextRef.current;
+        const others = otherDocumentsRef.current ?? [];
+
+        const relevantActiveText = activeText
+            ? findRelevantChunks(activeText, trimmed, isVoice ? 1500 : 2500)
+            : null;
+
+        // Skip other-doc lookup in voice mode (conversations run long, save tokens)
+        const relevantOthers = (!isVoice && others.length > 0)
+            ? others
+                .filter(d => isDocumentRelevant(d.name, d.text, trimmed))
+                .map(d => ({ name: d.name, text: findRelevantChunks(d.text, trimmed, 1200) }))
+                .slice(0, 3)
+            : [];
+
+        const dynamicPrompt = buildCourseSystemPrompt({
+            ...promptBaseRef.current,
+            activeDocumentText: relevantActiveText,
+            otherDocuments: relevantOthers.length > 0 ? relevantOthers : undefined,
+            isVoiceMode: isVoice,
+        });
+
         await streamChatCompletion(
-            [{ role: 'system', content: systemPrompt }, ...updatedMessages],
+            [{ role: 'system', content: dynamicPrompt }, ...updatedMessages],
             {
                 onChunk: (chunk) => {
                     fullResponseText += chunk;
@@ -859,7 +903,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
             },
             controller.signal
         );
-    }, [messages, streaming, systemPrompt, imageData, storageKey, speakForVoice, beginListeningVoice]);
+    }, [messages, streaming, imageData, storageKey, speakForVoice, beginListeningVoice]);
 
     sendRef.current = send;
 
