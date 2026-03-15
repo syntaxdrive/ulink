@@ -41,7 +41,7 @@ function resolveNotifLink(rawUrl: string): { to: string; isExternal: boolean } {
         }
 
         // If it starts with a key path but lacks /app prefix, add it
-        const routesToPrefix = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+        const routesToPrefix = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/study', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
         if (!to.startsWith('/app/') && to !== '/app') {
             if (routesToPrefix.some(r => to.startsWith(r))) {
                 to = '/app' + to;

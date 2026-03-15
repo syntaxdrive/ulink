@@ -102,6 +102,58 @@ export function useFeed(communityId?: string) {
         };
     }, [communityId]);
 
+    // ── Realtime: live comment updates for the currently-open comment section ──
+    useEffect(() => {
+        if (!activeCommentPostId) return;
+
+        const commentChannel = supabase
+            .channel(`comments:${activeCommentPostId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'comments', filter: `post_id=eq.${activeCommentPostId}` },
+                async (payload) => {
+                    const newComment = payload.new as any;
+                    // Skip optimistic own comments — already added instantly in postComment()
+                    setComments(prev => {
+                        const existing = prev[activeCommentPostId] || [];
+                        if (existing.some(c => c.id === newComment.id)) return prev;
+                        // Fetch full comment with profile join
+                        supabase
+                            .from('comments')
+                            .select('*, profiles:author_id(*)')
+                            .eq('id', newComment.id)
+                            .single()
+                            .then(({ data }) => {
+                                if (data) {
+                                    setComments(p => {
+                                        const list = p[activeCommentPostId] || [];
+                                        if (list.some(c => c.id === data.id)) return p;
+                                        return { ...p, [activeCommentPostId]: [...list, data] };
+                                    });
+                                }
+                            });
+                        return prev; // return unchanged; actual update happens in the async .then()
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'comments', filter: `post_id=eq.${activeCommentPostId}` },
+                (payload) => {
+                    setComments(prev => {
+                        const list = prev[activeCommentPostId] || [];
+                        return { ...prev, [activeCommentPostId]: list.filter(c => c.id !== payload.old.id) };
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            commentChannel.unsubscribe();
+            supabase.removeChannel(commentChannel);
+        };
+    }, [activeCommentPostId]);
+
     const fetchPosts = async (userId?: string, isLoadMore = false) => {
         const isInitial = !isLoadMore;
         if (isInitial) setLoading(true);

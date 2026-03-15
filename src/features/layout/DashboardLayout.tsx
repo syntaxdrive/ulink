@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2 } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -270,7 +270,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                     if (!url.startsWith('/app/')) {
                         url = url.replace('/posts/', '/post/');
                         if (!url.startsWith('/')) url = '/' + url;
-                        const routes = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+                        const routes = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/study', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
                         if (routes.some(r => url.startsWith(r))) url = '/app' + url;
                     }
                     targetUrl = url;
@@ -371,6 +371,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
         { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
+        { icon: Library, label: 'Study Rooms', path: '/app/study' },
         ...(!isGuest ? [{ icon: Settings, label: 'Settings', path: '/app/settings' }] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),

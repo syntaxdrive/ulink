@@ -139,3 +139,28 @@ export async function unfollowPodcast(podcastId: string): Promise<void> {
 export async function incrementEpisodePlay(episodeId: string): Promise<void> {
     await supabase.rpc('increment_episode_plays', { p_episode_id: episodeId });
 }
+
+export async function deletePodcast(podcastId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('podcasts')
+        .delete()
+        .eq('id', podcastId)
+        .eq('creator_id', user.id); // Security: only creator can delete
+
+    if (error) throw error;
+}
+
+export async function deletePodcastEpisode(episodeId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+        .from('podcast_episodes')
+        .delete()
+        .eq('id', episodeId);
+        
+    if (error) throw error;
+}

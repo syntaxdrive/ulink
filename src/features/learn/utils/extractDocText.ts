@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { extractYouTubeTranscript, extractYouTubeId, isValidYouTubeUrl } from '../../../utils/youtube';
 
 // Use Vite's ?url import so the worker is bundled locally (CDN doesn't carry v5.x)
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
@@ -10,10 +11,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
  */
 export async function extractDocumentText(fileType: string, url: string): Promise<string | null> {
     try {
+        if (isValidYouTubeUrl(url)) {
+            const videoId = extractYouTubeId(url);
+            if (videoId) return await extractYouTubeTranscript(videoId);
+        }
+
         if (fileType === 'text/plain') {
             const res = await fetch(url);
             const text = await res.text();
-            return text.slice(0, 12000);
+            return text.slice(0, 150000);
         }
 
         if (fileType === 'application/pdf') {
@@ -28,7 +34,13 @@ export async function extractDocumentText(fileType: string, url: string): Promis
 }
 
 async function extractPdfText(url: string): Promise<string> {
-    const pdf = await pdfjsLib.getDocument({ url, verbosity: 0 }).promise;
+    const secureUrl = url.includes('cloudinary') ? url.replace(/^http:/, 'https:') : url;
+    const buffer = await fetch(secureUrl).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+    });
+
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), verbosity: 0 }).promise;
     const pageCount = Math.min(pdf.numPages, 40);
     const pages: string[] = [];
 
@@ -44,5 +56,5 @@ async function extractPdfText(url: string): Promise<string> {
         if (pageText) pages.push(`[Page ${i}]\n${pageText}`);
     }
 
-    return pages.join('\n\n').slice(0, 12000);
+    return pages.join('\n\n').slice(0, 150000);
 }

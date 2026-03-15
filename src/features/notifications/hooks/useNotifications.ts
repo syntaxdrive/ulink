@@ -3,11 +3,58 @@ import { supabase } from '../../../lib/supabase';
 import { type Profile } from '../../../types';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
 
+/** Helper to decode VAPID public keys to bytes */
+function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+}
+
+/** Subscribe to PWA Push Notifications */
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+    if (!VAPID_PUBLIC_KEY) return; // Need VAPID_PUBLIC_KEY in .env to proceed
+
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }
+
+        if (sub) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const subJson = sub.toJSON();
+            
+            await supabase.from('push_subscriptions').upsert({
+                user_id: user.id,
+                endpoint: sub.endpoint,
+                keys: subJson.keys || {}
+            }, { onConflict: 'endpoint' });
+        }
+    } catch (err) {
+        console.warn('[Push] Subscription failed:', err);
+    }
+}
+
 /** Request browser notification permission once per session */
 function requestNotifPermission() {
     if (typeof Notification === 'undefined') return;
     if (Notification.permission === 'default') {
-        Notification.requestPermission();
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') subscribeToPush();
+        });
+    } else if (Notification.permission === 'granted') {
+        subscribeToPush();
     }
 }
 
@@ -39,6 +86,11 @@ function getNotifTitle(type: string): string {
         case 'community_join_request': return '🏘️ Community Join Request';
         case 'community_join_accepted': return '🎉 Community Request Approved';
         case 'job_update': return '💼 Job Update';
+        case 'study_invite': return '📚 Study Invite';
+        case 'study_document_shared': return '📄 Doc Shared in Room';
+        case 'study_poll_created': return '📊 New Poll in Room';
+        case 'podcast_episode': return '🎙️ New Episode Out';
+        case 'podcast_follow': return '❤️ Podcast Follower';
         default: return '🔔 New Notification';
     }
 }
@@ -163,9 +215,15 @@ export function useNotifications() {
     };
 
     useEffect(() => {
+        let connectionChannel: any;
+        let notifChannel: any;
+
         const init = async () => {
             // Request browser notification permission on first load
             requestNotifPermission();
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { setLoading(false); return; }
 
             // 80/20 Rule
             if (needsRefresh() || (requests.length === 0 && generalNotifications.length === 0)) {
@@ -173,62 +231,57 @@ export function useNotifications() {
             } else {
                 setLoading(false);
             }
+
+            // 1. Connection requests
+            connectionChannel = supabase
+                .channel(`connection-requests-${user.id}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` },
+                    (payload) => {
+                        fetchSingleRequest(payload.new.id);
+                        // Fire in-app push notification
+                        fireBrowserNotif(
+                            '👥 New Connection Request',
+                            'Someone wants to connect with you',
+                            `${window.location.origin}/app/notifications`
+                        );
+                    }
+                )
+                .subscribe();
+
+            // 2. General Notifications
+            notifChannel = supabase
+                .channel(`general-notifications-${user.id}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+                    (payload) => {
+                        const notif = payload.new as GeneralNotification;
+                        addGeneralNotification(notif);
+
+                        // Robust URL resolution for browser notifications
+                        let relUrl = notif.action_url
+                            || (notif.data?.post_id ? `/post/${notif.data.post_id}` : null)
+                            || '/notifications';
+
+                        if (!relUrl.startsWith('/app/')) {
+                            relUrl = relUrl.replace('/posts/', '/post/');
+                            if (!relUrl.startsWith('/')) relUrl = '/' + relUrl;
+                            const rts = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/study', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
+                            if (rts.some(r => relUrl.startsWith(r))) relUrl = '/app' + relUrl;
+                            else if (relUrl === '/notifications') relUrl = '/app/notifications';
+                        }
+
+                        const notifUrl = `${window.location.origin}${relUrl}`;
+
+                        fireBrowserNotif(
+                            getNotifTitle(notif.type),
+                            notif.message || notif.title || 'You have a new notification',
+                            notifUrl
+                        );
+                    }
+                )
+                .subscribe();
         };
+
         init();
-
-        const connectionChannel = supabase
-            .channel('connection-requests')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections' },
-                (payload) => {
-                    supabase.auth.getUser().then(({ data: { user } }) => {
-                        if (user && payload.new.recipient_id === user.id) {
-                            fetchSingleRequest(payload.new.id);
-                            // Fire in-app push notification
-                            fireBrowserNotif(
-                                '👥 New Connection Request',
-                                'Someone wants to connect with you',
-                                `${window.location.origin}/app/notifications`
-                            );
-                        }
-                    });
-                }
-            )
-            .subscribe();
-
-        const notifChannel = supabase
-            .channel('general-notifications')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' },
-                (payload) => {
-                    supabase.auth.getUser().then(({ data: { user } }) => {
-                        if (user && payload.new.user_id === user.id) {
-                            const notif = payload.new as GeneralNotification;
-                            addGeneralNotification(notif);
-
-                            // Robust URL resolution for browser notifications
-                            let relUrl = notif.action_url
-                                || (notif.data?.post_id ? `/post/${notif.data.post_id}` : null)
-                                || '/notifications';
-
-                            if (!relUrl.startsWith('/app/')) {
-                                relUrl = relUrl.replace('/posts/', '/post/');
-                                if (!relUrl.startsWith('/')) relUrl = '/' + relUrl;
-                                const rts = ['/post/', '/profile/', '/communities/', '/network', '/messages', '/jobs', '/talent', '/learn', '/leaderboard', '/challenge', '/settings', '/admin', '/news'];
-                                if (rts.some(r => relUrl.startsWith(r))) relUrl = '/app' + relUrl;
-                                else if (relUrl === '/notifications') relUrl = '/app/notifications';
-                            }
-
-                            const notifUrl = `${window.location.origin}${relUrl}`;
-
-                            fireBrowserNotif(
-                                getNotifTitle(notif.type),
-                                notif.message || notif.title || 'You have a new notification',
-                                notifUrl
-                            );
-                        }
-                    });
-                }
-            )
-            .subscribe();
 
         return () => {
             if (connectionChannel) {

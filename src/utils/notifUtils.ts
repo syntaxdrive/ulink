@@ -43,6 +43,7 @@ export function resolveNotificationUrl(rawUrl: string | undefined): { to: string
             '/jobs',
             '/talent',
             '/learn',
+            '/study',
             '/leaderboard',
             '/challenge',
             '/settings',

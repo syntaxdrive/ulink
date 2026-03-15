@@ -1,7 +1,8 @@
-import { Play, Pause, Mic2 } from 'lucide-react';
+import { Play, Pause, Mic2, Trash2, Loader2 } from 'lucide-react';
 import type { PodcastEpisode } from '../../../types';
 import { useAudioStore } from '../../../stores/useAudioStore';
 import { incrementEpisodePlay } from '../hooks/usePodcasts';
+import { useState } from 'react';
 
 interface Props {
     episode: PodcastEpisode;
@@ -11,6 +12,7 @@ interface Props {
     queue: PodcastEpisode[];
     /** Index of this episode inside `queue`. */
     queueIndex: number;
+    onDelete?: (episodeId: string) => Promise<void>;
 }
 
 function formatDuration(secs: number): string {
@@ -23,10 +25,11 @@ function formatDuration(secs: number): string {
     return `${s}s`;
 }
 
-export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue, queueIndex }: Props) {
+export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue, queueIndex, onDelete }: Props) {
     const { currentTrack, isPlaying, setQueue, pauseTrack, resumeTrack } = useAudioStore();
     const isActive = currentTrack?.episodeId === episode.id;
     const isThisPlaying = isActive && isPlaying;
+    const [deleting, setDeleting] = useState(false);
 
     const handlePlay = async () => {
         if (isActive) {
@@ -48,6 +51,20 @@ export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue
 
         // Fire-and-forget play count increment
         incrementEpisodePlay(episode.id).catch(() => {});
+    };
+
+    const handleDelete = async () => {
+        if (!onDelete) return;
+        if (!window.confirm(`Are you sure you want to delete "${episode.title}"?`)) return;
+        setDeleting(true);
+        try {
+            await onDelete(episode.id);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete episode');
+        } finally {
+            setDeleting(false);
+        }
     };
 
     return (
@@ -103,20 +120,32 @@ export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue
                 )}
             </div>
 
-            {/* Play button */}
-            <button
-                onClick={handlePlay}
-                className={`w-10 h-10 flex items-center justify-center rounded-full shrink-0 transition-all active:scale-90 ${
-                    isActive
-                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-950/50 hover:bg-emerald-700'
-                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400'
-                }`}
-            >
-                {isThisPlaying
-                    ? <Pause className="w-4 h-4 fill-current" />
-                    : <Play className="w-4 h-4 fill-current translate-x-0.5" />
-                }
-            </button>
+            {/* Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                {onDelete && (
+                    <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-50"
+                        title="Delete Episode"
+                    >
+                        {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                )}
+                <button
+                    onClick={handlePlay}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90 ${
+                        isActive
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-950/50 hover:bg-emerald-700'
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400'
+                    }`}
+                >
+                    {isThisPlaying
+                        ? <Pause className="w-4 h-4 fill-current" />
+                        : <Play className="w-4 h-4 fill-current translate-x-0.5" />
+                    }
+                </button>
+            </div>
         </div>
     );
 }

@@ -45,9 +45,19 @@ function PdfViewer({ url, name: _name }: { url: string; name: string }) {
         setFailed(false);
         setCurrentPage(1);
         renderedRef.current.clear();
-        pdfjsLib.getDocument({ url }).promise
+
+        // Fix Cloudinary CORS errors by ensuring HTTPS and passing explicit config
+        const secureUrl = url.includes('cloudinary') ? url.replace(/^http:/, 'https:') : url;
+
+        // Fetch as arrayBuffer first to entirely bypass PDF.js's strict internal XHR / Range header checks
+        fetch(secureUrl)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.arrayBuffer();
+            })
+            .then(buffer => pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise)
             .then(pdfDoc => { setPdf(pdfDoc); setTotal(pdfDoc.numPages); setLoading(false); })
-            .catch(() => { setFailed(true); setLoading(false); });
+            .catch((err) => { console.error('PDF Load Error:', err); setFailed(true); setLoading(false); });
     }, [url]);
 
     // Set up IntersectionObservers — re-runs when pdf or scale changes
@@ -338,27 +348,23 @@ function formatRelative(ts: number): string {
 
 // ─── Main DocumentViewer ──────────────────────────────────────────────────────
 
+type PanelTab = 'doc' | 'ai' | 'notes';
+
 export default function DocumentViewer({ doc, course, onClose }: Props) {
-    const [showAI, setShowAI] = useState(false);
+    const [mobileTab, setMobileTab] = useState<PanelTab>('doc');
     const [aiPrompt, setAiPrompt] = useState<string | undefined>();
     const [externalPromptKey, setExternalPromptKey] = useState(0);
-    const [aiPanelFraction, setAiPanelFraction] = useState(0.52);
     const [docText, setDocText] = useState<string | null | undefined>(undefined);
     const [otherDocTexts, setOtherDocTexts] = useState<{ name: string; text: string }[]>([]);
-    const [showNotes, setShowNotes] = useState(false);
     const [notes, setNotes] = useState<Note[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const editRef = useRef<HTMLTextAreaElement>(null);
-    const contentAreaRef = useRef<HTMLDivElement>(null);
-    const dragStartRef = useRef<{ y: number; fraction: number } | null>(null);
-
-    const notesKey = `ulink_notes_v2_${course.id}_${doc.id ?? doc.name.replace(/\W/g, '_')}`;
-
-    const notesRef = useRef(notes);
-    useEffect(() => { notesRef.current = notes; }, [notes]);
-
     const scanImageInputRef = useRef<HTMLInputElement>(null);
     const [scanningNoteId, setScanningNoteId] = useState<string | null>(null);
+
+    const notesKey = `ulink_notes_v2_${course.id}_${doc.id ?? doc.name.replace(/\W/g, '_')}`;
+    const notesRef = useRef(notes);
+    useEffect(() => { notesRef.current = notes; }, [notes]);
 
     useEffect(() => {
         extractDocumentText(doc.file_type, doc.public_url)
@@ -366,7 +372,6 @@ export default function DocumentViewer({ doc, course, onClose }: Props) {
             .catch(() => setDocText(null));
     }, [doc.file_type, doc.public_url]);
 
-    // Extract text from all other course documents in the background for cross-reference
     useEffect(() => {
         const others = (course.course_documents ?? []).filter(d => d.id !== doc.id);
         if (others.length === 0) { setOtherDocTexts([]); return; }
@@ -471,37 +476,121 @@ export default function DocumentViewer({ doc, course, onClose }: Props) {
         }
     };
 
-    const openAI = (prompt?: string) => {
-        setShowNotes(false);
+    const triggerAI = (prompt?: string) => {
         if (prompt) {
             setAiPrompt(prompt);
-            if (showAI) setExternalPromptKey(k => k + 1); // send into already-open chat
+            setExternalPromptKey(k => k + 1);
         }
-        setShowAI(true);
+        setMobileTab('ai');
     };
-
-    const startDrag = (e: React.PointerEvent) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        dragStartRef.current = { y: e.clientY, fraction: aiPanelFraction };
-    };
-    const onDrag = (e: React.PointerEvent) => {
-        if (!dragStartRef.current || !contentAreaRef.current) return;
-        const totalH = contentAreaRef.current.clientHeight;
-        const dy = dragStartRef.current.y - e.clientY; // drag up = panel grows
-        const next = dragStartRef.current.fraction + dy / totalH;
-        setAiPanelFraction(Math.min(0.88, Math.max(0.20, next)));
-    };
-    const endDrag = () => { dragStartRef.current = null; };
 
     const editingNote = notes.find(n => n.id === editingId);
+
+    // ── Notes panel JSX (shared between mobile tab and desktop column) ────────
+    const NotesPanel = (
+        <div className="flex-1 flex flex-col min-h-0">
+            {editingNote ? (
+                <>
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
+                        <button onClick={() => setEditingId(null)}
+                            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors">
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="flex-1 text-xs font-semibold text-stone-600 dark:text-zinc-400 truncate">
+                            {getNoteTitle(editingNote.content) || 'New note'}
+                        </span>
+                        <button onClick={() => navigator.clipboard.writeText(editingNote.content)}
+                            className="px-2 py-1 text-[11px] text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                            Copy
+                        </button>
+                        <button
+                            onClick={() => scanImageInputRef.current?.click()}
+                            disabled={scanningNoteId === editingNote.id}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50">
+                            {scanningNoteId === editingNote.id
+                                ? <Loader className="w-3 h-3 animate-spin" />
+                                : <Camera className="w-3 h-3" />}
+                            Scan
+                        </button>
+                        <input ref={scanImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanImage} />
+                        <button onClick={() => deleteNote(editingNote.id)}
+                            className="px-2 py-1 text-[11px] text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors">
+                            Delete
+                        </button>
+                    </div>
+                    <textarea
+                        ref={editRef}
+                        value={editingNote.content}
+                        onChange={e => updateNote(editingNote.id, e.target.value)}
+                        placeholder={`Write your note here…\n\nTip: Use AI Quick Actions to generate an outline, then paste it here.`}
+                        className="flex-1 p-4 resize-none bg-transparent outline-none text-sm text-stone-800 dark:text-zinc-200 placeholder:text-stone-300 dark:placeholder:text-zinc-700 leading-relaxed"
+                    />
+                    <div className="flex-shrink-0 px-4 py-1.5 border-t border-stone-100 dark:border-zinc-900">
+                        <p className="text-[10px] text-stone-300 dark:text-zinc-700">
+                            {editingNote.content.length} chars · saved automatically
+                        </p>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                            <PenLine className="w-4 h-4 text-amber-500" />
+                            <span className="text-sm font-semibold text-stone-800 dark:text-zinc-200">My Notes</span>
+                            <span className="text-[10px] text-stone-400">{notes.length} note{notes.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <button onClick={createNote}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors">
+                            + New
+                        </button>
+                    </div>
+                    {notes.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+                            <PenLine className="w-10 h-10 text-stone-200 dark:text-zinc-800" />
+                            <div>
+                                <p className="text-sm font-medium text-stone-500 dark:text-zinc-500">No notes yet</p>
+                                <p className="text-xs text-stone-400 dark:text-zinc-600 mt-1">Tap "New" to start taking notes</p>
+                            </div>
+                            <button onClick={createNote}
+                                className="mt-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                                + Create first note
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto divide-y divide-stone-100 dark:divide-zinc-900">
+                            {notes.map(note => (
+                                <div key={note.id}
+                                    className="flex items-start gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-zinc-900/50 cursor-pointer group transition-colors"
+                                    onClick={() => setEditingId(note.id)}>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-stone-800 dark:text-zinc-200 truncate">
+                                            {getNoteTitle(note.content)}
+                                        </p>
+                                        <p className="text-xs text-stone-400 dark:text-zinc-600 truncate mt-0.5">
+                                            {note.content.split('\n').slice(1).join(' ').trim().slice(0, 60) || 'Empty note'}
+                                        </p>
+                                        <p className="text-[10px] text-stone-300 dark:text-zinc-700 mt-1">{formatRelative(note.updatedAt)}</p>
+                                    </div>
+                                    <button onClick={e => { e.stopPropagation(); deleteNote(note.id); }}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all flex-shrink-0 mt-0.5">
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-zinc-950">
 
             {/* ── Header ── */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0 bg-white dark:bg-zinc-950">
                 <button onClick={onClose}
-                    className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+                    className="p-2 rounded-xl text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
                     <X className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -511,220 +600,125 @@ export default function DocumentViewer({ doc, course, onClose }: Props) {
                         <p className="text-[11px] text-stone-400 dark:text-zinc-600 truncate">{course.title}</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => { const opening = !showNotes; setShowNotes(v => !v); setEditingId(null); if (opening) setShowAI(false); }}
-                    className={`relative p-2 rounded-xl transition-colors flex-shrink-0 ${showNotes ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' : 'text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800'}`}
-                    title="My Notes">
-                    <PenLine className="w-4 h-4" />
-                    {notes.length > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                            {notes.length}
-                        </span>
-                    )}
-                </button>
                 <a href={doc.public_url} target="_blank" rel="noopener noreferrer"
-                    className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0" title="Open in browser">
+                    className="p-2 rounded-xl text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0" title="Open in browser">
                     <ExternalLink className="w-4 h-4" />
                 </a>
                 <button onClick={handleDownload}
-                    className="p-2 rounded-xl text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0" title="Download">
+                    className="p-2 rounded-xl text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0" title="Download">
                     <Download className="w-4 h-4" />
                 </button>
             </div>
 
-            {/* ── Quick AI actions ── */}
+            {/* ── Quick AI actions (always visible) ── */}
             <div className="flex items-center gap-2 px-4 py-2 border-b border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-900/60 overflow-x-auto flex-shrink-0 scrollbar-none">
-                <span className="text-[10px] text-stone-400 dark:text-zinc-600 uppercase tracking-wide font-semibold flex-shrink-0 mr-1">AI</span>
+                <span className="text-[10px] text-stone-400 dark:text-zinc-600 uppercase tracking-wide font-semibold flex-shrink-0 mr-1">Ask AI →</span>
                 <QuickAction icon={<AlignLeft className="w-3.5 h-3.5" />} label="Outline"
-                    onClick={() => openAI('Generate a detailed outline of this document with all main topics and subtopics.')} />
+                    onClick={() => triggerAI('Generate a detailed outline of this document with all main topics and subtopics.')} />
                 <QuickAction icon={<Lightbulb className="w-3.5 h-3.5" />} label="Key Points"
-                    onClick={() => openAI('What are the most important key points and takeaways from this document? Use bullet points.')} />
+                    onClick={() => triggerAI('What are the most important key points and takeaways from this document? Use bullet points.')} />
                 <QuickAction icon={<BookOpen className="w-3.5 h-3.5" />} label="Summarize"
-                    onClick={() => openAI('Give me a clear and concise summary of this document in 3-5 paragraphs.')} />
-                <QuickAction icon={<GraduationCap className="w-3.5 h-3.5" />} label="Practice Quiz"
-                    onClick={() => openAI('Create 5 practice questions based on this document to test my understanding. Include answers.')} />
-                <QuickAction icon={<Brain className="w-3.5 h-3.5" />} label="Explain Simply"
-                    onClick={() => openAI('Explain the most complex or difficult concepts in this document in simple terms, as if I\'m a beginner.')} />
+                    onClick={() => triggerAI('Give me a clear and concise summary of this document in 3-5 paragraphs.')} />
+                <QuickAction icon={<GraduationCap className="w-3.5 h-3.5" />} label="Quiz"
+                    onClick={() => triggerAI('Create 5 practice questions based on this document to test my understanding. Include answers.')} />
+                <QuickAction icon={<Brain className="w-3.5 h-3.5" />} label="Simplify"
+                    onClick={() => triggerAI("Explain the most complex or difficult concepts in this document in simple terms, as if I'm a beginner.")} />
             </div>
 
-            {/* ── Content + AI Panel + Notes ── */}
-            <div ref={contentAreaRef} className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-
-                {/* Document — shrinks to give room when AI panel is open */}
-                <div
-                    className="flex flex-col min-h-0 overflow-hidden relative"
-                    style={showAI ? { flex: 'none', height: `${(1 - aiPanelFraction) * 100}%` } : { flex: '1 1 0' }}
-                >
-                    <DocContent doc={doc} />
-
-                    {/* Floating UAI button — always anchored to bottom-right of document area */}
-                    <button
-                        onClick={() => showAI ? setShowAI(false) : openAI()}
-                        className={`absolute bottom-5 right-5 z-20 flex items-center justify-center rounded-full shadow-xl transition-all duration-200 active:scale-95 ${
-                            showAI
-                                ? 'w-12 h-12 bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/40'
-                                : 'w-14 h-14 bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/50 hover:shadow-violet-500/60 hover:scale-105'
-                        }`}
-                        title={showAI ? 'Close UAI' : 'Ask UAI'}
-                    >
-                        {showAI
-                            ? <X className="w-5 h-5" />
-                            : <Brain className="w-6 h-6" />
-                        }
-                        {!showAI && docText === undefined && (
-                            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-zinc-950 animate-pulse" />
-                        )}
+            {/* ── Mobile Tab Bar ── */}
+            <div className="md:hidden flex border-b border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
+                {([
+                    { id: 'doc', label: 'Document', icon: FileText },
+                    { id: 'ai', label: 'AI Chat', icon: Brain },
+                    { id: 'notes', label: `Notes${notes.length ? ` (${notes.length})` : ''}`, icon: PenLine },
+                ] as { id: PanelTab; label: string; icon: any }[]).map(({ id, label, icon: Icon }) => (
+                    <button key={id} onClick={() => setMobileTab(id)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+                            mobileTab === id
+                                ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100'
+                                : 'border-transparent text-stone-400 dark:text-zinc-600 hover:text-stone-600'
+                        }`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {label}
                     </button>
+                ))}
+            </div>
+
+            {/* ── Main content area ── */}
+            <div className="flex-1 flex min-h-0 overflow-hidden">
+
+                {/* ── LEFT: Document ── always visible on desktop, tab-switched on mobile ── */}
+                <div className={`flex flex-col min-h-0 overflow-hidden ${
+                    // mobile: only show when 'doc' tab active
+                    mobileTab === 'doc' ? 'flex-1' : 'hidden'
+                } md:flex md:flex-1 md:border-r md:border-stone-200 md:dark:border-zinc-800`}>
+                    <DocContent doc={doc} />
                 </div>
 
-                {/* AI Chat Panel — resizable bottom panel */}
-                {showAI && (
-                    <div
-                        className="flex-shrink-0 flex flex-col bg-slate-50 dark:bg-zinc-950 border-t-2 border-violet-400/60 shadow-[0_-4px_24px_rgba(0,0,0,0.12)]"
-                        style={{ height: `${aiPanelFraction * 100}%` }}
-                    >
-                        {/* Drag grip — pointer events captured so drag works outside element */}
-                        <div
-                            className="h-5 flex items-center justify-center cursor-row-resize flex-shrink-0 bg-violet-50 dark:bg-violet-950/30 touch-none select-none"
-                            onPointerDown={startDrag}
-                            onPointerMove={onDrag}
-                            onPointerUp={endDrag}
-                            onPointerCancel={endDrag}
-                        >
-                            <div className="w-10 h-1 rounded-full bg-violet-300 dark:bg-violet-600" />
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
-                            <CourseAIChat
-                                embedded
-                                course={course}
-                                documentName={doc.name}
-                                documentText={docText ?? null}
-                                otherDocuments={otherDocTexts}
-                                initialPrompt={aiPrompt}
-                                externalPrompt={aiPrompt}
-                                externalPromptKey={externalPromptKey}
-                                onClose={() => setShowAI(false)}
-                            />
-                        </div>
+                {/* ── RIGHT PANEL (desktop: always visible; mobile: tabs for AI/Notes) ── */}
+                {/* Desktop: always showing both AI + Notes via sub-tabs */}
+                <div className="hidden md:flex md:flex-col md:w-[380px] lg:w-[420px] xl:w-[460px] flex-shrink-0 min-h-0 bg-white dark:bg-zinc-950">
+                    {/* Desktop sub-tabs: AI | Notes */}
+                    <div className="flex border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
+                        {([
+                            { id: 'ai' as PanelTab, label: 'AI Chat', icon: Brain },
+                            { id: 'notes' as PanelTab, label: `Notes${notes.length ? ` (${notes.length})` : ''}`, icon: PenLine },
+                        ]).map(({ id, label, icon: Icon }) => (
+                            <button key={id} onClick={() => setMobileTab(id)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all ${
+                                    mobileTab === id || (id === 'ai' && mobileTab === 'doc')
+                                        ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100'
+                                        : 'border-transparent text-stone-400 dark:text-zinc-600 hover:text-stone-600'
+                                }`}>
+                                <Icon className="w-3.5 h-3.5" />
+                                {label}
+                            </button>
+                        ))}
                     </div>
-                )}
 
-                {/* Notes panel (only shown when AI is closed) */}
-                {showNotes && !showAI && (
-                    <div className="absolute inset-x-0 bottom-0 flex flex-col bg-white dark:bg-zinc-950 border-t-2 border-amber-400/60 shadow-2xl" style={{ height: '48%' }}>
-
-                        {editingNote ? (
-                            /* ── Edit view ── */
-                            <>
-                                <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
-                                    <button onClick={() => setEditingId(null)}
-                                        className="p-1.5 rounded-lg text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors">
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </button>
-                                    <span className="flex-1 text-xs font-semibold text-stone-600 dark:text-zinc-400 truncate">
-                                        {getNoteTitle(editingNote.content) || 'New note'}
-                                    </span>
-                                    <button
-                                        onClick={() => { navigator.clipboard.writeText(editingNote.content); }}
-                                        className="px-2 py-1 text-[11px] text-stone-500 hover:text-stone-800 dark:hover:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                                        Copy
-                                    </button>
-                                    <button
-                                        onClick={() => scanImageInputRef.current?.click()}
-                                        disabled={scanningNoteId === editingNote.id}
-                                        className="flex items-center gap-1 px-2 py-1 text-[11px] text-violet-500 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-lg transition-colors disabled:opacity-50"
-                                        title="Scan image / OCR">
-                                        {scanningNoteId === editingNote.id
-                                            ? <Loader className="w-3 h-3 animate-spin" />
-                                            : <Camera className="w-3 h-3" />}
-                                        Scan
-                                    </button>
-                                    <input
-                                        ref={scanImageInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleScanImage}
-                                    />
-                                    <button onClick={() => deleteNote(editingNote.id)}
-                                        className="px-2 py-1 text-[11px] text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors">
-                                        Delete
-                                    </button>
-                                </div>
-                                <textarea
-                                    ref={editRef}
-                                    value={editingNote.content}
-                                    onChange={e => updateNote(editingNote.id, e.target.value)}
-                                    placeholder={`Write your note here…\n\nTip: Use AI Quick Actions to generate an outline, then paste it here.`}
-                                    className="flex-1 p-4 resize-none bg-transparent outline-none text-sm text-stone-800 dark:text-zinc-200 placeholder:text-stone-300 dark:placeholder:text-zinc-700 leading-relaxed"
-                                />
-                                <div className="flex-shrink-0 px-4 py-1.5 border-t border-stone-100 dark:border-zinc-900">
-                                    <p className="text-[10px] text-stone-300 dark:text-zinc-700">
-                                        {editingNote.content.length} chars · saved automatically
-                                    </p>
-                                </div>
-                            </>
-                        ) : (
-                            /* ── List view ── */
-                            <>
-                                <div className="flex items-center justify-between px-4 py-2 border-b border-stone-200 dark:border-zinc-800 flex-shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <PenLine className="w-4 h-4 text-amber-500" />
-                                        <span className="text-sm font-semibold text-stone-800 dark:text-zinc-200">My Notes</span>
-                                        <span className="text-[10px] text-stone-400 dark:text-zinc-600">{notes.length} note{notes.length !== 1 ? 's' : ''}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={createNote}
-                                            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors">
-                                            + New Note
-                                        </button>
-                                        <button onClick={() => setShowNotes(false)}
-                                            className="p-1.5 text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {notes.length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
-                                        <PenLine className="w-10 h-10 text-stone-200 dark:text-zinc-800" />
-                                        <div>
-                                            <p className="text-sm font-medium text-stone-500 dark:text-zinc-500">No notes yet</p>
-                                            <p className="text-xs text-stone-400 dark:text-zinc-600 mt-1">Tap "New Note" to start taking notes on this document</p>
-                                        </div>
-                                        <button onClick={createNote}
-                                            className="mt-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors">
-                                            + Create first note
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 overflow-y-auto divide-y divide-stone-100 dark:divide-zinc-900">
-                                        {notes.map(note => (
-                                            <div key={note.id}
-                                                className="flex items-start gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-zinc-900/50 cursor-pointer group transition-colors"
-                                                onClick={() => setEditingId(note.id)}>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-stone-800 dark:text-zinc-200 truncate">
-                                                        {getNoteTitle(note.content)}
-                                                    </p>
-                                                    <p className="text-xs text-stone-400 dark:text-zinc-600 truncate mt-0.5">
-                                                        {note.content.split('\n').slice(1).join(' ').trim().slice(0, 60) || 'Empty note'}
-                                                    </p>
-                                                    <p className="text-[10px] text-stone-300 dark:text-zinc-700 mt-1">{formatRelative(note.updatedAt)}</p>
-                                                </div>
-                                                <button onClick={e => { e.stopPropagation(); deleteNote(note.id); }}
-                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all flex-shrink-0 mt-0.5">
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
+                    {/* AI Chat (default right panel) */}
+                    <div className={`flex-1 min-h-0 overflow-hidden ${mobileTab === 'notes' ? 'hidden' : 'flex flex-col'}`}>
+                        <CourseAIChat
+                            embedded
+                            course={course}
+                            documentName={doc.name}
+                            documentText={docText ?? null}
+                            otherDocuments={otherDocTexts}
+                            initialPrompt={aiPrompt}
+                            externalPrompt={aiPrompt}
+                            externalPromptKey={externalPromptKey}
+                            onClose={() => {}}
+                        />
                     </div>
-                )}
+
+                    {/* Notes */}
+                    <div className={`flex-1 min-h-0 overflow-hidden ${mobileTab === 'notes' ? 'flex flex-col' : 'hidden'}`}>
+                        {NotesPanel}
+                    </div>
+                </div>
+
+                {/* Mobile AI tab */}
+                <div className={`flex-1 flex flex-col min-h-0 overflow-hidden md:hidden ${mobileTab === 'ai' ? 'flex' : 'hidden'}`}>
+                    <CourseAIChat
+                        embedded
+                        course={course}
+                        documentName={doc.name}
+                        documentText={docText ?? null}
+                        otherDocuments={otherDocTexts}
+                        initialPrompt={aiPrompt}
+                        externalPrompt={aiPrompt}
+                        externalPromptKey={externalPromptKey}
+                        onClose={() => setMobileTab('doc')}
+                    />
+                </div>
+
+                {/* Mobile Notes tab */}
+                <div className={`flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 overflow-hidden md:hidden ${mobileTab === 'notes' ? 'flex' : 'hidden'}`}>
+                    {NotesPanel}
+                </div>
+
             </div>
         </div>
     );
 }
+

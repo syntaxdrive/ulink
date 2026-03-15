@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, BookOpen, Users, Heart, Upload, Hash, AlertCircle, FileText, Download, Library, X, ExternalLink, Film, File, Play, Trash2, Sparkles, Brain } from 'lucide-react';
 import { useCourses } from '../../hooks/useCourses';
 import type { CourseCategory, CourseLevel, UserDocumentDownload } from '../../types/courses';
@@ -8,7 +8,50 @@ import Modal from '../../components/ui/Modal';
 import CourseAIChat from './components/CourseAIChat';
 import DocumentViewer from './components/DocumentViewer';
 import type { Course } from '../../types/courses';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { CourseDocument } from '../../types/courses';
+
+// ─── PDF First-Page Thumbnail ─────────────────────────────────────────────────
+function PdfFirstPageCanvas({ url, className }: { url: string; className?: string }) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        if (!url.toLowerCase().includes('.pdf') && !url.includes('application/pdf')) {
+            setFailed(true);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const pdfjsLib = await import('pdfjs-dist');
+                pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+                
+                const secureUrl = url.includes('cloudinary') ? url.replace(/^http:/, 'https:') : url;
+                const buffer = await fetch(secureUrl).then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.arrayBuffer();
+                });
+
+                const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+                const page = await pdf.getPage(1);
+                if (cancelled || !canvasRef.current) return;
+                const viewport = page.getViewport({ scale: 1.2 });
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d')!;
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: ctx, viewport } as any).promise;
+            } catch {
+                if (!cancelled) setFailed(true);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [url]);
+
+    if (failed) return null;
+    return <canvas ref={canvasRef} className={className} />;
+}
 
 type Tab = 'browse' | 'library';
 
@@ -241,21 +284,36 @@ export default function CoursesPage() {
                                 })()}
 
                                 {/* Document-only banner */}
-                                {course.content_type === 'document' && (
-                                    <div className="relative h-28 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 flex items-center justify-center border-b border-stone-200/60 dark:border-zinc-800">
-                                        <div className="text-center">
-                                            <div className="text-4xl mb-1">
-                                                {course.course_documents?.[0] ? getDocIcon(course.course_documents[0].file_type) : '📁'}
+                                {course.content_type === 'document' && (() => {
+                                    const firstDoc = course.course_documents?.[0];
+                                    const isPdf = firstDoc?.file_type === 'application/pdf' || firstDoc?.public_url?.toLowerCase().includes('.pdf');
+                                    return (
+                                        <div className="relative h-36 bg-stone-50 dark:bg-zinc-800/60 flex items-center justify-center border-b border-stone-200/60 dark:border-zinc-800 overflow-hidden">
+                                            {isPdf && firstDoc?.public_url ? (
+                                                <>
+                                                    <PdfFirstPageCanvas
+                                                        url={firstDoc.public_url}
+                                                        className="w-full h-full object-cover object-top absolute inset-0"
+                                                    />
+                                                    {/* overlay so text is readable */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                                                </>
+                                            ) : (
+                                                <div className="text-center">
+                                                    <div className="text-5xl mb-1">
+                                                        {firstDoc ? getDocIcon(firstDoc.file_type) : '📁'}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-600 rounded-lg text-xs text-white font-medium">
+                                                {course.category}
                                             </div>
-                                            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                                {course.course_documents?.length || 0} document{(course.course_documents?.length || 0) !== 1 ? 's' : ''}
-                                            </p>
+                                            <div className="absolute bottom-2 left-2 text-[10px] font-semibold text-white/90 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
+                                                {course.course_documents?.length || 0} doc{(course.course_documents?.length || 0) !== 1 ? 's' : ''}
+                                            </div>
                                         </div>
-                                        <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-600 rounded-lg text-xs text-white font-medium">
-                                            {course.category}
-                                        </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 {/* Content */}
                                 <div className="p-3 md:p-4">

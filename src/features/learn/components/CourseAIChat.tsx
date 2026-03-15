@@ -133,16 +133,16 @@ function AISphere({ size = 56, speaking = false, listening = false, thinking = f
     size?: number; speaking?: boolean; listening?: boolean; thinking?: boolean;
 }) {
     const bg = speaking
-        ? 'radial-gradient(ellipse at 33% 30%, #c4b5fd, #8b5cf6 35%, #6d28d9 65%, #2e1065 90%)'
+        ? 'radial-gradient(ellipse at 33% 30%, #6ee7b7, #10b981 35%, #047857 65%, #022c22 90%)'
         : listening
         ? 'radial-gradient(ellipse at 33% 30%, #6ee7b7, #10b981 35%, #047857 65%, #022c22 90%)'
-        : 'radial-gradient(ellipse at 33% 30%, #ddd6fe, #a78bfa 30%, #7c3aed 60%, #3b0764 90%)';
+        : 'radial-gradient(ellipse at 33% 30%, #9ca3af, #4b5563 30%, #1f2937 60%, #030712 90%)';
 
     const glowColor = speaking
-        ? 'rgba(139, 92, 246, 0.5)'
+        ? 'rgba(16, 185, 129, 0.4)'
         : listening
-        ? 'rgba(16, 185, 129, 0.5)'
-        : 'rgba(109, 40, 217, 0.35)';
+        ? 'rgba(16, 185, 129, 0.4)'
+        : 'rgba(31, 41, 55, 0.3)';
 
     const isActive = speaking || listening || thinking;
 
@@ -259,27 +259,27 @@ function MarkdownContent({ content }: { content: string }) {
                 h1: ({ children }) => <h1 className="text-base font-bold text-slate-900 dark:text-white mt-3 mb-1.5 first:mt-0">{children}</h1>,
                 h2: ({ children }) => <h2 className="text-sm font-bold text-slate-900 dark:text-white mt-3 mb-1.5 first:mt-0">{children}</h2>,
                 h3: ({ children }) => <h3 className="text-sm font-semibold text-slate-700 dark:text-zinc-200 mt-2 mb-1 first:mt-0">{children}</h3>,
-                ul: ({ children }) => <ul className="my-2 space-y-1 pl-5 list-disc marker:text-violet-400">{children}</ul>,
-                ol: ({ children }) => <ol className="my-2 space-y-1 pl-5 list-decimal marker:text-violet-400">{children}</ol>,
+                ul: ({ children }) => <ul className="my-2 space-y-1 pl-5 list-disc marker:text-slate-400 dark:marker:text-zinc-500">{children}</ul>,
+                ol: ({ children }) => <ol className="my-2 space-y-1 pl-5 list-decimal marker:text-slate-400 dark:marker:text-zinc-500">{children}</ol>,
                 li: ({ children }) => <li className="text-slate-700 dark:text-zinc-200 leading-relaxed pl-1">{children}</li>,
                 code: ({ children, className }) => {
                     const isBlock = className?.startsWith('language-');
                     if (isBlock) {
                         return (
-                            <code className="block bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-violet-600 dark:text-emerald-400 font-mono overflow-x-auto my-2 whitespace-pre">
+                            <code className="block bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 font-mono overflow-x-auto my-2 whitespace-pre">
                                 {children}
                             </code>
                         );
                     }
-                    return <code className="bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded px-1.5 py-0.5 text-xs text-violet-600 dark:text-emerald-400 font-mono">{children}</code>;
+                    return <code className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 font-mono">{children}</code>;
                 },
                 pre: ({ children }) => <pre className="my-2">{children}</pre>,
                 blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-violet-400 pl-3 my-2 text-slate-500 dark:text-zinc-400 italic">{children}</blockquote>
+                    <blockquote className="border-l-2 border-zinc-400 dark:border-zinc-600 pl-3 my-2 text-slate-500 dark:text-zinc-400 italic">{children}</blockquote>
                 ),
                 a: ({ href, children }) => (
                     <a href={href} target="_blank" rel="noopener noreferrer"
-                        className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-violet-700 dark:hover:text-violet-300">{children}</a>
+                        className="text-zinc-800 dark:text-zinc-200 underline underline-offset-2 hover:text-black dark:hover:text-white font-medium">{children}</a>
                 ),
                 table: ({ children }) => (
                     <div className="overflow-x-auto my-2">
@@ -313,7 +313,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
                 {text?.text && (
                     <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                         isUser
-                            ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20 whitespace-pre-wrap'
+                            ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-tr-sm shadow-sm whitespace-pre-wrap'
                             : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 rounded-tl-sm border border-slate-200 dark:border-zinc-800 shadow-sm'
                     }`}>
                         {isUser ? text.text : <MarkdownContent content={text.text} />}
@@ -325,7 +325,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
 
     if (isUser) {
         return (
-            <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed whitespace-pre-wrap bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20">
+            <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed whitespace-pre-wrap bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm">
                 {msg.content as string}
             </div>
         );
@@ -336,9 +336,9 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         return (
             <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
                 <span className="flex gap-1 items-center h-4">
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:300ms]" />
                 </span>
             </div>
         );
@@ -363,7 +363,7 @@ function VoiceCallPanel({
         ? (isInterruptible ? 'Tap to interrupt' : 'UAI is speaking…')
         : isThinking ? 'Thinking…'
         : isListening ? 'Listening…'
-        : 'Starting…';
+        : 'Preparing connection, please wait…';
 
     return (
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl px-4 pt-5 pb-6">
@@ -469,7 +469,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         restartTimerRef.current = setTimeout(() => {
             restartTimerRef.current = null;
             if (voiceLoopRef.current && !streamingRef.current && !listeningActiveRef.current) {
-                beginListeningVoice();
+                beginListeningVoice(true);
             }
         }, delayMs);
     };
@@ -549,7 +549,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
 
     // ── Voice loop ────────────────────────────────────────────────────────────
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const beginListeningVoice = useCallback(() => {
+    const beginListeningVoice = useCallback((silentStart = false) => {
         if (!hasSpeechRecognition || !voiceLoopRef.current || streamingRef.current) return;
         if (listeningActiveRef.current) return;
         stopInterruptListener();
@@ -563,8 +563,8 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         let finalTranscript = '';
         let latestInterim = '';   // last interim segment seen
         let capturedText = '';    // snapshot taken at commit() before stop()
-        // 2.5 s of silence before committing — gives time for natural speech pauses
-        const SILENCE_MS = 2500;
+        // 4.0 s of silence before committing — gives generous time for natural speech pauses
+        const SILENCE_MS = 4000;
         const MIN_WORDS  = 2;
         let silenceTimer: ReturnType<typeof setTimeout> | null = null;
         let committed = false;
@@ -576,6 +576,12 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
             capturedText = (finalTranscript + ' ' + latestInterim).trim();
             if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
             try { recognition.stop(); } catch {}
+        };
+
+
+        recognition.onstart = () => {
+            setIsListening(true);
+            if (!silentStart) playReadyChime();
         };
 
         recognition.onresult = (e: any) => {
@@ -630,7 +636,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
 
         recognitionRef.current = recognition;
         listeningActiveRef.current = true;
-        try { recognition.start(); setIsListening(true); playReadyChime(); }
+        try { recognition.start(); }
         catch { listeningActiveRef.current = false; scheduleRestart(800); }
     }, []);
 
@@ -649,7 +655,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
             setIsInterruptible(false);
             try { recognition.stop(); } catch {}
             interruptRecognitionRef.current = null;
-            setTimeout(() => { if (voiceLoopRef.current) beginListeningVoice(); }, 150);
+            setTimeout(() => { if (voiceLoopRef.current) beginListeningVoice(true); }, 150);
         };
         recognition.onend = () => {
             if (interruptRecognitionRef.current === recognition) { interruptRecognitionRef.current = null; setIsInterruptible(false); }
@@ -665,7 +671,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         window.speechSynthesis?.cancel();
         setSpeakingIndex(null);
         stopInterruptListener();
-        setTimeout(() => { if (voiceLoopRef.current) beginListeningVoice(); }, 150);
+        setTimeout(() => { if (voiceLoopRef.current) beginListeningVoice(true); }, 150);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [beginListeningVoice]);
 
@@ -740,7 +746,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         setSpeakingIndex(null);
         voiceLoopRef.current = true;
         setVoiceMode(true);
-        beginListeningVoice();
+        beginListeningVoice(false);
     }, [beginListeningVoice]);
 
     const stopVoiceCall = useCallback(() => {
@@ -855,7 +861,7 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
         const others = otherDocumentsRef.current ?? [];
 
         const relevantActiveText = activeText
-            ? findRelevantChunks(activeText, trimmed, isVoice ? 1500 : 2500)
+            ? findRelevantChunks(activeText, trimmed, isVoice ? 20000 : 100000)
             : null;
 
         // Skip other-doc lookup in voice mode (conversations run long, save tokens)
@@ -933,21 +939,21 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
     const isSpeaking = speakingIndex !== null;
 
     return (
-        <div className={embedded ? 'flex flex-col h-full bg-slate-50 dark:bg-zinc-950' : 'fixed inset-0 z-50 flex flex-col bg-slate-50 dark:bg-zinc-950'}>
+        <div className={embedded ? 'flex flex-col h-full bg-white dark:bg-zinc-950' : 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-zinc-950'}>
 
             {/* ── Header ── */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl flex-shrink-0">
-                <AISphere size={36} speaking={isSpeaking && voiceMode} listening={isListening && voiceMode} thinking={streaming && voiceMode} />
+            <div className="flex items-center gap-3 px-4 py-3.5 bg-zinc-900 dark:bg-black flex-shrink-0">
+                <AISphere size={40} speaking={isSpeaking && voiceMode} listening={isListening && voiceMode} thinking={streaming && voiceMode} />
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">UAI</p>
-                    <p className={`text-[11px] truncate transition-colors ${voiceMode ? 'text-emerald-500 font-medium' : 'text-slate-400 dark:text-zinc-500'}`}>
+                    <p className="font-bold text-white text-base leading-tight">UAI ✦</p>
+                    <p className={`text-xs truncate transition-colors font-medium ${voiceMode ? 'text-emerald-300' : 'text-violet-200'}`}>
                         {voiceMode ? '● Voice call active' : (documentName ?? course.title)}
                     </p>
                 </div>
 
                 {/* History */}
                 <button onClick={() => setShowHistory(true)}
-                    className="p-2 rounded-xl text-slate-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-zinc-800 transition-colors"
+                    className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
                     title="Conversation history">
                     <Clock className="w-4 h-4" />
                 </button>
@@ -958,8 +964,8 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
                         onClick={voiceMode ? stopVoiceCall : startVoiceCall}
                         className={`p-2 rounded-xl transition-colors ${
                             voiceMode
-                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
-                                : 'text-slate-400 dark:text-zinc-500 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                                ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/10'
                         }`}
                         title={voiceMode ? 'End voice call' : 'Start voice call'}>
                         {voiceMode ? <PhoneOff className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
@@ -969,42 +975,43 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
                 {/* New chat */}
                 {messages.length > 0 && !voiceMode && (
                     <button onClick={reset}
-                        className="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
                         title="New conversation">
                         <RotateCcw className="w-4 h-4" />
                     </button>
                 )}
 
                 <button onClick={onClose}
-                    className="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                    className="p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
                     <X className="w-5 h-5" />
                 </button>
             </div>
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 min-h-0 relative">
+            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 min-h-0 relative bg-slate-50 dark:bg-zinc-950">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full gap-6 py-8">
                         {/* Hero orb */}
                         <div className="flex flex-col items-center gap-4">
-                            <AISphere size={80} />
+                            <AISphere size={88} />
                             <div className="text-center">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Hey, I'm UAI ✦</h3>
-                                <p className="text-slate-500 dark:text-zinc-400 text-sm max-w-[260px] leading-relaxed">
+                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Hey, I'm UAI ✦</h3>
+                                <p className="text-slate-500 dark:text-zinc-400 text-sm max-w-[280px] leading-relaxed">
                                     Your AI study companion for{' '}
-                                    <span className="text-violet-600 dark:text-violet-400 font-medium">{course.title}</span>
+                                    <span className="text-violet-600 dark:text-violet-400 font-semibold">{course.title}</span>
                                     {hasSpeechRecognition && (
-                                        <>. Tap <Phone className="w-3 h-3 inline mx-0.5 text-emerald-500" /> to start a voice call</>
+                                        <>. Tap <Phone className="w-3.5 h-3.5 inline mx-0.5 text-emerald-500" /> to talk hands-free</>
                                     )}.
                                 </p>
                             </div>
                         </div>
 
                         {/* Suggestion chips */}
-                        <div className="flex flex-col gap-2 w-full max-w-sm">
+                        <div className="flex flex-col gap-2.5 w-full max-w-sm">
+                            <p className="text-xs font-semibold text-slate-400 dark:text-zinc-600 uppercase tracking-widest text-center">Try asking</p>
                             {suggested.map((q, i) => (
                                 <button key={i} onClick={() => send(q)}
-                                    className="text-left px-4 py-3 bg-white dark:bg-zinc-900 hover:bg-violet-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 hover:border-violet-300 dark:hover:border-violet-800 rounded-2xl text-sm text-slate-600 dark:text-zinc-300 hover:text-violet-700 dark:hover:text-violet-300 transition-all shadow-sm">
+                                    className="text-left px-4 py-3.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-2xl text-sm text-slate-700 dark:text-zinc-300 transition-all shadow-sm font-medium">
                                     {q}
                                 </button>
                             ))}
@@ -1026,17 +1033,17 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
                             <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                 {msg.role === 'assistant' && (
                                     <div className="flex-shrink-0 mt-0.5">
-                                        <AISphere size={28} speaking={speakingIndex === i} thinking={streaming && i === messages.length - 1} />
+                                        <AISphere size={30} speaking={speakingIndex === i} thinking={streaming && i === messages.length - 1} />
                                     </div>
                                 )}
-                                <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                <div className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     <MessageBubble msg={msg} />
                                     {msg.role === 'assistant' && typeof msg.content === 'string' && msg.content && hasSpeechSynthesis && !voiceMode && (
                                         <button
                                             onClick={() => speak(msg.content as string, i)}
-                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] transition-colors ${
+                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
                                                 speakingIndex === i
-                                                    ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30'
+                                                    ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800'
                                                     : 'text-slate-400 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-400'
                                             }`}>
                                             {speakingIndex === i
@@ -1051,8 +1058,9 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
                 )}
 
                 {error && (
-                    <div className="px-4 py-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-2xl text-sm text-red-600 dark:text-red-400">
-                        {error}
+                    <div className="px-4 py-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-2xl text-sm text-red-600 dark:text-red-400 flex items-start gap-2">
+                        <span className="text-base leading-none mt-0.5">⚠️</span>
+                        <span>{error}</span>
                     </div>
                 )}
                 <div ref={bottomRef} />
@@ -1066,55 +1074,75 @@ export default function CourseAIChat({ course, onClose, documentName, documentTe
                     onEnd={stopVoiceCall} onInterrupt={handleManualInterrupt}
                 />
             ) : (
-                <div className="px-4 py-3 border-t border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl flex-shrink-0">
-                    {imageData && (
-                        <div className="relative inline-flex mb-2">
-                            <img src={imageData} alt="Attached" className="h-20 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm" />
-                            <button onClick={() => setImageData(null)}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-slate-600 dark:bg-zinc-600 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors shadow">
-                                <X className="w-3 h-3 text-white" />
-                            </button>
+                <div className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex-shrink-0">
+                    {/* Quick suggestion chips */}
+                    {messages.length > 0 && !streaming && (
+                        <div className="flex gap-2 px-4 pt-3 pb-1 overflow-x-auto scrollbar-none">
+                            {suggested.slice(0, 3).map((q, i) => (
+                                <button key={i} onClick={() => send(q)}
+                                    className="flex-shrink-0 text-[11px] font-medium px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors whitespace-nowrap">
+                                    {q}
+                                </button>
+                            ))}
                         </div>
                     )}
-                    <div className="flex items-end gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl px-3 py-2.5 shadow-sm focus-within:border-violet-400 dark:focus-within:border-violet-600 focus-within:shadow-md focus-within:shadow-violet-500/10 transition-all">
-                        <button onClick={() => imageInputRef.current?.click()}
-                            className="p-1.5 text-slate-400 dark:text-zinc-600 hover:text-violet-500 transition-colors flex-shrink-0 mb-0.5"
-                            title="Attach image">
-                            <ImagePlus className="w-4 h-4" />
-                        </button>
-                        <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
 
-                        {hasSpeechRecognition && (
-                            <button onClick={startListening}
-                                className={`p-1.5 transition-colors flex-shrink-0 mb-0.5 rounded-lg ${
-                                    isListening
-                                        ? 'text-red-500 bg-red-50 dark:bg-red-950/30 animate-pulse'
-                                        : 'text-slate-400 dark:text-zinc-600 hover:text-violet-500'
-                                }`}
-                                title={isListening ? 'Stop' : 'Speak'}>
-                                <Mic className="w-4 h-4" />
-                            </button>
+                    <div className="px-4 pb-4 pt-2 space-y-2">
+                        {imageData && (
+                            <div className="relative inline-flex mb-1">
+                                <img src={imageData} alt="Attached" className="h-20 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm" />
+                                <button onClick={() => setImageData(null)}
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-slate-600 dark:bg-zinc-600 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors shadow">
+                                    <X className="w-3 h-3 text-white" />
+                                </button>
+                            </div>
                         )}
 
-                        <textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
-                            placeholder={imageData ? 'Ask about this image…' : 'Ask UAI anything…'}
-                            rows={1}
-                            disabled={streaming}
-                            className="flex-1 bg-transparent text-slate-800 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-600 resize-none outline-none leading-relaxed max-h-32 overflow-y-auto disabled:opacity-50"
-                            style={{ minHeight: '24px' }}
-                        />
-                        <button onClick={() => send(input)}
-                            disabled={(!input.trim() && !imageData) || streaming}
-                            className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 disabled:opacity-40 disabled:from-slate-300 disabled:to-slate-400 dark:disabled:from-zinc-700 dark:disabled:to-zinc-700 text-white flex items-center justify-center transition-all shadow-sm shadow-violet-500/30 flex-shrink-0"
-                            aria-label="Send">
-                            <Send className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Input row */}
+                        <div className="flex items-end gap-2.5">
+                            <div className="flex items-end gap-1.5 flex-1 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl px-3 py-2.5 focus-within:border-violet-400 dark:focus-within:border-violet-600 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all">
+                                <button onClick={() => imageInputRef.current?.click()}
+                                    className="p-1 text-slate-400 dark:text-zinc-500 hover:text-violet-500 transition-colors flex-shrink-0 mb-0.5"
+                                    title="Attach image">
+                                    <ImagePlus className="w-4 h-4" />
+                                </button>
+                                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+
+                                {hasSpeechRecognition && (
+                                    <button onClick={startListening}
+                                        className={`p-1 transition-colors flex-shrink-0 mb-0.5 rounded-lg ${
+                                            isListening
+                                                ? 'text-red-500 bg-red-50 dark:bg-red-950/30 animate-pulse'
+                                                : 'text-slate-400 dark:text-zinc-500 hover:text-violet-500'
+                                        }`}
+                                        title={isListening ? 'Stop' : 'Speak'}>
+                                        <Mic className="w-4 h-4" />
+                                    </button>
+                                )}
+
+                                <textarea
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
+                                    placeholder={imageData ? 'Ask about this image…' : 'Ask UAI anything…'}
+                                    rows={1}
+                                    disabled={streaming}
+                                    className="flex-1 bg-transparent text-slate-800 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 resize-none outline-none leading-relaxed max-h-36 overflow-y-auto disabled:opacity-50"
+                                    style={{ minHeight: '28px' }}
+                                />
+                            </div>
+
+                            <button onClick={() => send(input)}
+                                disabled={(!input.trim() && !imageData) || streaming}
+                                className="w-11 h-11 rounded-2xl bg-zinc-900 dark:bg-zinc-100 hover:bg-black dark:hover:bg-white text-white dark:text-zinc-900 disabled:opacity-30 flex items-center justify-center transition-all shadow-sm flex-shrink-0 active:scale-95"
+                                aria-label="Send">
+                                {streaming ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                            </button>
+                        </div>
+
+                        <p className="text-center text-slate-400 dark:text-zinc-700 text-[10px]">UAI can make mistakes — always verify important information.</p>
                     </div>
-                    <p className="text-center text-slate-400 dark:text-zinc-700 text-[10px] mt-2">UAI can make mistakes — always verify important information.</p>
                 </div>
             )}
 

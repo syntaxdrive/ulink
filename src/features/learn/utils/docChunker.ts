@@ -51,14 +51,14 @@ export function isWholeDocumentQuery(query: string): boolean {
  * Score document chunks against the user query and return the most relevant
  * portion, capped at maxChars.
  *
- * - Whole-document queries (summarize / outline / quiz) → first 5 000 chars
- * - Specific queries → top 4 keyword-matched chunks joined with ellipsis
+ * - Whole-document queries (summarize / outline / quiz) → passes a large chunk of the document (up to maxChars * 4)
+ * - Specific queries → top keyword-matched chunks joined with ellipsis
  * - No keyword match → first maxChars chars (safe fallback)
  */
 export function findRelevantChunks(
     text: string,
     query: string,
-    maxChars = 2500,
+    maxChars = 40000,
 ): string {
     if (!text) return '';
 
@@ -67,10 +67,10 @@ export function findRelevantChunks(
 
     // Whole-document operations need breadth, not precision
     if (isWholeDocumentQuery(query)) {
-        return text.slice(0, Math.max(maxChars, 5000));
+        return text.slice(0, Math.max(maxChars, 100000));
     }
 
-    const chunks = chunkText(text);
+    const chunks = chunkText(text, 1200, 200);
     const queryWords = extractQueryWords(query);
 
     if (queryWords.length === 0) return text.slice(0, maxChars);
@@ -91,7 +91,7 @@ export function findRelevantChunks(
     const top = scored
         .filter(c => c.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 4);
+        .slice(0, Math.floor(maxChars / 1200));
 
     // No keyword match at all — fall back to beginning of document
     if (top.length === 0) return text.slice(0, maxChars);

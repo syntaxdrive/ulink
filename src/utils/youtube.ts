@@ -92,3 +92,68 @@ export function parseISO8601Duration(duration: string): number {
 
     return hours * 3600 + minutes * 60 + seconds;
 }
+
+/**
+ * Super lightweight browser-side YouTube transcript fetcher.
+ * Bypasses CORS using reliable public proxies to download the hidden timedtext XML.
+ */
+export async function extractYouTubeTranscript(videoId: string): Promise<string | null> {
+    try {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?'
+        ];
+        
+        let html = '';
+        const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        
+        for (const proxy of proxies) {
+            try {
+                const res = await fetch(proxy + encodeURIComponent(targetUrl), {
+                    headers: { 'Accept-Language': 'en-US,en;q=0.9' }
+                });
+                if (res.ok) {
+                    html = await res.text();
+                    if (html.includes('captionTracks')) break;
+                }
+            } catch (e) {
+                // Ignore and try next proxy
+            }
+        }
+
+        if (!html) return null;
+
+        const captionsMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
+        if (!captionsMatch || !captionsMatch[1]) return null;
+        
+        const tracks = JSON.parse(captionsMatch[1]);
+        const track = tracks.find((t: any) => t.languageCode === 'en' || t.name?.simpleText?.includes('English')) || tracks[0];
+        
+        if (!track || !track.baseUrl) return null;
+        
+        // Fetch the raw XML transcript
+        const xmlResponse = await fetch(track.baseUrl);
+        if (!xmlResponse.ok) return null;
+        
+        const xmlText = await xmlResponse.text();
+        const textMatches = xmlText.match(/<text[^>]*>(.*?)<\/text>/gi);
+        if (!textMatches) return null;
+        
+        const transcript = textMatches.map(t => {
+            const inner = t.match(/>(.*?)<\/text>/i);
+            if (!inner) return '';
+            return inner[1]
+                .replace(/&amp;/g, '&')
+                .replace(/&#39;/g, "'")
+                .replace(/&quot;/g, '"')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/<[^>]+>/g, '');
+        }).join(' ');
+        
+        return transcript.replace(/\s+/g, ' ').slice(0, 150000).trim();
+    } catch (err) {
+        console.error('YouTube transcript extraction failed:', err);
+        return null;
+    }
+}

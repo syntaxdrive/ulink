@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Mic2, Heart, Loader2, Radio } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { fetchEpisodes, fetchIsFollowing, followPodcast, unfollowPodcast } from './hooks/usePodcasts';
+import { fetchEpisodes, fetchIsFollowing, followPodcast, unfollowPodcast, deletePodcast, deletePodcastEpisode } from './hooks/usePodcasts';
 import EpisodeItem from './components/EpisodeItem';
 import type { Podcast, PodcastEpisode } from '../../types';
+import { Trash2 } from 'lucide-react';
 
 export default function PodcastChannelPage() {
     const { podcastId } = useParams<{ podcastId: string }>();
@@ -15,6 +16,8 @@ export default function PodcastChannelPage() {
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [followLoading, setFollowLoading] = useState(false);
+    const [uid, setUid] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (!podcastId) return;
@@ -27,15 +30,42 @@ export default function PodcastChannelPage() {
                 .single(),
             fetchEpisodes(podcastId),
             fetchIsFollowing(podcastId),
+            supabase.auth.getUser()
         ])
-            .then(([{ data }, eps, following]) => {
+            .then(([{ data }, eps, following, authResult]) => {
                 if (data) setPodcast(data as Podcast);
                 setEpisodes(eps);
                 setIsFollowing(following);
+                setUid(authResult.data.user?.id || null);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, [podcastId]);
+
+    const handleDeletePodcast = async () => {
+        if (!podcastId || !podcast) return;
+        if (!window.confirm(`Are you sure you want to delete "${podcast.title}"? This cannot be undone.`)) return;
+        setDeleting(true);
+        try {
+            await deletePodcast(podcastId);
+            navigate('/app/podcasts');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete podcast.');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleDeleteEpisode = async (episodeId: string) => {
+        try {
+            await deletePodcastEpisode(episodeId);
+            setEpisodes(prev => prev.filter(ep => ep.id !== episodeId));
+        } catch (err) {
+            console.error(err);
+            throw err; // propagates to item component
+        }
+    };
 
     const handleFollow = async () => {
         if (!podcastId) return;
@@ -109,18 +139,30 @@ export default function PodcastChannelPage() {
                                 by {podcast.creator?.name}
                             </p>
                         </div>
-                        <button
-                            onClick={handleFollow}
-                            disabled={followLoading}
-                            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all disabled:opacity-60 ${
-                                isFollowing
-                                    ? 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400'
-                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'
-                            }`}
-                        >
-                            <Heart className={`w-4 h-4 ${isFollowing ? 'fill-current' : ''}`} />
-                            {isFollowing ? 'Following' : 'Follow'}
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {uid === podcast.creator_id && (
+                                <button
+                                    onClick={handleDeletePodcast}
+                                    disabled={deleting}
+                                    className="p-2 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-50"
+                                    title="Delete Podcast"
+                                >
+                                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                </button>
+                            )}
+                            <button
+                                onClick={handleFollow}
+                                disabled={followLoading}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all disabled:opacity-60 ${
+                                    isFollowing
+                                        ? 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'
+                                }`}
+                            >
+                                <Heart className={`w-4 h-4 ${isFollowing ? 'fill-current' : ''}`} />
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-3 mt-3 text-xs text-slate-400 dark:text-zinc-500">
@@ -166,6 +208,7 @@ export default function PodcastChannelPage() {
                                 podcastCover={podcast.cover_url}
                                 queue={episodes}
                                 queueIndex={i}
+                                onDelete={uid === podcast.creator_id ? handleDeleteEpisode : undefined}
                             />
                         ))}
                     </div>
