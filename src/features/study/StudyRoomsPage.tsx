@@ -43,8 +43,8 @@ async function uploadFileToCloudinary(file: File): Promise<string> {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('upload_preset', preset);
-    fd.append('resource_type', 'raw');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/raw/upload`, { method: 'POST', body: fd });
+    fd.append('resource_type', 'auto');
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/auto/upload`, { method: 'POST', body: fd });
     if (!res.ok) throw new Error('Upload failed');
     const data = await res.json();
     return data.secure_url as string;
