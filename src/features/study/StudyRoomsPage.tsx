@@ -11,29 +11,7 @@ const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL as string || 'https://api.g
 const AI_MODEL = import.meta.env.VITE_AI_MODEL as string || 'llama-3.3-70b-versatile';
 
 async function askAI(question: string, context: string): Promise<string> {
-    if (!AI_API_KEY) return '⚠️ AI assistant not configured. Add VITE_AI_API_KEY to your .env.local file.';
-    
-    const prompt = `You are a helpful AI study assistant for Nigerian university students on UniLink. Keep answers concise, friendly, and academic. Current room context: ${context}\n\nQuestion: ${question}`;
-    
-    try {
-        const res = await fetch(`${AI_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AI_API_KEY}`
-            },
-            body: JSON.stringify({ 
-                model: AI_MODEL,
-                messages: [{ role: 'system', content: prompt }]
-            }),
-        });
-        
-        if (!res.ok) return '⚠️ AI request failed. Please try again.';
-        const data = await res.json();
-        return data.choices?.[0]?.message?.content || 'No response from AI.';
-    } catch (err) {
-        return '⚠️ AI service unavailable. Please try again later.';
-    }
+    return '🤖 *UniLink AI Assistant is currently cooking...* 🚀\n\nThis feature is coming soon to help you and your study group with questions, summaries, and explanations!';
 }
 
 async function uploadFileToCloudinary(file: File): Promise<string> {

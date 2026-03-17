@@ -42,70 +42,12 @@ function hasImages(messages: ChatMessage[]): boolean {
 
 export async function streamChatCompletion(
     messages: ChatMessage[],
-    { onChunk, onDone, onError }: StreamCallbacks,
+    { onChunk, onDone }: StreamCallbacks,
     signal?: AbortSignal
 ) {
-    if (!BASE_URL || !API_KEY) {
-        onError(new Error('AI service not configured. Please set VITE_AI_BASE_URL and VITE_AI_API_KEY.'));
-        return;
-    }
-
-    const model = hasImages(messages) ? VISION_MODEL : MODEL;
-
-    try {
-        const res = await fetch(`${BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`,
-            },
-            body: JSON.stringify({
-                model,
-                messages,
-                stream: true,
-                max_tokens: 2048,
-            }),
-            signal,
-        });
-
-        if (!res.ok) {
-            const text = await res.text().catch(() => res.statusText);
-            throw new Error(`AI API error ${res.status}: ${text}`);
-        }
-
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error('No response body');
-
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed.startsWith('data:')) continue;
-                const data = trimmed.slice(5).trim();
-                if (data === '[DONE]') { onDone(); return; }
-                if (!data) continue;
-                try {
-                    const parsed = JSON.parse(data);
-                    const content = parsed.choices?.[0]?.delta?.content;
-                    if (content) onChunk(content);
-                } catch { /* ignore malformed chunks */ }
-            }
-        }
-
-        onDone();
-    } catch (err: any) {
-        if (err?.name === 'AbortError') return;
-        onError(err instanceof Error ? err : new Error(String(err)));
-    }
+    onChunk("🤖 *UniLink AI is currently cooking...* 🚀\n\nStay tuned! This feature is coming soon to help with your studies, answers, and summaries!");
+    onDone();
+    return;
 }
 
 /**
