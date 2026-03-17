@@ -179,26 +179,38 @@ export default function StudyRoomsPage() {
 
     // ── In-room fetchers ──────────────────────────────────────────────────
     const fetchParticipants = useCallback(async (rid: string) => {
-        const { data } = await supabase.from('study_room_participants')
-            .select('*, profiles:user_id(name, username, avatar_url, university)').eq('room_id', rid);
-        setParticipants(data || []);
-        if (uid) { const m = (data || []).find((p: Participant) => p.user_id === uid); if (m) setMyStatus(m.status); }
+        const { data: list } = await supabase.from('study_room_participants').select('*').eq('room_id', rid);
+        if (!list?.length) { setParticipants([]); return; }
+        const uids = [...new Set(list.map(p => p.user_id))];
+        const { data: prfs } = await supabase.from('profiles').select('id, name, username, avatar_url, university').in('id', uids);
+        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
+        const data = list.map(p => ({ ...p, profiles: map[p.user_id] || { name: 'User', avatar_url: null } }));
+        setParticipants(data);
+        if (uid) { const m = data.find((p: Participant) => p.user_id === uid); if (m) setMyStatus(m.status); }
     }, [uid]);
 
     const fetchMessages = useCallback(async (rid: string) => {
-        const { data } = await supabase.from('study_room_messages')
-            .select('*, profiles:user_id(name, avatar_url)').eq('room_id', rid).order('created_at').limit(200);
+        const { data: list } = await supabase.from('study_room_messages').select('*').eq('room_id', rid).order('created_at').limit(200);
+        if (!list) return;
+        const uids = [...new Set(list.map(m => m.user_id))];
+        const { data: prfs } = await supabase.from('profiles').select('id, name, avatar_url').in('id', uids);
+        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
+        const data = list.map(m => ({ ...m, profiles: map[m.user_id] || { name: 'User', avatar_url: null } }));
         setMessages(prev => {
             const aiMessages = prev.filter(m => m.isAI);
-            const combined = [...(data || []), ...aiMessages];
+            const combined = [...data, ...aiMessages];
             return combined.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         });
     }, []);
 
     const fetchDocs = useCallback(async (rid: string) => {
-        const { data } = await supabase.from('study_room_documents')
-            .select('*, profiles:shared_by(name)').eq('room_id', rid).eq('is_active', true).order('created_at', { ascending: false });
-        setDocs(data || []);
+        const { data: list } = await supabase.from('study_room_documents').select('*').eq('room_id', rid).eq('is_active', true).order('created_at', { ascending: false });
+        if (!list) return;
+        const uids = [...new Set(list.map(d => d.shared_by))];
+        const { data: prfs } = await supabase.from('profiles').select('id, name').in('id', uids);
+        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
+        const data = list.map(d => ({ ...d, profiles: map[d.shared_by] || { name: 'User' } }));
+        setDocs(data);
     }, []);
 
     const fetchPolls = useCallback(async (rid: string) => {
