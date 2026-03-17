@@ -6,9 +6,9 @@ import {
     Crown, Trash2, Link2, ToggleRight, BookMarked, Bot, PenTool, type LucideIcon,
 } from 'lucide-react';
 
-const AI_API_KEY = import.meta.env.VITE_AI_API_KEY as string | undefined;
-const _AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL as string || 'https://api.groq.com/openai/v1';
-const _AI_MODEL = import.meta.env.VITE_AI_MODEL as string || 'llama-3.3-70b-versatile';
+// const AI_API_KEY = import.meta.env.VITE_AI_API_KEY as string | undefined;
+// const _AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL as string || 'https://api.groq.com/openai/v1';
+// const _AI_MODEL = import.meta.env.VITE_AI_MODEL as string || 'llama-3.3-70b-versatile';
 
 async function askAI(_question: string, _context: string): Promise<string> {
     return '🤖 *UniLink AI Assistant is currently cooking...* 🚀\n\nThis feature is coming soon to help you and your study group with questions, summaries, and explanations!';
