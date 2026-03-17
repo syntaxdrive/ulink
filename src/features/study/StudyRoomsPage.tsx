@@ -302,8 +302,30 @@ export default function StudyRoomsPage() {
         if (!chatInput.trim() || !uid || !activeRoom || sending) return;
         setSending(true);
         const c = chatInput.trim(); setChatInput('');
-        await supabase.from('study_room_messages').insert({ room_id: activeRoom.id, user_id: uid, content: c });
+        const clientMsg: RoomMessage = {
+            id: crypto.randomUUID(),
+            room_id: activeRoom.id,
+            user_id: uid,
+            content: c,
+            created_at: new Date().toISOString(),
+            profiles: participants.find(p => p.user_id === uid)?.profiles || { name: 'Me', avatar_url: null }
+        };
+
+        // Append locally instantly so user feels instant updates
+        setMessages(prev => [...prev, clientMsg]);
         setSending(false);
+
+        const { error } = await supabase.from('study_room_messages').insert({
+            id: clientMsg.id,
+            room_id: clientMsg.room_id,
+            user_id: clientMsg.user_id,
+            content: clientMsg.content
+        });
+
+        if (error) {
+            console.error('Chat error:', error);
+            // alert('Failed to broadcast message: ' + error.message);
+        }
 
         // AI assistant: triggered by @AI prefix
         const aiMatch = c.match(/^@AI\s+(.+)/i);
@@ -335,6 +357,7 @@ export default function StudyRoomsPage() {
         if (!uid || !activeRoom || !newDoc.title.trim()) return;
         setSavingDoc(true);
         await supabase.from('study_room_documents').insert({
+            id: crypto.randomUUID(),
             room_id: activeRoom.id, shared_by: uid, title: newDoc.title.trim(),
             content: newDoc.content.trim(), doc_url: newDoc.doc_url.trim() || null,
         });
@@ -348,7 +371,10 @@ export default function StudyRoomsPage() {
         if (valid.length < 2) return;
         setSavingPoll(true);
         const options: PollOption[] = valid.map((text, i) => ({ id: `o${i}`, text }));
-        await supabase.from('study_room_polls').insert({ room_id: activeRoom.id, created_by: uid, question: newPoll.question.trim(), options });
+        await supabase.from('study_room_polls').insert({
+            id: crypto.randomUUID(),
+            room_id: activeRoom.id, created_by: uid, question: newPoll.question.trim(), options
+        });
         setNewPoll({ question: '', options: ['', ''] }); setShowPollForm(false); setSavingPoll(false);
     };
 
