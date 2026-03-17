@@ -288,10 +288,6 @@ export default function StudyRoomsPage() {
 
     const leaveRoom = async () => {
         if (!uid || !activeRoom) return;
-        const others = participants.filter(p => p.user_id !== uid);
-        if (activeRoom.creator_id === uid && others.length === 0) {
-            await supabase.from('study_rooms').update({ is_active: false }).eq('id', activeRoom.id);
-        }
         await supabase.from('study_room_participants').delete().eq('room_id', activeRoom.id).eq('user_id', uid);
         setActiveRoom(null); setParticipants([]); setMessages([]); setDocs([]); setPolls([]); setVotes([]);
         fetchRooms();

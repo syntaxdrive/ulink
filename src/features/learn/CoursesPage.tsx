@@ -369,7 +369,10 @@ export default function CoursesPage() {
                                             {course.course_documents.map((doc) => (
                                                 <button
                                                     key={doc.id}
-                                                    onClick={() => setViewingDoc({ doc, course })}
+                                                    onClick={() => {
+                                                        setViewingDoc({ doc, course });
+                                                        trackDownload(doc.id);
+                                                    }}
                                                     className="w-full flex items-center gap-2 px-3 py-2 bg-stone-50 dark:bg-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-colors group/doc border border-stone-200/60 dark:border-zinc-700"
                                                 >
                                                     <span className="text-lg flex-shrink-0">{getDocIcon(doc.file_type)}</span>
