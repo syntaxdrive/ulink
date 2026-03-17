@@ -228,7 +228,14 @@ export default function StudyRoomsPage() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_polls', filter: `room_id=eq.${rid}` }, () => fetchPolls(rid))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_poll_votes' }, () => fetchVotes(polls.map(p => p.id)))
             .subscribe();
-        return () => { supabase.removeChannel(ch); };
+
+        // Fallback polling for message updates so chat doesn't get stuck
+        const poll = setInterval(() => { fetchMessages(rid); }, 5000);
+
+        return () => { 
+            supabase.removeChannel(ch); 
+            clearInterval(poll);
+        };
     }, [activeRoom?.id]);
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -369,7 +376,7 @@ export default function StudyRoomsPage() {
 
         return (
             <div className="flex flex-col flex-1 h-full min-h-[calc(100dvh-5rem)]">
-                <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col flex-1 min-h-0 gap-4">
+                <div className="w-full h-full p-2 md:p-3 flex flex-col flex-1 min-h-0 gap-3">
                     {/* ── Room Header ── */}
                     <div className="px-5 pt-5 pb-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex-shrink-0 mb-2 rounded-2xl shadow-sm">
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
