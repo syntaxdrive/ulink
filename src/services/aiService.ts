@@ -2,8 +2,8 @@
 
 const BASE_URL     = import.meta.env.VITE_AI_BASE_URL      || '';
 const API_KEY      = import.meta.env.VITE_AI_API_KEY       || '';
-const MODEL        = import.meta.env.VITE_AI_MODEL         || 'llama-3.3-70b-versatile';
-const VISION_MODEL = import.meta.env.VITE_AI_VISION_MODEL  || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const _MODEL        = import.meta.env.VITE_AI_MODEL         || 'llama-3.3-70b-versatile';
+const _VISION_MODEL = import.meta.env.VITE_AI_VISION_MODEL  || 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 // TTS — defaults to main API if no separate key/url is set.
 // Groq (free): VITE_TTS_BASE_URL=https://api.groq.com/openai/v1, VITE_TTS_MODEL=playai-tts, VITE_TTS_VOICE=Celeste-PlayAI
@@ -34,16 +34,16 @@ export interface StreamCallbacks {
     onError: (err: Error) => void;
 }
 
-function hasImages(messages: ChatMessage[]): boolean {
-    return messages.some(
+function _hasImages(_messages: ChatMessage[]): boolean {
+    return _messages.some(
         m => Array.isArray(m.content) && m.content.some(p => p.type === 'image_url')
     );
 }
 
 export async function streamChatCompletion(
-    messages: ChatMessage[],
+    _messages: ChatMessage[],
     { onChunk, onDone }: StreamCallbacks,
-    signal?: AbortSignal
+    _signal?: AbortSignal
 ) {
     onChunk("🤖 *UniLink AI is currently cooking...* 🚀\n\nStay tuned! This feature is coming soon to help with your studies, answers, and summaries!");
     onDone();
