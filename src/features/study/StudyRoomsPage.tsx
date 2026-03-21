@@ -14,10 +14,18 @@ async function askAI(_question: string, _context: string): Promise<string> {
     return '🤖 *UniLink AI Assistant is currently cooking...* 🚀\n\nThis feature is coming soon to help you and your study group with questions, summaries, and explanations!';
 }
 
-async function uploadFileToCloudinary(file: File): Promise<string> {
+async function uploadFileForRoom(file: File): Promise<string> {
+    // Primary: Supabase Storage (fast, no CORS issues)
+    const ext = file.name.split('.').pop() ?? 'bin';
+    const path = `study-room-files/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('uploads').upload(path, file, { upsert: true });
+    if (!error) {
+        return supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+    }
+    // Fallback: Cloudinary
     const cloud = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloud || !preset) throw new Error('Cloudinary not configured');
+    if (!cloud || !preset) throw new Error('Upload failed — storage not configured');
     const fd = new FormData();
     fd.append('file', file);
     fd.append('upload_preset', preset);
@@ -543,11 +551,11 @@ export default function StudyRoomsPage() {
                                             <div className="w-9 h-9 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-md">
                                                 <Bot className="w-4 h-4 text-white dark:text-zinc-900" />
                                             </div>
-                                            <div className="max-w-[88%] flex flex-col gap-1.5 items-start">
+                                            <div className="max-w-[88%] min-w-0 flex flex-col gap-1.5 items-start">
                                                 <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 px-1 flex items-center gap-1">
                                                     UniLink AI
                                                 </span>
-                                                <div className="px-4 py-3.5 rounded-2xl rounded-tl-sm text-sm bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 whitespace-pre-wrap leading-relaxed shadow-sm">
+                                                <div className="px-4 py-3.5 rounded-2xl rounded-tl-sm text-sm bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 whitespace-pre-wrap break-words overflow-hidden leading-relaxed shadow-sm max-w-full">
                                                     {msg.content}
                                                 </div>
                                                 <span className="text-[10px] text-slate-400 px-1">{timeAgo(msg.created_at)}</span>
@@ -556,26 +564,37 @@ export default function StudyRoomsPage() {
                                     );
 
                                     return (
-                                        <div key={msg.id} className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                        <div key={msg.id} className={`flex gap-2.5 group/msg ${isMe ? 'flex-row-reverse' : ''}`}>
                                             {!isMe && (
                                                 <div className="flex-shrink-0 self-end">
                                                     <Avatar src={msg.profiles?.avatar_url} name={msg.profiles?.name} size={8} />
                                                 </div>
                                             )}
-                                            <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                                            <div className={`max-w-[75%] min-w-0 flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                                                 {showName && (
                                                     <span className="text-[11px] text-slate-500 dark:text-zinc-400 px-1 font-medium">
                                                         {msg.profiles?.name || 'Anonymous'}
                                                     </span>
                                                 )}
-                                                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                                                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm break-words overflow-hidden max-w-full ${
                                                     isMe
                                                         ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-tr-sm'
                                                         : 'bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 rounded-tl-sm border border-slate-100 dark:border-zinc-700'
                                                 }`}>
                                                     {msg.content}
                                                 </div>
-                                                <span className="text-[10px] text-slate-400 dark:text-zinc-600 px-1">{timeAgo(msg.created_at)}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] text-slate-400 dark:text-zinc-600 px-1">{timeAgo(msg.created_at)}</span>
+                                                    {isMe && !msg.isAI && (
+                                                        <button
+                                                            onClick={async () => { await supabase.from('study_room_messages').delete().eq('id', msg.id); setMessages(prev => prev.filter(m => m.id !== msg.id)); }}
+                                                            className="opacity-0 group-hover/msg:opacity-100 p-0.5 text-slate-300 hover:text-red-500 transition-all"
+                                                            title="Delete message"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -707,13 +726,13 @@ export default function StudyRoomsPage() {
                                             ref={docFileRef}
                                             type="file"
                                             className="hidden"
-                                            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/*"
+                                            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.md,.key,.pages,.numbers,image/*,video/*,audio/*"
                                             onChange={async (e) => {
                                                 const file = e.target.files?.[0];
                                                 if (!file) return;
                                                 setUploadingDoc(true);
                                                 try {
-                                                    const url = await uploadFileToCloudinary(file);
+                                                    const url = await uploadFileForRoom(file);
                                                     setNewDoc(p => ({
                                                         ...p,
                                                         doc_url: url,
@@ -884,10 +903,17 @@ export default function StudyRoomsPage() {
                                                 <p className="font-semibold text-sm text-slate-900 dark:text-white leading-snug">{poll.question}</p>
                                                 <p className="text-xs text-slate-400 mt-0.5">{total} vote{total !== 1 ? 's' : ''}</p>
                                             </div>
-                                            {isHost && poll.is_active && (
-                                                <button onClick={() => supabase.from('study_room_polls').update({ is_active: false }).eq('id', poll.id)} className="p-1.5 text-emerald-500 hover:text-slate-400 transition-colors flex-shrink-0" title="Close poll">
-                                                    <ToggleRight className="w-5 h-5" />
-                                                </button>
+                                            {isHost && (
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    {poll.is_active && (
+                                                        <button onClick={() => supabase.from('study_room_polls').update({ is_active: false }).eq('id', poll.id).then(() => fetchPolls(activeRoom.id))} className="p-1.5 text-emerald-500 hover:text-slate-400 transition-colors" title="Close poll">
+                                                            <ToggleRight className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                    <button onClick={async () => { await supabase.from('study_room_poll_votes').delete().eq('poll_id', poll.id); await supabase.from('study_room_polls').delete().eq('id', poll.id); setPolls(prev => prev.filter(p => p.id !== poll.id)); }} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete poll">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="space-y-2">
