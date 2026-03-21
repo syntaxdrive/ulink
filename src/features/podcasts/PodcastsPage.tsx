@@ -161,6 +161,17 @@ function TrendingCard({ podcast }: { podcast: Podcast }) {
                         <Mic2 className="w-10 h-10 text-white/60" />
                     </div>
                 )}
+                {/* Glass overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Stats badge */}
+                <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-[10px] font-bold text-white/90 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                        <Mic2 className="w-2.5 h-2.5" /> {podcast.episodes_count}
+                    </span>
+                    <span className="text-[10px] font-bold text-white/90 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                        <Users className="w-2.5 h-2.5" /> {podcast.followers_count}
+                    </span>
+                </div>
                 {/* Playing indicator */}
                 {isThisPlaying && (
                     <div className="absolute bottom-2 right-2 flex gap-0.5 items-end h-4">
@@ -391,7 +402,7 @@ export default function PodcastsPage() {
                                         onClick={() => navigate(`/app/podcasts/${p.id}`)}
                                         className="group text-left"
                                     >
-                                        <div className={`aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${CATEGORY_GRADIENTS[p.category] ?? 'from-slate-500 to-zinc-600'} mb-2 shadow-sm group-hover:shadow-md group-hover:scale-105 active:scale-95 transition-all duration-200`}>
+                                        <div className={`relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${CATEGORY_GRADIENTS[p.category] ?? 'from-slate-500 to-zinc-600'} mb-2 shadow-sm group-hover:shadow-lg group-hover:scale-[1.03] active:scale-95 transition-all duration-200`}>
                                             {p.cover_url ? (
                                                 <img
                                                     src={p.cover_url}
@@ -403,6 +414,24 @@ export default function PodcastsPage() {
                                                     <Mic2 className="w-8 h-8 text-white/60" />
                                                 </div>
                                             )}
+                                            {/* Bottom glass bar */}
+                                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-bold text-white/90 flex items-center gap-0.5">
+                                                        <Mic2 className="w-2.5 h-2.5" /> {p.episodes_count} ep{p.episodes_count !== 1 ? 's' : ''}
+                                                    </span>
+                                                    <span className="text-white/40">·</span>
+                                                    <span className="text-[10px] font-bold text-white/90 flex items-center gap-0.5">
+                                                        <Users className="w-2.5 h-2.5" /> {p.followers_count}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {/* Category badge */}
+                                            <div className="absolute top-2 left-2">
+                                                <span className="text-[9px] font-bold text-white bg-black/30 backdrop-blur-sm px-1.5 py-0.5 rounded-md">
+                                                    {p.category}
+                                                </span>
+                                            </div>
                                         </div>
                                         <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                             {p.title}
