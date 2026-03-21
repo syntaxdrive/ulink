@@ -515,7 +515,7 @@ export default function StudyRoomsPage() {
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                     {/* ── CHAT ── */}
                     {tab === 'chat' && (
-                        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 rounded-b-2xl border border-t-0 border-slate-100 dark:border-zinc-800">
+                        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-zinc-900 rounded-b-2xl border border-t-0 border-slate-100 dark:border-zinc-800">
                             {/* AI shortcut banner */}
                             <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-50 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex-shrink-0">
                                 <div className="w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center shadow-sm flex-shrink-0">
@@ -529,8 +529,8 @@ export default function StudyRoomsPage() {
                                 ))}
                             </div>
 
-                            {/* Messages area — bigger and more open */}
-                            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 min-h-[300px]">
+                            {/* Messages area — scrollable, takes all remaining space */}
+                            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
                                 {messages.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400 py-12">
                                         <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-emerald-100 dark:from-violet-900/30 dark:to-emerald-900/30 flex items-center justify-center shadow-inner">
@@ -619,8 +619,8 @@ export default function StudyRoomsPage() {
                                 <div ref={chatEndRef} />
                             </div>
 
-                            {/* Input bar — larger, always visible @AI tip */}
-                            <div className="flex-shrink-0 px-3 pb-4 pt-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl space-y-2">
+                            {/* Input bar — pinned to bottom */}
+                            <div className="flex-shrink-0 sticky bottom-0 z-10 px-3 pb-4 pt-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl space-y-2">
                                 <form onSubmit={sendMessage} className="flex gap-2 items-end">
                                     <div className="flex-1 relative">
                                         <input
