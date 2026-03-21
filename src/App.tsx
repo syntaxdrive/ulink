@@ -30,6 +30,7 @@ import PodcastsPage from './features/podcasts/PodcastsPage';
 import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
 import PodcastManagePage from './features/podcasts/PodcastManagePage';
 import StudyRoomsPage from './features/study/StudyRoomsPage';
+import MarketplacePage from './features/marketplace/MarketplacePage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
 import PWAInstallBanner from './components/PWAInstallBanner';
@@ -158,6 +159,7 @@ function App() {
             <Route path="talent" element={<TalentSearchPage />} />
             <Route path="learn" element={<CoursesPage />} />
             <Route path="study" element={<StudyRoomsPage />} />
+            <Route path="marketplace" element={<MarketplacePage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="challenge" element={<CampusChallengePage />} />
             <Route path="news" element={<NewsPage />} />

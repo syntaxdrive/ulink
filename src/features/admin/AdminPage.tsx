@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Building2, Mail, LayoutDashboard, Smile, Zap, Mic2 } from 'lucide-react';
+import { Users, Shield, Building2, Mail, LayoutDashboard, Smile, Zap, Mic2, BarChart3 } from 'lucide-react';
 import { type Profile } from '../../types';
 import SendEmailModal from './components/SendEmailModal';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -12,6 +12,7 @@ import AdminReactionsBoard from './components/AdminReactionsBoard';
 import AdminPollCreator from './components/AdminPollCreator';
 import AdminPodcastQueue from './components/AdminPodcastQueue';
 import AdminIntercom from './components/AdminIntercom';
+import InvestorAnalytics from './components/InvestorAnalytics';
 import RecentActivity from './components/RecentActivity';
 import { Newspaper, TrendingUp } from 'lucide-react';
 
@@ -41,7 +42,7 @@ export default function AdminPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'board' | 'polls' | 'podcasts'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'users' | 'board' | 'polls' | 'podcasts'>('dashboard');
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<Profile[]>([]);
@@ -192,6 +193,16 @@ export default function AdminPage() {
                     <Mic2 className="w-4 h-4" />
                     Podcasts
                 </button>
+                <button
+                    onClick={() => setActiveTab('analytics')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'analytics'
+                        ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-sm'
+                        : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        }`}
+                >
+                    <BarChart3 className="w-4 h-4" />
+                    Analytics
+                </button>
             </div>
 
             {activeTab === 'dashboard' ? (
@@ -301,9 +312,13 @@ export default function AdminPage() {
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                     <AdminPollCreator />
                 </div>
-            ) : (
+            ) : activeTab === 'podcasts' ? (
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                     <AdminPodcastQueue />
+                </div>
+            ) : (
+                <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <InvestorAnalytics />
                 </div>
             )}
 
