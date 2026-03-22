@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useUIStore } from '../../stores/useUIStore';
 import {
     Users, Plus, LogOut, X, Loader2, BookOpen, Coffee, CheckCircle2,
-    MessageCircle, FileText, BarChart2, Send, ChevronDown,
+    MessageCircle, FileText, BarChart2, Send, ChevronDown, ChevronLeft,
     Crown, Trash2, Link2, ToggleRight, BookMarked, Bot, PenTool, type LucideIcon,
 } from 'lucide-react';
 
@@ -104,10 +105,20 @@ function StatusBadge({ status }: { status: ParticipantStatus }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function StudyRoomsPage() {
+    const { setImmersive } = useUIStore();
     const [rooms, setRooms] = useState<StudyRoom[]>([]);
     const [loading, setLoading] = useState(true);
-    const [uid, setUid] = useState<string | null>(null);
     const [activeRoom, setActiveRoom] = useState<StudyRoom | null>(null);
+    const [uid, setUid] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (activeRoom) {
+            setImmersive(true);
+        } else {
+            setImmersive(false);
+        }
+        return () => setImmersive(false);
+    }, [activeRoom, setImmersive]);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [myStatus, setMyStatus] = useState<ParticipantStatus>('Here');
     const [showCreate, setShowCreate] = useState(false);
@@ -421,101 +432,81 @@ export default function StudyRoomsPage() {
         ];
 
         return (
-            <div className="flex flex-col flex-1 h-full min-h-[calc(100dvh-5rem)]">
-                <div className="w-full h-full p-2 md:p-3 flex flex-col flex-1 min-h-0 gap-3">
-                    {/* ── Room Header ── */}
-                    <div className="px-5 pt-5 pb-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex-shrink-0 mb-2 rounded-2xl shadow-sm">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
+            <div className="fixed inset-0 z-[100] bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col h-[100dvh] w-full sm:static sm:z-auto sm:bg-transparent sm:h-[calc(100vh-96px)]">
+                
+                {/* ── Room Header (Fixed Top) ── */}
+                <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 shadow-sm z-10 flex items-center justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0 flex-1 flex gap-3 items-center">
+                        <button onClick={() => setActiveRoom(null)} className="p-2 -ml-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 shrink-0 self-center transition-colors">
+                            <ChevronLeft className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+                        </button>
+                        <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate leading-tight">{activeRoom.name}</h1>
-                                {activeRoom.is_private && <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex-shrink-0">PRIVATE</span>}
+                                <h1 className="text-lg sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-tight">{activeRoom.name}</h1>
+                                {activeRoom.is_private && <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex-shrink-0 uppercase">Private</span>}
                                 {isHost && (
-                                    <span className="flex items-center gap-1 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold flex-shrink-0">
-                                        <Crown className="w-2.5 h-2.5" />HOST
+                                    <span className="flex items-center gap-1 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold flex-shrink-0 uppercase">
+                                        <Crown className="w-2.5 h-2.5" />Host
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                {activeRoom.subject && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{activeRoom.subject}</span>}
-                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                            <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1 flex-wrap">
+                                {activeRoom.subject && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{activeRoom.subject}</span>}
+                                <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
                                     {participants.length} live
                                 </span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                                onClick={() => {
-                                    const link = `${window.location.origin}/app/study?room=${activeRoom.id}`;
-                                    navigator.clipboard.writeText(link);
-                                    alert('Invite link copied to clipboard!');
-                                }}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium text-xs rounded-xl transition-colors"
-                            >
-                                <Link2 className="w-4 h-4" /> <span className="hidden sm:inline">Invite</span>
-                            </button>
-                            {/* Status pill */}
-                            <div className="relative">
-                                <select
-                                    value={myStatus}
-                                    onChange={e => updateStatus(e.target.value as ParticipantStatus)}
-                                    className="appearance-none pl-3 pr-7 py-1.5 rounded-full text-xs font-semibold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                                >
-                                    <option value="Here">📚 Here</option>
-                                    <option value="On break">☕ Break</option>
-                                    <option value="Done">✅ Done</option>
-                                </select>
-                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
-                            </div>
-                            {isHost && (
-                                <button
-                                    onClick={deleteRoom}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                >
-                                    <Trash2 className="w-3 h-3" />
-                                    <span className="hidden sm:inline">Delete</span>
-                                </button>
-                            )}
-                            <button
-                                onClick={leaveRoom}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
-                            >
-                                <LogOut className="w-3 h-3" />
-                                <span className="hidden sm:inline">Leave</span>
-                            </button>
-                        </div>
                     </div>
-
-                    {/* ── Tabs ── */}
-                    <div className="flex gap-1 mt-3 bg-slate-100 dark:bg-zinc-800 rounded-xl p-1">
-                        {tabs.map(({ id, label, icon: Icon, badge }) => (
-                            <button
-                                key={id}
-                                onClick={() => setTab(id)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all relative ${
-                                    tab === id
-                                        ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-sm'
-                                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-                                }`}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                            onClick={() => {
+                                const link = `${window.location.origin}/app/study?room=${activeRoom.id}`;
+                                navigator.clipboard.writeText(link);
+                                alert('Invite link copied to clipboard!');
+                            }}
+                            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium text-xs rounded-xl transition-colors"
+                        >
+                            <Link2 className="w-4 h-4" /> <span>Invite</span>
+                        </button>
+                        {/* Status pill */}
+                        <div className="relative hidden sm:block">
+                            <select
+                                value={myStatus}
+                                onChange={e => updateStatus(e.target.value as ParticipantStatus)}
+                                className="appearance-none pl-3 pr-7 py-1.5 rounded-full text-xs font-semibold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                             >
-                                <Icon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{label}</span>
-                                {badge != null && (
-                                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-emerald-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                                        {badge}
-                                    </span>
-                                )}
+                                <option value="Here">📚 Here</option>
+                                <option value="On break">☕ Break</option>
+                                <option value="Done">✅ Done</option>
+                            </select>
+                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                        </div>
+                        {isHost && (
+                            <button
+                                onClick={deleteRoom}
+                                className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-full sm:text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                                <Trash2 className="w-5 h-5 sm:w-3 sm:h-3" />
+                                <span className="hidden sm:inline">Delete</span>
                             </button>
-                        ))}
+                        )}
+                        <button
+                            onClick={leaveRoom}
+                            className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-full sm:text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            <LogOut className="w-5 h-5 sm:w-3 sm:h-3" />
+                            <span className="hidden sm:inline">Leave</span>
+                        </button>
                     </div>
                 </div>
 
-                {/* ── Tab Content Container ── */}
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                {/* ── Tab Content Container (Middle Flex) ── */}
+                <div className="flex-1 overflow-hidden flex flex-col w-full sm:max-w-7xl mx-auto sm:px-4 sm:pt-4">
                     {/* ── CHAT ── */}
                     {tab === 'chat' && (
-                        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-zinc-900 rounded-b-2xl border border-t-0 border-slate-100 dark:border-zinc-800">
+                        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0b141a] sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm relative">
                             {/* AI shortcut banner */}
                             <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-50 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex-shrink-0">
                                 <div className="w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center shadow-sm flex-shrink-0">
@@ -651,38 +642,35 @@ export default function StudyRoomsPage() {
 
                 {/* ── BOARD ── */}
                 {tab === 'board' && (() => {
-                    // Excalidraw collab URL format: #room=<20hex>,<22base64key>
-                    // Both values are derived deterministically from the study room UUID
-                    // so every participant always connects to the same persistent board.
-                    const hex = activeRoom.id.replace(/-/g, '');          // 32 hex chars
-                    const boardRoomId = hex.slice(0, 20);                  // 20 char room id
-                    const boardKey = btoa(hex.slice(10, 26)).slice(0, 22); // 22 char key
-                    const excalidrawUrl = `https://excalidraw.com/#room=${boardRoomId},${boardKey}`;
+                    const wboUrl = `https://wbo.ophir.dev/boards/unilink-${activeRoom.id}`;
                     return (
-                        <div className="flex-1 w-full flex flex-col overflow-hidden rounded-b-2xl min-h-[500px]">
+                        <div className="flex-1 w-full flex flex-col overflow-hidden sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900 min-h-[500px] relative">
                             {/* Board header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <PenTool className="w-4 h-4 text-violet-500" />
-                                    <span className="text-sm font-semibold text-slate-800 dark:text-white">Collaborative Whiteboard</span>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-medium">Live</span>
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-10 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <PenTool className="w-5 h-5 text-violet-500" />
+                                    <span className="text-sm font-bold text-slate-800 dark:text-white">Collaborative Board</span>
+                                    <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Sync
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 hidden sm:inline-block">Auto-saves instantly</span>
                                 </div>
                                 <a
-                                    href={excalidrawUrl}
+                                    href={wboUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-[11px] text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition-colors"
+                                    className="hidden sm:flex text-[11px] text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition-colors items-center gap-1"
                                 >
-                                    Open full screen ↗
+                                    Full screen ↗
                                 </a>
                             </div>
-                            {/* Excalidraw embed */}
+                            {/* WBO embed - natively auto-saves to WBO deterministic cloud and uses ultra-low latency WebSockets */}
                             <div className="flex-1 relative overflow-hidden bg-[#f8f9fa] dark:bg-zinc-950">
                                 <iframe
-                                    src={excalidrawUrl}
+                                    src={wboUrl}
                                     className="w-full h-full absolute inset-0 border-none"
                                     title="Collaborative Whiteboard"
-                                    allow="clipboard-read; clipboard-write"
+                                    allow="clipboard-read; clipboard-write; display-capture"
                                 />
                             </div>
                         </div>
@@ -797,7 +785,10 @@ export default function StudyRoomsPage() {
 
                             {docs.map(doc => (
                                 <div key={doc.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-                                    <div className="flex items-center gap-3 px-4 py-3">
+                                    <div 
+                                        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
+                                        onClick={() => setOpenDocId(openDocId === doc.id ? null : doc.id)}
+                                    >
                                         <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                                             <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                         </div>
@@ -807,23 +798,57 @@ export default function StudyRoomsPage() {
                                         </div>
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             {doc.doc_url && (
-                                                <a href={doc.doc_url} target="_blank" rel="noreferrer" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-emerald-600 transition-colors">
+                                                <a 
+                                                    href={doc.doc_url} 
+                                                    target="_blank" 
+                                                    rel="noreferrer" 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-emerald-600 transition-colors"
+                                                    title="Open in new tab"
+                                                >
                                                     <Link2 className="w-4 h-4" />
                                                 </a>
                                             )}
-                                            <button onClick={() => setOpenDocId(openDocId === doc.id ? null : doc.id)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 transition-colors">
+                                            <button 
+                                                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 transition-colors pointer-events-none"
+                                            >
                                                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openDocId === doc.id ? 'rotate-180' : ''}`} />
                                             </button>
                                             {doc.shared_by === uid && (
-                                                <button onClick={() => supabase.from('study_room_documents').update({ is_active: false }).eq('id', doc.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors">
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        supabase.from('study_room_documents').update({ is_active: false }).eq('id', doc.id); 
+                                                    }} 
+                                                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors"
+                                                >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             )}
                                         </div>
                                     </div>
-                                    {openDocId === doc.id && doc.content && (
-                                        <div className="px-4 py-3 border-t border-slate-100 dark:border-zinc-800 text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap font-mono bg-slate-50 dark:bg-zinc-800/60 max-h-64 overflow-y-auto text-xs leading-relaxed">
-                                            {doc.content}
+                                    {openDocId === doc.id && (doc.content || doc.doc_url) && (
+                                        <div className="border-t border-slate-100 dark:border-zinc-800 flex flex-col bg-slate-50 dark:bg-zinc-800/60">
+                                            {doc.content && (
+                                                <div className={`px-4 py-3 text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap font-sans overflow-y-auto leading-relaxed ${doc.doc_url ? 'max-h-32 border-b border-slate-200 dark:border-zinc-700/50' : 'max-h-64'}`}>
+                                                    {doc.content}
+                                                </div>
+                                            )}
+                                            {doc.doc_url && (
+                                                <div className="w-full h-[50dvh] min-h-[400px]">
+                                                    {doc.doc_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                                        <img src={doc.doc_url} alt={doc.title} className="w-full h-full object-contain bg-zinc-100 dark:bg-zinc-950" />
+                                                    ) : doc.doc_url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                                                        <video src={doc.doc_url} controls className="w-full h-full bg-black object-contain" />
+                                                    ) : (
+                                                        <iframe 
+                                                            src={doc.doc_url.includes('docs.google.com') ? doc.doc_url : `https://docs.google.com/viewer?url=${encodeURIComponent(doc.doc_url)}&embedded=true`} 
+                                                            className="w-full h-full border-0 bg-white"
+                                                            title={doc.title}
+                                                        />
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -980,7 +1005,34 @@ export default function StudyRoomsPage() {
                     </div>
                 )}
                 </div>
-            </div>
+
+                {/* ── Floating Bottom Tabs ── */}
+                <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 pb-[calc(env(safe-area-inset-bottom)+0.2rem)] pt-2 px-2 sm:rounded-b-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 w-full sm:max-w-7xl mx-auto sm:mb-4">
+                    <div className="flex justify-around items-center w-full">
+                        {tabs.map(({ id, label, icon: Icon, badge }) => (
+                            <button
+                                key={id}
+                                onClick={() => setTab(id)}
+                                className={`flex flex-col items-center justify-center gap-1 flex-1 max-w-[80px] py-1 transition-all relative ${
+                                    tab === id
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                                }`}
+                            >
+                                <div className={`p-1 sm:p-1.5 rounded-full ${tab === id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
+                                    <Icon className={`w-5 h-5 sm:w-5 sm:h-5 ${tab === id ? 'fill-emerald-100 dark:fill-emerald-900/40 text-emerald-600' : ''}`} />
+                                </div>
+                                <span className="text-[10px] sm:text-[11px] font-semibold tracking-wide">{label}</span>
+                                {badge != null && (
+                                    <span className="absolute top-0 right-1 sm:right-3 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
+                                        {badge}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
             </div>
         );
     }

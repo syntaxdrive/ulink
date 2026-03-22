@@ -1,7 +1,8 @@
-import { Play, Pause, Mic2, Trash2, Loader2 } from 'lucide-react';
+import { Play, Pause, Mic2, Trash2, Loader2, Share2 } from 'lucide-react';
 import type { PodcastEpisode } from '../../../types';
 import { useAudioStore } from '../../../stores/useAudioStore';
 import { incrementEpisodePlay } from '../hooks/usePodcasts';
+import { nativeShare } from '../../../utils/shareUtils';
 import { useState } from 'react';
 
 interface Props {
@@ -64,6 +65,19 @@ export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue
             alert('Failed to delete episode');
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleShare = async () => {
+        const title = `${episode.title} - ${podcastTitle}`;
+        const text = `Listen to "${episode.title}" from the podcast "${podcastTitle}" on UniLink!`;
+        const url = window.location.href; // Sharing the podcast channel page
+        const imageUrl = episode.cover_url || podcastCover || undefined;
+
+        const shared = await nativeShare(title, text, url, imageUrl);
+        if (!shared) {
+            await navigator.clipboard.writeText(url);
+            alert('Podcast link copied to clipboard!');
         }
     };
 
@@ -132,6 +146,13 @@ export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue
                         {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                 )}
+                <button
+                    onClick={handleShare}
+                    className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                    title="Share Episode"
+                >
+                    <Share2 className="w-3.5 h-3.5" />
+                </button>
                 <button
                     onClick={handlePlay}
                     className={`w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90 ${

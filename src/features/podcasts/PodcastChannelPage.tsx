@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Mic2, Heart, Loader2, Radio } from 'lucide-react';
+import { ArrowLeft, Users, Mic2, Heart, Loader2, Radio, Share2, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { supabase } from '../../lib/supabase';
 import { fetchEpisodes, fetchIsFollowing, followPodcast, unfollowPodcast, deletePodcast, deletePodcastEpisode } from './hooks/usePodcasts';
 import EpisodeItem from './components/EpisodeItem';
 import type { Podcast, PodcastEpisode } from '../../types';
-import { Trash2 } from 'lucide-react';
+import { nativeShare } from '../../utils/shareUtils';
 
 export default function PodcastChannelPage() {
     const { podcastId } = useParams<{ podcastId: string }>();
@@ -87,6 +88,20 @@ export default function PodcastChannelPage() {
         }
     };
 
+    const handleShare = async () => {
+        if (!podcast) return;
+        const title = `${podcast.title} on UniLink`;
+        const text = `Check out ${podcast.title} by ${podcast.creator?.name} on UniLink Podcasts!`;
+        const url = window.location.href;
+        const imageUrl = podcast.cover_url || undefined;
+        
+        const shared = await nativeShare(title, text, url, imageUrl);
+        if (!shared) {
+            await navigator.clipboard.writeText(url);
+            alert('Podcast link copied to clipboard!');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-64">
@@ -111,6 +126,18 @@ export default function PodcastChannelPage() {
 
     return (
         <div className="min-h-screen pb-32">
+            <Helmet>
+                <title>{podcast.title} - UniLink Podcasts</title>
+                <meta name="description" content={`Listen to ${podcast.title} by ${podcast.creator?.name} on UniLink.`} />
+                <meta property="og:title" content={`${podcast.title} - UniLink`} />
+                <meta property="og:description" content={podcast.description || `Listen to ${podcast.title} by ${podcast.creator?.name} on UniLink.`} />
+                {podcast.cover_url && <meta property="og:image" content={podcast.cover_url} />}
+                <meta property="og:type" content="music.radio_station" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={`${podcast.title} - UniLink`} />
+                {podcast.cover_url && <meta name="twitter:image" content={podcast.cover_url} />}
+            </Helmet>
+
             {/* Back */}
             <button
                 onClick={() => navigate('/app/podcasts')}
@@ -150,6 +177,13 @@ export default function PodcastChannelPage() {
                                     {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                 </button>
                             )}
+                            <button
+                                onClick={handleShare}
+                                className="p-2 rounded-full text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                                title="Share Podcast"
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
                             <button
                                 onClick={handleFollow}
                                 disabled={followLoading}

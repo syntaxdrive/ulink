@@ -339,8 +339,9 @@ export default function PostItem({
         }
         const url = `${getBaseUrl()}/app/post/${post.id}`;
         const { title, text } = getShareText();
+        const imageUrl = post.image_url || (post.image_urls && post.image_urls[0]) || undefined;
 
-        const shared = await nativeShare(title, text, url);
+        const shared = await nativeShare(title, text, url, imageUrl);
         if (!shared) {
             copyLink();
         }

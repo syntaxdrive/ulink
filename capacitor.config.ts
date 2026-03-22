@@ -6,21 +6,25 @@ const isDevMode = process.env.CAP_DEV === 'true';
 
 const config: CapacitorConfig = {
   appId: 'com.syntaxdrive.ulink',
-  appName: 'UniLink Nigeria',
+  appName: 'UniLink',
   webDir: 'dist',
+  server: {
+    // The APK will behave essentially as a secure, full-screen browser 
+    // pointing directly to your live production website.
+    // Any push to Cloudflare will INSTANTLY update inside the APK upon reload.
+    url: 'https://unilink.ng',
+    cleartext: true,
+    // CRITICAL: This allows Capacitor Native Plugins (like Camera, Share) to still work 
+    // even though the web view is pointing to your remote domain instead of localhost.
+    allowNavigation: ['unilink.ng', '*.unilink.ng'],
+  },
   plugins: {
-    LiveUpdate: {
-      // Disable OTA check in dev mode — the Vite dev server takes priority
-      enabled: !isDevMode,
-      autoUpdateMethod: 'on-app-start',
-      resetOnUpdate: false,
-    },
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
       backgroundColor: "#ffffffff",
       androidScaleType: "CENTER_CROP",
-      showSpinner: false,
+      showSpinner: true,
       splashFullScreen: true,
       splashImmersive: true,
     },

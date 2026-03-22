@@ -14,9 +14,19 @@ import {
     ChevronDown,
     Copy,
     Check,
+    Trash2,
+    ChevronLeft,
+    ChevronRight,
+    MapPin,
+    Clock,
+    Share2,
+    Store,
+    Pencil,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { cloudinaryService } from '../../services/cloudinaryService';
+import { nativeShare } from '../../utils/shareUtils';
+import { getBaseUrl } from '../../config';
 import Modal from '../../components/ui/Modal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -137,35 +147,21 @@ function SkeletonCard() {
 interface ListingCardProps {
     listing: MarketplaceListing;
     currentUserId: string | null;
-    onMarkSold: (id: string) => void;
-    markingSold: string | null;
+    onDelete: (id: string) => void;
+    onClick: (listing: MarketplaceListing) => void;
 }
 
-function ListingCard({ listing, currentUserId, onMarkSold, markingSold }: ListingCardProps) {
-    const [copied, setCopied] = useState(false);
+function ListingCard({ listing, currentUserId, onDelete, onClick }: ListingCardProps) {
     const isOwner = currentUserId === listing.seller_id;
     const imageUrl = listing.images?.[0] ?? null;
     const gradient = CATEGORY_GRADIENTS[listing.category] ?? CATEGORY_GRADIENTS.Other;
     const seller = listing.profiles;
 
-    const handleContact = () => {
-        if (!listing.contact_info) return;
-        window.open(buildWhatsAppUrl(listing.contact_info), '_blank', 'noopener,noreferrer');
-    };
-
-    const handleCopyContact = async () => {
-        if (!listing.contact_info) return;
-        try {
-            await navigator.clipboard.writeText(listing.contact_info);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {
-            // Fallback
-        }
-    };
-
     return (
-        <div className="group bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-200 dark:hover:border-zinc-700 transition-all duration-200 flex flex-col">
+        <div
+            onClick={() => onClick(listing)}
+            className="group bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-200 dark:hover:border-zinc-700 transition-all duration-200 flex flex-col cursor-pointer"
+        >
             {/* Image */}
             <div className="relative aspect-square overflow-hidden flex-shrink-0">
                 {imageUrl ? (
@@ -197,6 +193,17 @@ function ListingCard({ listing, currentUserId, onMarkSold, markingSold }: Listin
                 <div className="absolute top-2 left-2 bg-zinc-900/80 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg">
                     ₦{formatPrice(listing.price)}
                 </div>
+
+                {/* Owner delete badge */}
+                {isOwner && !listing.is_sold && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(listing.id); }}
+                        className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-red-500/80 backdrop-blur-sm hover:bg-red-600 text-white rounded-lg transition-colors"
+                        title="Delete listing"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                )}
 
                 {/* Sold overlay */}
                 {listing.is_sold && (
@@ -243,70 +250,269 @@ function ListingCard({ listing, currentUserId, onMarkSold, markingSold }: Listin
                         {seller?.name ?? 'Unknown'} &middot; {formatTimeAgo(listing.created_at)}
                     </span>
                 </div>
-
-                {/* Actions */}
-                {!listing.is_sold && (
-                    <div className="flex gap-1.5 pt-1">
-                        {listing.contact_info && (
-                            <>
-                                <button
-                                    onClick={handleContact}
-                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors"
-                                    title="Contact via WhatsApp"
-                                >
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">WhatsApp</span>
-                                    <span className="sm:hidden">Chat</span>
-                                </button>
-                                <button
-                                    onClick={handleCopyContact}
-                                    className="p-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors"
-                                    title="Copy contact number"
-                                >
-                                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                            </>
-                        )}
-
-                        {isOwner && (
-                            <button
-                                onClick={() => onMarkSold(listing.id)}
-                                disabled={markingSold === listing.id}
-                                className={`${listing.contact_info ? '' : 'flex-1'} flex items-center justify-center gap-1 py-1.5 px-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold rounded-xl transition-colors`}
-                                title="Mark as sold"
-                            >
-                                {markingSold === listing.id
-                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    : <CheckCircle2 className="w-3.5 h-3.5" />
-                                }
-                                <span>Sold</span>
-                            </button>
-                        )}
-                    </div>
-                )}
             </div>
         </div>
     );
 }
 
-// ─── Create Listing Modal Content ─────────────────────────────────────────────
+// ─── Listing Detail Modal ─────────────────────────────────────────────────────
 
-interface CreateListingFormProps {
+interface ListingDetailProps {
+    listing: MarketplaceListing;
+    currentUserId: string | null;
     onClose: () => void;
-    onCreated: (listing: MarketplaceListing) => void;
-    currentUserId: string;
-    userUniversity: string | null;
+    onMarkSold: (id: string) => void;
+    onDelete: (id: string) => void;
+    onEdit: () => void;
+    onVisitStore: (sellerId: string, sellerName: string) => void;
+    markingSold: string | null;
 }
 
-function CreateListingForm({ onClose: _onClose, onCreated, currentUserId, userUniversity }: CreateListingFormProps) {
-    const [title, setTitle]             = useState('');
-    const [description, setDescription] = useState('');
-    const [price, setPrice]             = useState('');
-    const [category, setCategory]       = useState<string>('Textbooks');
-    const [condition, setCondition]     = useState<Condition>('Good');
-    const [contactInfo, setContactInfo] = useState('');
+function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, onEdit, onVisitStore, markingSold }: ListingDetailProps) {
+    const [copied, setCopied] = useState(false);
+    const [imgIndex, setImgIndex] = useState(0);
+    const isOwner = currentUserId === listing.seller_id;
+    const seller = listing.profiles;
+    const images = listing.images?.length ? listing.images : [];
+    const gradient = CATEGORY_GRADIENTS[listing.category] ?? CATEGORY_GRADIENTS.Other;
+
+    const handleContact = () => {
+        if (!listing.contact_info) return;
+        window.open(buildWhatsAppUrl(listing.contact_info), '_blank', 'noopener,noreferrer');
+    };
+
+    const handleCopyContact = async () => {
+        if (!listing.contact_info) return;
+        try {
+            await navigator.clipboard.writeText(listing.contact_info);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch { /* */ }
+    };
+
+    const handleShare = async () => {
+        const url = `${getBaseUrl()}/app/marketplace`;
+        const title = `${listing.title} - ₦${formatPrice(listing.price)}`;
+        const text = `Check out "${listing.title}" on UniLink Campus Market!\n₦${formatPrice(listing.price)} · ${listing.condition}`;
+        const imageUrl = images[0] || undefined;
+        const shared = await nativeShare(title, text, url, imageUrl);
+        if (!shared) {
+            await navigator.clipboard.writeText(url);
+            alert('Link copied!');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+            <div
+                className="bg-white dark:bg-zinc-900 w-full sm:max-w-lg sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Image carousel */}
+                <div className="relative aspect-[4/3] bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    {images.length > 0 ? (
+                        <>
+                            <img
+                                src={images[imgIndex]}
+                                alt={listing.title}
+                                className="w-full h-full object-cover"
+                            />
+                            {images.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={() => setImgIndex((imgIndex - 1 + images.length) % images.length)}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setImgIndex((imgIndex + 1) % images.length)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                        {images.map((_, i) => (
+                                            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === imgIndex ? 'bg-white w-4' : 'bg-white/50'}`} />
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+                            <ShoppingBag className="w-16 h-16 text-white/60" />
+                        </div>
+                    )}
+
+                    {/* Close */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+
+                    {/* Price badge */}
+                    <div className="absolute bottom-3 left-3 bg-zinc-900/80 backdrop-blur-sm text-white font-bold px-3 py-1.5 rounded-xl text-lg">
+                        ₦{formatPrice(listing.price)}
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-5 space-y-4">
+                    {/* Badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${CATEGORY_COLORS[listing.category] ?? CATEGORY_COLORS.Other}`}>
+                            {listing.category}
+                        </span>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${CONDITION_COLORS[listing.condition] ?? ''}`}>
+                            {listing.condition}
+                        </span>
+                        {listing.is_sold && (
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Sold</span>
+                        )}
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{listing.title}</h2>
+
+                    {/* Description */}
+                    {listing.description && (
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+                    )}
+
+                    {/* Meta info */}
+                    <div className="flex items-center gap-4 text-xs text-zinc-400 dark:text-zinc-500">
+                        <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {formatTimeAgo(listing.created_at)}
+                        </span>
+                        {listing.university && (
+                            <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                {listing.university}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Seller */}
+                    <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {seller?.avatar_url ? (
+                                <img src={seller.avatar_url} alt={seller.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                                        {seller ? getInitials(seller.name) : '?'}
+                                    </span>
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{seller?.name ?? 'Unknown Seller'}</p>
+                                {seller?.university && (
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{seller.university}</p>
+                                )}
+                            </div>
+                        </div>
+                        {listing.seller_id && (
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    onVisitStore(listing.seller_id, seller?.name ?? 'Unknown');
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 focus:outline-emerald-500 text-zinc-700 dark:text-zinc-200 text-xs font-bold rounded-lg transition-colors shrink-0"
+                            >
+                                <Store className="w-3.5 h-3.5" />
+                                Store
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-1">
+                        {listing.contact_info && !listing.is_sold && (
+                            <>
+                                <button
+                                    onClick={handleContact}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    Chat on WhatsApp
+                                </button>
+                                <button
+                                    onClick={handleCopyContact}
+                                    className="px-3 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors"
+                                    title="Copy number"
+                                >
+                                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                            </>
+                        )}
+                        <button
+                            onClick={handleShare}
+                            className="px-3 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors"
+                            title="Share listing"
+                        >
+                            <Share2 className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Owner actions */}
+                    {isOwner && (
+                        <div className="flex gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                            {!listing.is_sold && (
+                                <button
+                                    onClick={() => onMarkSold(listing.id)}
+                                    disabled={markingSold === listing.id}
+                                    className="flex items-center justify-center gap-2 py-2.5 px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    {markingSold === listing.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                    Sold
+                                </button>
+                            )}
+                            <button
+                                onClick={() => { onEdit(); onClose(); }}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-sm font-semibold rounded-xl transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => { onDelete(listing.id); onClose(); }}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 text-sm font-semibold rounded-xl transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Create/Edit Listing Modal Content ───────────────────────────────────────
+
+interface ListingFormProps {
+    onClose: () => void;
+    onComplete: (listing: MarketplaceListing, isEdit: boolean) => void;
+    currentUserId: string;
+    userUniversity: string | null;
+    initialData?: MarketplaceListing | null;
+}
+
+function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUniversity, initialData }: ListingFormProps) {
+    const isEdit = !!initialData;
+    const [title, setTitle]             = useState(initialData?.title ?? '');
+    const [description, setDescription] = useState(initialData?.description ?? '');
+    const [price, setPrice]             = useState(initialData ? String(initialData.price) : '');
+    const [category, setCategory]       = useState<string>(initialData?.category ?? 'Textbooks');
+    const [condition, setCondition]     = useState<Condition>((initialData?.condition as Condition) ?? 'Good');
+    const [contactInfo, setContactInfo] = useState(initialData?.contact_info ?? '');
     const [imageFile, setImageFile]     = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(initialData?.images?.[0] ?? null);
     const [uploading, setUploading]     = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError]             = useState<string | null>(null);
@@ -348,31 +554,60 @@ function CreateListingForm({ onClose: _onClose, onCreated, currentUserId, userUn
         setUploadProgress(0);
 
         try {
-            // First, insert the listing to get an ID
-            const { data: inserted, error: insertErr } = await supabase
-                .from('marketplace_listings')
-                .insert({
-                    seller_id:    currentUserId,
-                    title:        title.trim(),
-                    description:  description.trim() || null,
-                    price:        priceNum,
-                    category,
-                    condition,
-                    images:       [],
-                    contact_info: contactInfo.trim() || null,
-                    university:   userUniversity,
-                    is_sold:      false,
-                })
-                .select('*, profiles:seller_id(name, avatar_url, username, university)')
-                .single();
+            let listingId = initialData?.id;
+            let resultData: MarketplaceListing;
 
-            if (insertErr || !inserted) {
-                throw new Error(insertErr?.message ?? 'Failed to create listing.');
+            if (isEdit && listingId) {
+                // UPDATE
+                const { data: updated, error: updateErr } = await supabase
+                    .from('marketplace_listings')
+                    .update({
+                        title:        title.trim(),
+                        description:  description.trim() || null,
+                        price:        priceNum,
+                        category,
+                        condition,
+                        contact_info: contactInfo.trim() || null,
+                    })
+                    .eq('id', listingId)
+                    .eq('seller_id', currentUserId)
+                    .select('*, profiles:seller_id(name, avatar_url, username, university)')
+                    .single();
+
+                if (updateErr || !updated) {
+                    throw new Error(updateErr?.message ?? 'Failed to update listing.');
+                }
+                resultData = updated as MarketplaceListing;
+            } else {
+                // INSERT
+                const { data: inserted, error: insertErr } = await supabase
+                    .from('marketplace_listings')
+                    .insert({
+                        seller_id:    currentUserId,
+                        title:        title.trim(),
+                        description:  description.trim() || null,
+                        price:        priceNum,
+                        category,
+                        condition,
+                        images:       [],
+                        contact_info: contactInfo.trim() || null,
+                        university:   userUniversity,
+                        is_sold:      false,
+                    })
+                    .select('*, profiles:seller_id(name, avatar_url, username, university)')
+                    .single();
+
+                if (insertErr || !inserted) {
+                    throw new Error(insertErr?.message ?? 'Failed to create listing.');
+                }
+                listingId = inserted.id;
+                resultData = inserted as MarketplaceListing;
             }
 
             let imageUrl: string | null = null;
+            let finalImages: string[] = isEdit && resultData.images ? [...resultData.images] : [];
 
-            if (imageFile) {
+            if (imageFile && listingId) {
                 try {
                     // Try Cloudinary first
                     if (cloudinaryService.isConfigured()) {
@@ -386,7 +621,7 @@ function CreateListingForm({ onClose: _onClose, onCreated, currentUserId, userUn
                         setUploadProgress(30);
                         const ext      = imageFile.name.split('.').pop() ?? 'jpg';
                         const filename = `${Date.now()}.${ext}`;
-                        const path     = `marketplace/${inserted.id}/${filename}`;
+                        const path     = `marketplace/${listingId}/${filename}`;
 
                         const { error: storageErr } = await supabase.storage
                             .from('uploads')
@@ -406,21 +641,29 @@ function CreateListingForm({ onClose: _onClose, onCreated, currentUserId, userUn
 
                 // Update listing with image URL
                 if (imageUrl) {
+                    finalImages = [imageUrl]; // Replace existing image for simplicity
                     await supabase
                         .from('marketplace_listings')
-                        .update({ images: [imageUrl] })
-                        .eq('id', inserted.id);
+                        .update({ images: finalImages })
+                        .eq('id', listingId);
                 }
+            } else if (!imagePreview) {
+                // Image was removed during edit
+                finalImages = [];
+                await supabase
+                    .from('marketplace_listings')
+                    .update({ images: finalImages })
+                    .eq('id', listingId);
             }
 
             setUploadProgress(100);
 
             const finalListing: MarketplaceListing = {
-                ...inserted,
-                images: imageUrl ? [imageUrl] : [],
+                ...resultData,
+                images: finalImages,
             };
 
-            onCreated(finalListing);
+            onComplete(finalListing, isEdit);
         } catch (err: any) {
             setError(err.message ?? 'Something went wrong. Please try again.');
         } finally {
@@ -617,9 +860,13 @@ export default function MarketplacePage() {
     const [searchQuery, setSearchQuery]     = useState('');
     const [activeCategory, setActiveCategory] = useState<Category>('All');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingListing, setEditingListing]   = useState<MarketplaceListing | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [userUniversity, setUserUniversity] = useState<string | null>(null);
     const [markingSold, setMarkingSold]     = useState<string | null>(null);
+    const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
+    const [storeSellerId, setStoreSellerId] = useState<string | null>(null);
+    const [storeSellerName, setStoreSellerName] = useState<string>('');
     const [fetchError, setFetchError]       = useState<string | null>(null);
 
     // ── Load current user ─────────────────────────────────────────────────────
@@ -645,7 +892,7 @@ export default function MarketplacePage() {
         try {
             const { data, error } = await supabase
                 .from('marketplace_listings')
-                .select('*, profiles:seller_id(name, avatar_url, username, university)')
+                .select('*, profiles(name, avatar_url, username, university)')
                 .eq('is_sold', false)
                 .order('created_at', { ascending: false })
                 .limit(120);
@@ -703,14 +950,40 @@ export default function MarketplacePage() {
         }
     };
 
-    // ── On listing created ────────────────────────────────────────────────────
-    const handleListingCreated = (newListing: MarketplaceListing) => {
-        setListings(prev => [newListing, ...prev]);
+    // ── Delete listing ─────────────────────────────────────────────────────────
+    const handleDelete = async (id: string) => {
+        if (!currentUserId) return;
+        if (!confirm('Are you sure you want to permanently delete this listing?')) return;
+        try {
+            const { error } = await supabase
+                .from('marketplace_listings')
+                .delete()
+                .eq('id', id)
+                .eq('seller_id', currentUserId);
+            if (error) throw error;
+            setListings(prev => prev.filter(l => l.id !== id));
+            setSelectedListing(null);
+        } catch (err: any) {
+            console.error('[Marketplace] delete error:', err);
+            alert('Could not delete listing. Please try again.');
+        }
+    };
+
+    // ── On listing created / updated ──────────────────────────────────────────
+    const handleListingComplete = (savedListing: MarketplaceListing, isEdit: boolean) => {
+        if (isEdit) {
+            setListings(prev => prev.map(l => l.id === savedListing.id ? savedListing : l));
+        } else {
+            setListings(prev => [savedListing, ...prev]);
+        }
         setShowCreateModal(false);
+        setEditingListing(null);
     };
 
     // ── Filtered listings ─────────────────────────────────────────────────────
     const filteredListings = listings.filter(l => {
+        if (storeSellerId && l.seller_id !== storeSellerId) return false;
+        
         const matchesCategory = activeCategory === 'All' || l.category === activeCategory;
         const q = searchQuery.toLowerCase();
         const matchesSearch = !q
@@ -794,6 +1067,29 @@ export default function MarketplacePage() {
                         </button>
                     ))}
                 </div>
+
+                {/* Store Filter Banner */}
+                {storeSellerId && (
+                    <div className="mt-3 flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <Store className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-semibold uppercase tracking-wider leading-none mb-0.5">Browsing Store</p>
+                                <p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold truncate pr-2 leading-tight">
+                                    {storeSellerName}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setStoreSellerId(null)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-emerald-950 hover:bg-zinc-50 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-lg shadow-sm w-fit shrink-0 transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" /> Clear
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ── Result count ── */}
@@ -878,8 +1174,8 @@ export default function MarketplacePage() {
                             key={listing.id}
                             listing={listing}
                             currentUserId={currentUserId}
-                            onMarkSold={handleMarkSold}
-                            markingSold={markingSold}
+                            onDelete={handleDelete}
+                            onClick={setSelectedListing}
                         />
                     ))}
                 </div>
@@ -896,20 +1192,21 @@ export default function MarketplacePage() {
                 </button>
             )}
 
-            {/* ── Create listing modal ── */}
+            {/* ── Create/Edit listing modal ── */}
             <Modal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                title="List an Item"
+                isOpen={showCreateModal || !!editingListing}
+                onClose={() => { setShowCreateModal(false); setEditingListing(null); }}
+                title={editingListing ? "Edit Listing" : "List an Item"}
                 size="md"
                 footer={null}
             >
                 {currentUserId ? (
-                    <CreateListingForm
-                        onClose={() => setShowCreateModal(false)}
-                        onCreated={handleListingCreated}
+                    <ListingForm
+                        onClose={() => { setShowCreateModal(false); setEditingListing(null); }}
+                        onComplete={handleListingComplete}
                         currentUserId={currentUserId}
                         userUniversity={userUniversity}
+                        initialData={editingListing}
                     />
                 ) : (
                     <div className="p-8 text-center">
@@ -917,6 +1214,23 @@ export default function MarketplacePage() {
                     </div>
                 )}
             </Modal>
+
+            {/* ── Listing detail modal ── */}
+            {selectedListing && !editingListing && (
+                <ListingDetail
+                    listing={selectedListing}
+                    currentUserId={currentUserId}
+                    onClose={() => setSelectedListing(null)}
+                    onMarkSold={handleMarkSold}
+                    onDelete={handleDelete}
+                    onEdit={() => setEditingListing(selectedListing)}
+                    onVisitStore={(id, name) => {
+                        setStoreSellerId(id);
+                        setStoreSellerName(name);
+                    }}
+                    markingSold={markingSold}
+                />
+            )}
         </div>
     );
 }
