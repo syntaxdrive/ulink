@@ -365,7 +365,7 @@ export default function JobsPage() {
                                 if (showPostForm) handleCancelEdit();
                                 else setShowPostForm(true);
                             }}
-                            className="hidden md:flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 transition-all shrink-0"
+                            className="hidden md:flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 hover:shadow-lg transition-all shrink-0"
                         >
                             {showPostForm ? 'Cancel' : <><Plus className="w-5 h-5" /> Post Job</>}
                         </button>

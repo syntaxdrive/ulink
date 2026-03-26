@@ -54,6 +54,14 @@ const ORG_INDUSTRIES = [
 const inputCls = 'w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm';
 const labelCls = 'block text-xs font-bold text-slate-700 mb-1';
 
+function isOnboardingComplete(profile: any) {
+    if (!profile?.name?.trim()) return false;
+    if (!profile?.username?.trim()) return false;
+    if (!profile?.role) return false;
+    if (profile.role === 'student' && !profile?.university?.trim()) return false;
+    return true;
+}
+
 export default function OnboardingPage() {
     const navigate = useNavigate();
     const isNative = Capacitor.isNativePlatform();
@@ -97,11 +105,14 @@ export default function OnboardingPage() {
             .eq('id', user.id)
             .single();
 
-        if (profile && profile.role) {
+        if (profile && isOnboardingComplete(profile)) {
             navigate('/app');
-        } else if (profile?.name) {
+        } else if (profile) {
             // Pre-fill display name from OAuth
-            setDisplayName(profile.name);
+            setDisplayName(profile.name || '');
+            setUsername(profile.username || '');
+            setRole(profile.role || 'student');
+            setUniversity(profile.university || '');
         }
     };
 
@@ -401,7 +412,7 @@ export default function OnboardingPage() {
                                             disabled={isConnected || isConnecting}
                                             className={`w-full py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${isConnected
                                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
-                                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm hover:shadow-emerald-200 hover:shadow-md'
+                                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm hover:shadow-md'
                                                 }`}
                                         >
                                             {isConnecting ? (
@@ -727,7 +738,7 @@ export default function OnboardingPage() {
                     <button
                         type="submit"
                         disabled={loading || !agreed}
-                        className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-[0.98] ${!agreed ? 'opacity-70' : ''}`}
+                        className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center gap-3 active:scale-[0.98] ${!agreed ? 'opacity-70' : ''}`}
                     >
                         {loading
                             ? <Loader2 className="w-5 h-5 animate-spin" />

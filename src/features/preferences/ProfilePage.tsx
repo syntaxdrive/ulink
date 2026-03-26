@@ -9,6 +9,7 @@ import {
 import ImageCropper from '../../components/ImageCropper';
 import ProfileCompletion from '../../components/ProfileCompletion';
 import { cloudinaryService } from '../../services/cloudinaryService';
+import { NIGERIAN_UNIVERSITIES } from '../../lib/universities';
 
 export default function ProfilePage() {
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -20,6 +21,7 @@ export default function ProfilePage() {
     const [headline, setHeadline] = useState('');
     const [location, setLocation] = useState('');
     const [university, setUniversity] = useState('');
+    const [showUniversityDropdown, setShowUniversityDropdown] = useState(false);
     const [expectedGradYear, setExpectedGradYear] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
     const [about, setAbout] = useState('');
@@ -376,6 +378,12 @@ export default function ProfilePage() {
                 updated_at: new Date().toISOString(),
             };
 
+            if (profile.role === 'student' && university && !NIGERIAN_UNIVERSITIES.includes(university)) {
+                alert('Please select a university from the dropdown list.');
+                setSaving(false);
+                return;
+            }
+
             const { error } = await supabase
                 .from('profiles')
                 .update(updates)
@@ -620,10 +628,36 @@ export default function ProfilePage() {
                                                     <input
                                                         type="text"
                                                         value={university}
-                                                        onChange={(e) => setUniversity(e.target.value)}
+                                                        onChange={(e) => { setUniversity(e.target.value); setShowUniversityDropdown(true); }}
+                                                        onFocus={() => setShowUniversityDropdown(true)}
+                                                        onBlur={() => setTimeout(() => setShowUniversityDropdown(false), 120)}
                                                         className="w-full pl-9 pr-3 py-2 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg text-sm text-stone-600 dark:text-zinc-400 focus:outline-none focus:border-emerald-500"
-                                                        placeholder="University Name"
+                                                        placeholder="Search and select university"
+                                                        autoComplete="off"
                                                     />
+                                                    {showUniversityDropdown && (
+                                                        <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-700 rounded-lg shadow-lg z-20">
+                                                            {NIGERIAN_UNIVERSITIES.filter((uni) => uni.toLowerCase().includes(university.toLowerCase()))
+                                                                .slice(0, 25)
+                                                                .map((uni) => (
+                                                                    <button
+                                                                        key={uni}
+                                                                        type="button"
+                                                                        onMouseDown={(e) => e.preventDefault()}
+                                                                        onClick={() => {
+                                                                            setUniversity(uni);
+                                                                            setShowUniversityDropdown(false);
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-2 text-sm text-stone-600 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                                                                    >
+                                                                        {uni}
+                                                                    </button>
+                                                                ))}
+                                                            {NIGERIAN_UNIVERSITIES.filter((uni) => uni.toLowerCase().includes(university.toLowerCase())).length === 0 && (
+                                                                <div className="px-3 py-2 text-xs text-stone-400 dark:text-zinc-500">No matching university</div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div>

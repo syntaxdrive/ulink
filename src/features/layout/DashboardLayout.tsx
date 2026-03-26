@@ -22,6 +22,14 @@ export interface DashboardLayoutProps {
     session: Session | null;
 }
 
+function isOnboardingComplete(profile: Profile) {
+    if (!profile.name?.trim()) return false;
+    if (!profile.username?.trim()) return false;
+    if (!profile.role) return false;
+    if (profile.role === 'student' && !profile.university?.trim()) return false;
+    return true;
+}
+
 export default function DashboardLayout({ session }: DashboardLayoutProps) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -195,7 +203,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 setUserProfile(profile);
                 // Only redirect if genuinely incomplete — not if a stale call fires
                 // while the user is already heading to or on onboarding
-                if (!profile.role && !window.location.pathname.startsWith('/onboarding')) {
+                if (!isOnboardingComplete(profile) && !window.location.pathname.startsWith('/onboarding')) {
                     navigate('/onboarding');
                 }
             } else if (profileError?.code === 'PGRST116' &&
@@ -217,6 +225,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 if (count !== null) setUnreadMessages(count);
             };
             fetchMessageCount();
+            const messagePollTimer = setInterval(fetchMessageCount, 12000);
 
             // 2. Subscribe to Messenger Events
             channel = supabase.channel('dashboard-alerts')
@@ -290,6 +299,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
             // Store cleanup fn for unsubbing the store watcher
             (channel as any)._unsubNotifStore = unsubNotifStore;
+            (channel as any)._messagePollTimer = messagePollTimer;
         };
 
         setupRealtime();
@@ -298,6 +308,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             cancelled = true;
             if (channel) {
                 (channel as any)._unsubNotifStore?.();
+                if ((channel as any)._messagePollTimer) clearInterval((channel as any)._messagePollTimer);
                 channel.unsubscribe();
                 supabase.removeChannel(channel);
             }
@@ -369,11 +380,11 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Newspaper, label: 'News Feed', path: '/app/news' },
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
-        { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
-        { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
-        { icon: Library, label: 'Study Rooms', path: '/app/study' },
-        { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
-        ...(!isGuest ? [{ icon: Settings, label: 'Settings', path: '/app/settings' }] : []),
+        {icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
+        {icon: GraduationCap, label: 'Courses', path: '/app/learn'},
+        {icon: Library, label: 'Study Rooms', path: '/app/study'},
+        // { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
+        ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
     ];
@@ -778,6 +789,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                         {(() => {
                             const skipTransition =
                                 location.pathname === '/app/messages' ||
+                                location.pathname === '/app/study' ||
                                 location.pathname.startsWith('/app/communities/') ||
                                 location.pathname.startsWith('/app/profile/') ||
                                 location.pathname.startsWith('/app/post/') ||

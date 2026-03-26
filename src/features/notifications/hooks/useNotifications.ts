@@ -295,6 +295,25 @@ export function useNotifications() {
         };
     }, []); // Empty dependency array -> mount once
 
+    // Realtime fallback: periodic refresh for notification badges/list when websocket events are delayed.
+    useEffect(() => {
+        const timer = setInterval(() => {
+            void fetchNotifications();
+        }, 15000);
+
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                void fetchNotifications();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [fetchNotifications]);
+
     const handleAction = async (connectionId: string, action: 'accept' | 'reject') => {
         setProcessing(connectionId);
         try {

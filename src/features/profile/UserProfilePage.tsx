@@ -589,7 +589,7 @@ export default function UserProfilePage() {
                                 <div className="mt-6 px-6 w-full">
                                     <Link
                                         to="/app/profile"
-                                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300"
+                                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300 dark:shadow-none dark:hover:shadow-none"
                                     >
                                         <Briefcase className="w-4 h-4" /> Edit Profile
                                     </Link>

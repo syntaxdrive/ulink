@@ -103,7 +103,7 @@ export default function AdminPollCreator() {
                 </div>
                 <button
                     onClick={() => setShowForm(v => !v)}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/30"
+                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-all shadow-md"
                 >
                     {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                     {showForm ? 'Cancel' : 'New Poll'}

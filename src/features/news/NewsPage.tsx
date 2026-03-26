@@ -297,7 +297,7 @@ export default function NewsPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap text-sm font-bold transition-all ${activeTab === tab.id
-                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                                ? 'bg-emerald-600 text-white shadow-lg'
                                 : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 hover:border-emerald-300'
                                 }`}
                         >
@@ -335,7 +335,7 @@ export default function NewsPage() {
                         displayedNews.map((item) => (
                             <article
                                 key={item.id}
-                                className="group bg-white dark:bg-zinc-900 rounded-[2.5rem] p-5 md:p-6 border border-slate-100 dark:border-zinc-800/50 hover:border-emerald-300 dark:hover:border-emerald-900/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col md:flex-row gap-6 relative"
+                                className="group bg-white dark:bg-zinc-900 rounded-[2.5rem] p-5 md:p-6 border border-slate-100 dark:border-zinc-800/50 hover:border-emerald-300 dark:hover:border-emerald-900/30 hover:shadow-2xl transition-all duration-500 flex flex-col md:flex-row gap-6 relative"
                             >
                                 {/* Media Container */}
                                 <div className="relative w-full md:w-56 shrink-0 aspect-[16/10] md:aspect-square rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-800">
@@ -430,7 +430,7 @@ export default function NewsPage() {
                             </ul>
                             <button
                                 onClick={() => { setSearchQuery(''); setActiveTab('all'); }}
-                                className="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform"
+                                className="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
                             >
                                 Reset Search
                             </button>

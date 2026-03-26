@@ -167,7 +167,7 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
                         </p>
                         <button
                             onClick={() => { setSearchQuery(''); setIsCreateModalOpen(true); }}
-                            className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-emerald-200 dark:shadow-none active:scale-95 uppercase tracking-widest"
+                            className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-xl dark:shadow-none active:scale-95 uppercase tracking-widest"
                         >
                             CREATE THE FIRST ONE
                         </button>

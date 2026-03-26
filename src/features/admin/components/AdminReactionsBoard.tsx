@@ -21,7 +21,7 @@ const NOTE_COLORS: { key: NoteColor; bg: string; border: string; shadow: string 
     { key: 'yellow',  bg: 'bg-yellow-100',  border: 'border-yellow-300',  shadow: 'shadow-yellow-200'  },
     { key: 'pink',    bg: 'bg-pink-100',    border: 'border-pink-300',    shadow: 'shadow-pink-200'    },
     { key: 'blue',    bg: 'bg-sky-100',     border: 'border-sky-300',     shadow: 'shadow-sky-200'     },
-    { key: 'green',   bg: 'bg-emerald-100', border: 'border-emerald-300', shadow: 'shadow-emerald-200' },
+    { key: 'green',   bg: 'bg-emerald-100', border: 'border-emerald-300', shadow: 'shadow-slate-200' },
     { key: 'purple',  bg: 'bg-purple-100',  border: 'border-purple-300',  shadow: 'shadow-purple-200'  },
     { key: 'orange',  bg: 'bg-orange-100',  border: 'border-orange-300',  shadow: 'shadow-orange-200'  },
 ];
@@ -145,7 +145,7 @@ export default function AdminReactionsBoard() {
                 </div>
                 <button
                     onClick={() => { setShowForm(v => !v); setTimeout(() => textRef.current?.focus(), 50); }}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/30"
+                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold transition-all shadow-md"
                 >
                     {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                     {showForm ? 'Cancel' : 'Add Note'}

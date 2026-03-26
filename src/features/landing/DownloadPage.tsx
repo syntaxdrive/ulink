@@ -64,7 +64,7 @@ export default function DownloadPage() {
                             {isInstallable && (
                                 <button
                                     onClick={install}
-                                    className="w-full h-16 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+                                    className="w-full h-16 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] group"
                                 >
                                     <Smartphone className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                     <div className="text-left">

@@ -157,7 +157,7 @@ export default function EpisodeItem({ episode, podcastTitle, podcastCover, queue
                     onClick={handlePlay}
                     className={`w-10 h-10 flex items-center justify-center rounded-full transition-all active:scale-90 ${
                         isActive
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-950/50 hover:bg-emerald-700'
+                            ? 'bg-emerald-600 text-white shadow-lg hover:bg-emerald-700'
                             : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400'
                     }`}
                 >

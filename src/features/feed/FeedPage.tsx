@@ -406,7 +406,7 @@ export default function FeedPage() {
                                 to={to}
                                 className={({ isActive }) =>
                                     `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${isActive
-                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30'
+                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                                         : 'bg-white dark:bg-black text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
                                     }`
                                 }
@@ -685,7 +685,7 @@ export default function FeedPage() {
                         </p>
                         <NavLink
                             to="/app/challenge"
-                            className="relative inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                            className="relative inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
                         >
                             <Flame className="w-3.5 h-3.5 text-orange-400" />
                             Join Challenge

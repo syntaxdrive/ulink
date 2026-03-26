@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Search, BadgeCheck } from 'lucide-react';
 import type { Profile } from '../../../types';
 
@@ -10,6 +11,20 @@ interface ChatSidebarProps {
 }
 
 export default function ChatSidebar({ conversations, activeChat, setActiveChat, unreadCounts, onlineUsers }: ChatSidebarProps) {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredConversations = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+        if (!q) return conversations;
+        return conversations.filter((profile) => {
+            const haystack = [profile.name, profile.username, profile.headline, profile.university, profile.role]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return haystack.includes(q);
+        });
+    }, [conversations, searchTerm]);
+
     return (
         <div className={`w-full md:w-80 border-r border-stone-100 dark:border-zinc-800 flex flex-col h-full bg-white dark:bg-black ${activeChat ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b border-stone-100 dark:border-zinc-800">
@@ -19,17 +34,19 @@ export default function ChatSidebar({ conversations, activeChat, setActiveChat, 
                     <input
                         type="text"
                         placeholder="Search connections..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-stone-50 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-950 text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600"
                     />
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto smooth-scroll divide-y divide-stone-50/80 dark:divide-zinc-900/50">
-                {conversations.length === 0 ? (
+                {filteredConversations.length === 0 ? (
                     <div className="p-8 text-center text-stone-500 dark:text-zinc-500 text-sm">
-                        <p>No connections yet.</p>
+                        <p>{searchTerm.trim() ? 'No matching conversations.' : 'No connections yet.'}</p>
                     </div>
                 ) : (
-                    conversations.map((profile) => (
+                    filteredConversations.map((profile) => (
                         <button
                             key={profile.id}
                             onClick={() => setActiveChat(profile)}

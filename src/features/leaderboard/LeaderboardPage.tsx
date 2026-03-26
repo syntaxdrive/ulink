@@ -104,7 +104,7 @@ export default function LeaderboardPage() {
 
                 <div className="max-w-4xl mx-auto relative z-10">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-600/20">
+                        <div className="w-16 h-16 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-xl">
                             <Trophy className="w-8 h-8 text-white" />
                         </div>
                         <div>

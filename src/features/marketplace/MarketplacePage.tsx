@@ -1019,7 +1019,7 @@ export default function MarketplacePage() {
                     {currentUserId ? (
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-2xl transition-colors shadow-sm shadow-emerald-200 dark:shadow-none flex-shrink-0"
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-2xl transition-colors shadow-sm dark:shadow-none flex-shrink-0"
                         >
                             <Plus className="w-4 h-4" />
                             <span>List Item</span>
@@ -1185,7 +1185,7 @@ export default function MarketplacePage() {
             {currentUserId && (
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="md:hidden fixed bottom-24 right-4 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl shadow-emerald-200 dark:shadow-none flex items-center justify-center z-40 transition-all active:scale-95"
+                    className="md:hidden fixed bottom-24 right-4 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl dark:shadow-none flex items-center justify-center z-40 transition-all active:scale-95"
                     aria-label="List a new item"
                 >
                     <Plus className="w-7 h-7" />

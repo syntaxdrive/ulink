@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { Play, Pause, X, Music, ChevronDown, SkipBack, SkipForward, ListMusic } from 'lucide-react';
 import { useAudioStore } from '../../stores/useAudioStore';
+import { useUIStore } from '../../stores/useUIStore';
 
 function formatTime(secs: number): string {
     if (!secs || isNaN(secs) || !isFinite(secs)) return '0:00';
@@ -10,6 +11,9 @@ function formatTime(secs: number): string {
 }
 
 export default function GlobalAudioPlayer() {
+    const { isImmersive } = useUIStore();
+    const isStudyRoute = typeof window !== 'undefined' && window.location.pathname === '/app/study';
+    const useCompactMiniPlayer = isImmersive || isStudyRoute;
     const {
         currentTrack, isPlaying, volume,
         currentTime, duration, isExpanded,
@@ -233,57 +237,84 @@ export default function GlobalAudioPlayer() {
             )}
 
             {/* ── Collapsed mini-player bar ── */}
-            {!isExpanded && (
-                <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50 animate-in slide-in-from-bottom-10 duration-500">
+            {!isExpanded && !isStudyRoute && (
+                useCompactMiniPlayer ? (
                     <div
-                        onClick={toggleExpanded}
-                        className="cursor-pointer relative overflow-hidden bg-white/85 dark:bg-zinc-900/85 backdrop-blur-2xl border border-white/20 dark:border-zinc-700 shadow-2xl rounded-3xl p-4 flex items-center gap-3"
+                        className={`fixed z-[120] animate-in fade-in zoom-in-95 duration-300 ${
+                            isStudyRoute
+                                ? 'top-[calc(env(safe-area-inset-top)+7.75rem)] right-3 md:top-auto md:bottom-6 md:left-6 md:right-auto'
+                                : 'bottom-24 right-3 md:bottom-6 md:right-6'
+                        }`}
                     >
-                        {/* Progress strip */}
-                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-slate-100 dark:bg-zinc-800">
-                            <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${progress}%` }} />
-                        </div>
-
-                        {/* Thumbnail */}
-                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 shadow-inner">
+                        <button
+                            onClick={toggleExpanded}
+                            className="w-11 h-11 rounded-full overflow-hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-white/30 dark:border-zinc-700 shadow-lg flex items-center justify-center"
+                            title="Open player"
+                        >
                             {currentTrack.thumbnail
-                                ? <img src={currentTrack.thumbnail} alt="" className={`w-full h-full object-cover transition-transform duration-[8s] linear ${isPlaying ? 'scale-110' : ''}`} />
-                                : <div className="w-full h-full flex items-center justify-center text-slate-400"><Music className="w-5 h-5" /></div>
+                                ? <img src={currentTrack.thumbnail} alt="" className={`w-full h-full object-cover ${isPlaying ? 'scale-110 transition-transform duration-[6s] linear' : ''}`} />
+                                : <Music className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             }
-                        </div>
+                        </button>
+                    </div>
+                ) : (
+                    <div
+                        className={`fixed z-50 animate-in slide-in-from-bottom-10 duration-500 ${
+                            isStudyRoute
+                                ? 'bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] left-4 right-4 md:bottom-6 md:left-6 md:right-auto md:w-96'
+                                : 'bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96'
+                        }`}
+                    >
+                        <div
+                            onClick={toggleExpanded}
+                            className="cursor-pointer relative overflow-hidden bg-white/85 dark:bg-zinc-900/85 backdrop-blur-2xl border border-white/20 dark:border-zinc-700 shadow-2xl rounded-3xl p-4 flex items-center gap-3"
+                        >
+                            {/* Progress strip */}
+                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-slate-100 dark:bg-zinc-800">
+                                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                            </div>
 
-                        {/* Meta + equalizer */}
-                        <div className="flex-1 min-w-0">
-                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest truncate block">{currentTrack.source}</span>
-                            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{currentTrack.title}</h4>
-                            <div className="flex gap-0.5 items-end h-2.5 mt-1">
-                                {[0.6, 1, 0.8, 0.4].map((h, j) => (
-                                    <div
-                                        key={j}
-                                        className={`w-0.5 bg-emerald-500 rounded-full ${isPlaying ? 'animate-bounce' : ''}`}
-                                        style={{ height: `${h * 100}%`, animationDuration: `${0.4 + j * 0.15}s` }}
-                                    />
-                                ))}
+                            {/* Thumbnail */}
+                            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 shadow-inner">
+                                {currentTrack.thumbnail
+                                    ? <img src={currentTrack.thumbnail} alt="" className={`w-full h-full object-cover transition-transform duration-[8s] linear ${isPlaying ? 'scale-110' : ''}`} />
+                                    : <div className="w-full h-full flex items-center justify-center text-slate-400"><Music className="w-5 h-5" /></div>
+                                }
+                            </div>
+
+                            {/* Meta + equalizer */}
+                            <div className="flex-1 min-w-0">
+                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest truncate block">{currentTrack.source}</span>
+                                <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{currentTrack.title}</h4>
+                                <div className="flex gap-0.5 items-end h-2.5 mt-1">
+                                    {[0.6, 1, 0.8, 0.4].map((h, j) => (
+                                        <div
+                                            key={j}
+                                            className={`w-0.5 bg-emerald-500 rounded-full ${isPlaying ? 'animate-bounce' : ''}`}
+                                            style={{ height: `${h * 100}%`, animationDuration: `${0.4 + j * 0.15}s` }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Inline controls — stop propagation so tapping them doesn't open expanded view */}
+                            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                <button
+                                    onClick={() => isPlaying ? pauseTrack() : resumeTrack()}
+                                    className="w-9 h-9 flex items-center justify-center bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md"
+                                >
+                                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current translate-x-0.5" />}
+                                </button>
+                                <button
+                                    onClick={stopTrack}
+                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-
-                        {/* Inline controls — stop propagation so tapping them doesn't open expanded view */}
-                        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                            <button
-                                onClick={() => isPlaying ? pauseTrack() : resumeTrack()}
-                                className="w-9 h-9 flex items-center justify-center bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full hover:scale-110 active:scale-95 transition-all shadow-md"
-                            >
-                                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current translate-x-0.5" />}
-                            </button>
-                            <button
-                                onClick={stopTrack}
-                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
                     </div>
-                </div>
+                )
             )}
         </>
     );

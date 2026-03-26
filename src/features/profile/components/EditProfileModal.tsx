@@ -4,6 +4,7 @@ import { Loader2, X, AtSign, Image as ImageIcon, Instagram, Twitter, Upload, Lin
 import type { Profile } from '../../../types';
 import Modal from '../../../components/ui/Modal';
 import { cloudinaryService } from '../../../services/cloudinaryService';
+import { NIGERIAN_UNIVERSITIES } from '../../../lib/universities';
 
 interface EditProfileModalProps {
     user: Profile;
@@ -14,6 +15,7 @@ interface EditProfileModalProps {
 
 export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: EditProfileModalProps) {
     const [loading, setLoading] = useState(false);
+    const [showUniversityDropdown, setShowUniversityDropdown] = useState(false);
     const [formData, setFormData] = useState({
         name: user.name || '',
         username: user.username || '',
@@ -120,6 +122,7 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
         setSelectedPresetAvatar(null);
         setShowAvatarPicker(false);
         setAvatarFile(null);
+        setShowUniversityDropdown(false);
         setSkills(user.skills || []);
     }, [user, isOpen]);
 
@@ -255,6 +258,10 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                 industry: formData.industry || null,
                 updated_at: new Date().toISOString(),
             };
+
+            if (user.role !== 'org' && formData.university && !NIGERIAN_UNIVERSITIES.includes(formData.university)) {
+                throw new Error('Please select a university from the dropdown list');
+            }
 
             // Clean up temp fields
             delete updates.instagram;
@@ -496,13 +503,41 @@ export default function EditProfileModal({ user, isOpen, onClose, onUpdate }: Ed
                     ) : (
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">University</label>
-                            <input
-                                type="text"
+                            <div className="relative">
+                                <input
+                                    type="text"
                                 value={formData.university}
-                                onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-                                className="w-full p-3 bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-stone-900 dark:focus:ring-zinc-100 outline-none transition-all text-stone-900 dark:text-zinc-100"
-                                placeholder="University of Lagos"
-                            />
+                                    onChange={(e) => { setFormData({ ...formData, university: e.target.value }); setShowUniversityDropdown(true); }}
+                                    onFocus={() => setShowUniversityDropdown(true)}
+                                    onBlur={() => setTimeout(() => setShowUniversityDropdown(false), 120)}
+                                    className="w-full p-3 bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-stone-900 dark:focus:ring-zinc-100 outline-none transition-all text-stone-900 dark:text-zinc-100"
+                                    placeholder="Search and select university"
+                                    autoComplete="off"
+                                />
+                                {showUniversityDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-700 rounded-xl shadow-lg z-20">
+                                        {NIGERIAN_UNIVERSITIES.filter((uni) => uni.toLowerCase().includes(formData.university.toLowerCase()))
+                                            .slice(0, 25)
+                                            .map((uni) => (
+                                                <button
+                                                    key={uni}
+                                                    type="button"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => {
+                                                        setFormData({ ...formData, university: uni });
+                                                        setShowUniversityDropdown(false);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                                                >
+                                                    {uni}
+                                                </button>
+                                            ))}
+                                        {NIGERIAN_UNIVERSITIES.filter((uni) => uni.toLowerCase().includes(formData.university.toLowerCase())).length === 0 && (
+                                            <div className="px-3 py-2 text-xs text-stone-400 dark:text-zinc-500">No matching university</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

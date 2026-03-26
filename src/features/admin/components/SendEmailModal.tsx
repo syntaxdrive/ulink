@@ -216,7 +216,7 @@ export default function SendEmailModal({ isOpen, onClose, preSelectedUser, allUs
                         <button
                             type="submit"
                             disabled={sending || getRecipientCount() === 0}
-                            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:shadow-emerald-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
                             {sending ? 'Opening...' : 'Open Mail Client'}

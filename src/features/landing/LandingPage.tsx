@@ -151,7 +151,7 @@ export default function LandingPage() {
                                     {/* Android Download Button points to dedicated page */}
                                     <Link
                                         to="/download"
-                                        className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20 w-full sm:w-auto group relative overflow-hidden"
+                                        className="h-14 px-6 rounded-full bg-emerald-600 text-white font-bold text-base hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg w-full sm:w-auto group relative overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                         {/* Official Android Robot Logo */}
@@ -320,7 +320,7 @@ export default function LandingPage() {
 
                                     <Link
                                         to="/download"
-                                        className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-emerald-900/30 group w-full sm:w-auto justify-center sm:justify-start"
+                                        className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-4 rounded-2xl transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg group w-full sm:w-auto justify-center sm:justify-start"
                                     >
                                         <Download className="w-5 h-5 group-hover:animate-bounce" />
                                         <div className="text-left">

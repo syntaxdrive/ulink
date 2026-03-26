@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useUIStore } from '../../stores/useUIStore';
+import { useAudioStore } from '../../stores/useAudioStore';
 import {
     Users, Plus, LogOut, X, Loader2, BookOpen, Coffee, CheckCircle2,
     MessageCircle, FileText, BarChart2, Send, ChevronDown, ChevronLeft,
-    Crown, Trash2, Link2, ToggleRight, BookMarked, Bot, PenTool, type LucideIcon,
+    Crown, Trash2, Link2, ToggleRight, BookMarked, Bot, PenTool, Mic, Play, Pause, Lock, Unlock, EyeOff, GripHorizontal, List, CornerUpLeft, type LucideIcon,
 } from 'lucide-react';
 
 // const AI_API_KEY = import.meta.env.VITE_AI_API_KEY as string | undefined;
@@ -39,13 +40,17 @@ async function uploadFileForRoom(file: File): Promise<string> {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ParticipantStatus = 'Here' | 'On break' | 'Done';
-type Tab = 'chat' | 'board' | 'docs' | 'polls' | 'people';
+type Tab = 'chat' | 'board' | 'structure' | 'docs' | 'polls' | 'people';
 type TabDef = { id: Tab; label: string; icon: LucideIcon; badge?: number };
 
 interface StudyRoom {
     id: string; creator_id: string; name: string; subject: string | null;
     description: string | null; is_active: boolean; created_at: string;
-    participant_count?: number; is_private?: boolean;
+    participant_count?: number; is_private?: boolean; allow_drawing?: boolean;
+}
+interface VoiceNote {
+    id: string; room_id: string; user_id: string; audio_url: string; x_pos: number; y_pos: number; created_at: string; title?: string | null;
+    profiles?: { name: string; avatar_url: string | null; };
 }
 interface Participant {
     id: string; room_id: string; user_id: string; status: ParticipantStatus;
@@ -54,6 +59,8 @@ interface Participant {
 interface RoomMessage {
     id: string; room_id: string; user_id: string; content: string; created_at: string;
     profiles?: { name: string; avatar_url: string | null; };
+    reply_to_message_id?: string | null;
+    mentions?: Array<{ type: 'all' } | { type: 'user'; user_id: string; username?: string }>;
     isAI?: boolean; // client-only flag for AI messages
 }
 interface RoomDocument {
@@ -67,6 +74,14 @@ interface RoomPoll {
     options: PollOption[]; is_active: boolean; created_at: string;
 }
 interface PollVote { poll_id: string; user_id: string; option_id: string; }
+interface RoomJoinRequest {
+    id: string;
+    room_id: string;
+    requester_id: string;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    profiles?: { name: string; username: string; avatar_url: string | null };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(iso: string) {
@@ -106,10 +121,12 @@ function StatusBadge({ status }: { status: ParticipantStatus }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function StudyRoomsPage() {
     const { setImmersive } = useUIStore();
+    const { currentTrack, isPlaying, toggleExpanded } = useAudioStore();
     const [rooms, setRooms] = useState<StudyRoom[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeRoom, setActiveRoom] = useState<StudyRoom | null>(null);
     const [uid, setUid] = useState<string | null>(null);
+    const [myJoinedRoomIds, setMyJoinedRoomIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (activeRoom) {
@@ -120,6 +137,8 @@ export default function StudyRoomsPage() {
         return () => setImmersive(false);
     }, [activeRoom, setImmersive]);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [joinRequests, setJoinRequests] = useState<RoomJoinRequest[]>([]);
+    const [myJoinRequests, setMyJoinRequests] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
     const [myStatus, setMyStatus] = useState<ParticipantStatus>('Here');
     const [showCreate, setShowCreate] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -132,7 +151,13 @@ export default function StudyRoomsPage() {
     const [chatInput, setChatInput] = useState('');
     const [sending, setSending] = useState(false);
     const [aiThinking, setAiThinking] = useState(false);
+    const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
+    const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+    const queryHandledRef = useRef(false);
+    const chatScrollRef = useRef<HTMLDivElement | null>(null);
+    const isChatNearBottomRef = useRef(true);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     // Docs
     const [docs, setDocs] = useState<RoomDocument[]>([]);
@@ -150,6 +175,22 @@ export default function StudyRoomsPage() {
     const [newPoll, setNewPoll] = useState({ question: '', options: ['', ''] });
     const [savingPoll, setSavingPoll] = useState(false);
     const [voting, setVoting] = useState<string | null>(null);
+
+    // Board Voice Notes
+    const [voicenotes, setVoicenotes] = useState<VoiceNote[]>([]);
+    const [recordingVoice, setRecordingVoice] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+    const [draggingVnId, setDraggingVnId] = useState<string | null>(null);
+    const dragStartRef = useRef<{ id: string | null; x: number; y: number; isDragging: boolean }>({
+        id: null,
+        x: 0,
+        y: 0,
+        isDragging: false,
+    });
+    const boardRef = useRef<HTMLDivElement>(null);
 
     // ── Auth ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -178,9 +219,10 @@ export default function StudyRoomsPage() {
             counts[p.room_id] = (counts[p.room_id] || 0) + 1; 
             if (p.user_id === uid) myRooms.add(p.room_id);
         });
+        setMyJoinedRoomIds(myRooms);
 
-        // Filter out private rooms unless I am a participant or creator
-        const visibleRooms = roomsData.filter((r: StudyRoom) => !r.is_private || r.creator_id === uid || myRooms.has(r.id));
+        // Keep private rooms visible so users can request to join.
+        const visibleRooms = roomsData;
 
         setRooms(visibleRooms.map((r: StudyRoom) => ({ ...r, participant_count: counts[r.id] || 0 })));
         setLoading(false);
@@ -196,6 +238,40 @@ export default function StudyRoomsPage() {
         return () => { supabase.removeChannel(ch); };
     }, [fetchRooms]);
 
+    useEffect(() => {
+        if (queryHandledRef.current || activeRoom || !uid || !rooms.length) return;
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('room');
+        const messageId = params.get('message');
+        if (!roomId) {
+            queryHandledRef.current = true;
+            return;
+        }
+
+        const room = rooms.find(r => r.id === roomId);
+        if (!room) return;
+
+        queryHandledRef.current = true;
+        if (messageId) {
+            setTargetMessageId(messageId);
+            setTab('chat');
+        }
+
+        const openFromQuery = async () => {
+            try {
+                await supabase.from('study_room_participants').upsert(
+                    { room_id: room.id, user_id: uid, status: 'Here' },
+                    { onConflict: 'room_id,user_id' }
+                );
+            } finally {
+                setActiveRoom(room);
+                setTab('chat');
+            }
+        };
+
+        void openFromQuery();
+    }, [rooms, activeRoom, uid]);
+
     // ── In-room fetchers ──────────────────────────────────────────────────
     const fetchParticipants = useCallback(async (rid: string) => {
         const { data: list } = await supabase.from('study_room_participants').select('*').eq('room_id', rid);
@@ -207,6 +283,115 @@ export default function StudyRoomsPage() {
         setParticipants(data);
         if (uid) { const m = data.find((p: Participant) => p.user_id === uid); if (m) setMyStatus(m.status); }
     }, [uid]);
+
+    const fetchMyJoinRequests = useCallback(async () => {
+        if (!uid) return;
+        const { data } = await supabase
+            .from('study_room_join_requests')
+            .select('room_id, status')
+            .eq('requester_id', uid)
+            .in('status', ['pending', 'approved', 'rejected']);
+        const next: Record<string, 'pending' | 'approved' | 'rejected'> = {};
+        (data || []).forEach((r: { room_id: string; status: 'pending' | 'approved' | 'rejected' }) => {
+            next[r.room_id] = r.status;
+        });
+        setMyJoinRequests(next);
+    }, [uid]);
+
+    useEffect(() => {
+        fetchMyJoinRequests();
+        const ch = supabase.channel('my_room_join_requests')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_join_requests' }, fetchMyJoinRequests)
+            .subscribe();
+        return () => { supabase.removeChannel(ch); };
+    }, [fetchMyJoinRequests]);
+
+    const fetchJoinRequests = useCallback(async (rid: string) => {
+        const { data: list } = await supabase
+            .from('study_room_join_requests')
+            .select('*')
+            .eq('room_id', rid)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: true });
+        const reqs = list || [];
+        if (!reqs.length) {
+            setJoinRequests([]);
+            return;
+        }
+
+        const requesterIds = [...new Set(reqs.map(r => r.requester_id))];
+        const { data: prfs } = await supabase
+            .from('profiles')
+            .select('id, name, username, avatar_url')
+            .in('id', requesterIds);
+        const map = Object.fromEntries((prfs || []).map((p: any) => [p.id, p]));
+        setJoinRequests(reqs.map((r: any) => ({ ...r, profiles: map[r.requester_id] || { name: 'User', username: '', avatar_url: null } })));
+    }, []);
+
+    const requestJoinPrivateRoom = async (room: StudyRoom) => {
+        if (!uid) return;
+        const { data, error } = await supabase
+            .from('study_room_join_requests')
+            .upsert({ room_id: room.id, requester_id: uid, status: 'pending' }, { onConflict: 'room_id,requester_id' })
+            .select('id')
+            .single();
+        if (error) {
+            alert(`Request failed: ${error.message}`);
+            return;
+        }
+        setMyJoinRequests(prev => ({ ...prev, [room.id]: 'pending' }));
+
+        if (room.creator_id && room.creator_id !== uid) {
+            const requesterName = participants.find(p => p.user_id === uid)?.profiles?.name || 'Someone';
+            await sendStudyRoomNotification({
+                recipientId: room.creator_id,
+                senderId: uid,
+                title: 'Study Room Join Request',
+                message: `${requesterName} requested to join ${room.name}`,
+                roomId: room.id,
+                roomName: room.name,
+                requestId: data?.id,
+            });
+        }
+
+        alert('Join request sent to host.');
+    };
+
+    const handleJoinRequest = async (req: RoomJoinRequest, approve: boolean) => {
+        if (!activeRoom || !isHost) return;
+        const nextStatus = approve ? 'approved' : 'rejected';
+        const { error } = await supabase
+            .from('study_room_join_requests')
+            .update({ status: nextStatus })
+            .eq('id', req.id);
+        if (error) {
+            alert(`Could not ${approve ? 'approve' : 'reject'}: ${error.message}`);
+            return;
+        }
+        if (approve) {
+            await supabase.from('study_room_participants').upsert(
+                { room_id: activeRoom.id, user_id: req.requester_id, status: 'Here' },
+                { onConflict: 'room_id,user_id' }
+            );
+        }
+
+        if (uid) {
+            await sendStudyRoomNotification({
+                recipientId: req.requester_id,
+                senderId: uid,
+                title: approve ? 'Join Request Approved' : 'Join Request Rejected',
+                message: approve
+                    ? `Your request to join ${activeRoom.name} was approved.`
+                    : `Your request to join ${activeRoom.name} was rejected.`,
+                roomId: activeRoom.id,
+                roomName: activeRoom.name,
+                requestId: req.id,
+            });
+        }
+
+        await fetchJoinRequests(activeRoom.id);
+        await fetchParticipants(activeRoom.id);
+    };
 
     const fetchMessages = useCallback(async (rid: string) => {
         const { data: list } = await supabase.from('study_room_messages').select('*').eq('room_id', rid).order('created_at').limit(200);
@@ -247,17 +432,51 @@ export default function StudyRoomsPage() {
         if (polls.length) fetchVotes(polls.map(p => p.id));
     }, [polls, fetchVotes]);
 
+    const fetchVoiceNotes = useCallback(async (rid: string) => {
+        const { data: list, error } = await supabase
+            .from('study_room_voicenotes')
+            .select('*')
+            .eq('room_id', rid)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Failed to fetch voice notes:', error);
+            return;
+        }
+
+        const notes = list || [];
+        if (!notes.length) {
+            setVoicenotes([]);
+            return;
+        }
+
+        const userIds = [...new Set(notes.map(v => v.user_id).filter(Boolean))];
+        const { data: prfs } = userIds.length
+            ? await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds)
+            : { data: [] };
+        const profileMap = Object.fromEntries((prfs || []).map(p => [p.id, p]));
+
+        setVoicenotes(notes.map(v => ({
+            ...v,
+            profiles: profileMap[v.user_id] || { name: 'User', avatar_url: null },
+        })));
+    }, []);
+
     // ── In-room realtime ──────────────────────────────────────────────────
     useEffect(() => {
         if (!activeRoom) return;
         const rid = activeRoom.id;
-        fetchParticipants(rid); fetchMessages(rid); fetchDocs(rid); fetchPolls(rid);
+        fetchParticipants(rid); fetchMessages(rid); fetchDocs(rid); fetchPolls(rid); fetchVoiceNotes(rid);
+        if (activeRoom.creator_id === uid) fetchJoinRequests(rid);
         const ch = supabase.channel(`room_${rid}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'study_rooms', filter: `id=eq.${rid}` }, (payload) => setActiveRoom(prev => prev ? { ...prev, ...(payload.new as StudyRoom) } : null))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_participants', filter: `room_id=eq.${rid}` }, () => fetchParticipants(rid))
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'study_room_messages', filter: `room_id=eq.${rid}` }, () => fetchMessages(rid))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_documents', filter: `room_id=eq.${rid}` }, () => fetchDocs(rid))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_polls', filter: `room_id=eq.${rid}` }, () => fetchPolls(rid))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_poll_votes' }, () => fetchVotes(polls.map(p => p.id)))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_voicenotes', filter: `room_id=eq.${rid}` }, () => fetchVoiceNotes(rid))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_join_requests', filter: `room_id=eq.${rid}` }, () => { if (activeRoom.creator_id === uid) fetchJoinRequests(rid); fetchMyJoinRequests(); })
             .subscribe();
 
         // Fallback polling for message updates so chat doesn't get stuck
@@ -267,9 +486,32 @@ export default function StudyRoomsPage() {
             supabase.removeChannel(ch); 
             clearInterval(poll);
         };
-    }, [activeRoom?.id]);
+    }, [activeRoom?.id, uid]);
 
-    useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+    useEffect(() => {
+        if (targetMessageId) return;
+        if (!isChatNearBottomRef.current) return;
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, targetMessageId]);
+
+    useEffect(() => {
+        if (!targetMessageId || !messages.length) return;
+        let attempts = 0;
+        const maxAttempts = 8;
+        const tick = () => {
+            attempts += 1;
+            const el = messageRefs.current[targetMessageId];
+            if (el) {
+                scrollToMessage(targetMessageId);
+                setTargetMessageId(null);
+                return;
+            }
+            if (attempts < maxAttempts) {
+                setTimeout(tick, 250);
+            }
+        };
+        tick();
+    }, [messages, targetMessageId]);
 
     // ── Create / Join / Leave ─────────────────────────────────────────────
     const handleCreate = async () => {
@@ -293,6 +535,14 @@ export default function StudyRoomsPage() {
 
     const joinRoom = async (room: StudyRoom) => {
         if (!uid) return;
+
+        const isMember = myJoinedRoomIds.has(room.id);
+        const isCreator = room.creator_id === uid;
+        if (room.is_private && !isCreator && !isMember) {
+            await requestJoinPrivateRoom(room);
+            return;
+        }
+
         setJoining(room.id);
         try {
             await supabase.from('study_room_participants').upsert(
@@ -309,16 +559,282 @@ export default function StudyRoomsPage() {
         fetchRooms();
     };
 
-    const deleteRoom = async () => {
-        if (!uid || !activeRoom) return;
-        if (!window.confirm('Are you sure you want to delete this study room for everyone?')) return;
-        
-        await supabase.from('study_rooms').update({ is_active: false }).eq('id', activeRoom.id);
-        setActiveRoom(null); setParticipants([]); setMessages([]); setDocs([]); setPolls([]); setVotes([]);
-        fetchRooms();
+    const copyRoomInviteLink = async (roomId: string) => {
+        const link = `${window.location.origin}/app/study?room=${roomId}`;
+        await navigator.clipboard.writeText(link);
+        alert('Invite link copied to clipboard!');
+    };
+
+    const deleteRoomFromList = async (room: StudyRoom) => {
+        if (!uid || room.creator_id !== uid) return;
+        if (!window.confirm('Delete this study room for everyone?')) return;
+
+        const { error } = await supabase.from('study_rooms').update({ is_active: false }).eq('id', room.id);
+        if (error) {
+            console.error(error);
+            alert('Could not delete room. Please try again.');
+            return;
+        }
+
+        setRooms(prev => prev.filter(r => r.id !== room.id));
+        if (activeRoom?.id === room.id) {
+            setActiveRoom(null);
+            setParticipants([]);
+            setMessages([]);
+            setDocs([]);
+            setPolls([]);
+            setVotes([]);
+        }
     };
 
     const isHost = activeRoom?.creator_id === uid;
+
+    const stopVoiceNote = () => {
+        if (mediaRecorderRef.current && recordingVoice) {
+            mediaRecorderRef.current.stop();
+        }
+    };
+
+    const startVoiceNote = async () => {
+        if (!uid || !activeRoom) return;
+        if (recordingVoice) {
+            stopVoiceNote();
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const preferredMime = MediaRecorder.isTypeSupported('audio/mp4')
+                ? 'audio/mp4'
+                : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : 'audio/webm';
+            const mr = new MediaRecorder(stream, { mimeType: preferredMime });
+            mediaRecorderRef.current = mr;
+            audioChunksRef.current = [];
+
+            mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+            mr.onstop = async () => {
+                const chunkType = audioChunksRef.current[0]?.type || mr.mimeType || preferredMime;
+                const blob = new Blob(audioChunksRef.current, { type: chunkType });
+                stream.getTracks().forEach(t => t.stop());
+                setRecordingVoice(false);
+
+                if (!blob.size) {
+                    alert('Recording was empty. Please try again.');
+                    return;
+                }
+
+                const titleInput = window.prompt('Voice note title (optional)', '') ?? '';
+                const noteTitle = titleInput.trim();
+                
+                const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+                const file = new File([blob], `voicenote_${Date.now()}.${ext}`, { type: blob.type });
+                try {
+                    const url = await uploadFileForRoom(file);
+                    const { data: inserted, error } = await supabase.from('study_room_voicenotes').insert({
+                        room_id: activeRoom.id,
+                        user_id: uid,
+                        audio_url: url,
+                        title: noteTitle || null,
+                        x_pos: 10 + Math.random() * 80,
+                        y_pos: 10 + Math.random() * 80
+                    }).select('*').single();
+
+                    if (error) throw error;
+
+                    if (inserted) {
+                        const profile = participants.find(p => p.user_id === uid)?.profiles;
+                        setVoicenotes(prev => [{
+                            ...inserted,
+                            profiles: profile ? { name: profile.name, avatar_url: profile.avatar_url } : { name: 'You', avatar_url: null },
+                        }, ...prev]);
+                    }
+
+                    await fetchVoiceNotes(activeRoom.id);
+                } catch (e) {
+                    console.error('Voice note save failed', e);
+                    alert('Voice note could not be saved. Check storage/policies and try again.');
+                }
+            };
+
+            mr.start();
+            setRecordingVoice(true);
+        } catch (e) {
+            alert('Microphone access denied or not available.');
+            console.error('Microphone exception:', e);
+        }
+    };
+
+    const playVoiceNote = (vn: VoiceNote) => {
+        if (playingVoiceId === vn.id || draggingVnId) return;
+
+        const extractUploadsPath = (rawUrl: string): string | null => {
+            try {
+                const url = new URL(rawUrl);
+                const markers = [
+                    '/storage/v1/object/public/uploads/',
+                    '/storage/v1/object/authenticated/uploads/',
+                    '/storage/v1/object/sign/uploads/',
+                ];
+                for (const marker of markers) {
+                    const idx = url.pathname.indexOf(marker);
+                    if (idx >= 0) {
+                        const path = url.pathname.slice(idx + marker.length);
+                        return decodeURIComponent(path);
+                    }
+                }
+                return null;
+            } catch {
+                return null;
+            }
+        };
+
+        const resolvePlayableUrl = async () => {
+            try {
+                const direct = await fetch(vn.audio_url, { method: 'HEAD' });
+                if (direct.ok) return vn.audio_url;
+            } catch {
+                // Try signed URL fallback below
+            }
+
+            const path = extractUploadsPath(vn.audio_url);
+            if (!path) return vn.audio_url;
+
+            const { data, error } = await supabase.storage.from('uploads').createSignedUrl(path, 60 * 10);
+            if (error || !data?.signedUrl) {
+                console.error('Signed URL generation failed:', error);
+                return vn.audio_url;
+            }
+            return data.signedUrl;
+        };
+
+        const run = async () => {
+            const src = await resolvePlayableUrl();
+
+            if (currentAudioRef.current) {
+                currentAudioRef.current.pause();
+                currentAudioRef.current.currentTime = 0;
+            }
+
+            const audio = new Audio(src);
+            currentAudioRef.current = audio;
+            setPlayingVoiceId(vn.id);
+
+            audio.onended = () => setPlayingVoiceId(null);
+            audio.onerror = () => {
+                console.error('Audio playback failed for URL:', src);
+                setPlayingVoiceId(null);
+                alert('Could not play this voice note. It may be private, expired, or encoded in an unsupported format.');
+            };
+
+            try {
+                await audio.play();
+            } catch (e) {
+                console.error('Audio play() rejected:', e);
+                setPlayingVoiceId(null);
+                alert('Playback was blocked. Tap the note again or check device/browser audio support.');
+            }
+        };
+
+        void run();
+    };
+
+    const handleDragStart = (e: React.PointerEvent, id: string) => {
+        const vn = voicenotes.find(v => v.id === id);
+        if (!vn || (!isHost && vn.user_id !== uid)) return;
+        dragStartRef.current = { id, x: e.clientX, y: e.clientY, isDragging: false };
+    };
+
+    const handleDragMove = (e: React.PointerEvent) => {
+        const pending = dragStartRef.current;
+        if (!pending.id || !boardRef.current) return;
+
+        if (!pending.isDragging) {
+            const dx = e.clientX - pending.x;
+            const dy = e.clientY - pending.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 8) return;
+            pending.isDragging = true;
+            setDraggingVnId(pending.id);
+        }
+
+        const rect = boardRef.current.getBoundingClientRect();
+        const x_pos = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 0), 100);
+        const y_pos = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 0), 100);
+        setVoicenotes(prev => prev.map(v => v.id === pending.id ? { ...v, x_pos, y_pos } : v));
+    };
+
+    const handleDragEnd = async () => {
+        const pending = dragStartRef.current;
+        if (!pending.id) return;
+
+        const draggedId = pending.id;
+        const didDrag = pending.isDragging;
+        dragStartRef.current = { id: null, x: 0, y: 0, isDragging: false };
+        if (draggingVnId) {
+            setDraggingVnId(null);
+        }
+
+        if (didDrag) {
+            const vn = voicenotes.find(v => v.id === draggedId);
+            if (vn) {
+                const { error } = await supabase.from('study_room_voicenotes')
+                    .update({ x_pos: vn.x_pos, y_pos: vn.y_pos })
+                    .eq('id', vn.id);
+                if (error) {
+                    console.error('Failed to persist voice note drag position:', error);
+                }
+            }
+        }
+    };
+
+    const deleteVoiceNote = async (vn: VoiceNote) => {
+        if (!uid || !activeRoom) return;
+        if (!isHost && vn.user_id !== uid) return;
+
+        if (playingVoiceId === vn.id && currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current.currentTime = 0;
+            setPlayingVoiceId(null);
+        }
+
+        setVoicenotes(prev => prev.filter(v => v.id !== vn.id));
+        const { error } = await supabase.from('study_room_voicenotes').delete().eq('id', vn.id);
+        if (error) {
+            console.error('Failed to delete voice note:', error);
+            alert('Could not delete this voice note.');
+            await fetchVoiceNotes(activeRoom.id);
+        }
+    };
+
+    const renameVoiceNote = async (vn: VoiceNote) => {
+        if (!uid || !activeRoom) return;
+        if (!isHost && vn.user_id !== uid) return;
+
+        const proposed = window.prompt('Set voice note title', vn.title || '') ?? '';
+        const title = proposed.trim();
+
+        const prevTitle = vn.title ?? null;
+        setVoicenotes(prev => prev.map(v => (v.id === vn.id ? { ...v, title } : v)));
+
+        const { error } = await supabase
+            .from('study_room_voicenotes')
+            .update({ title: title || null })
+            .eq('id', vn.id);
+
+        if (error) {
+            console.error('Failed to rename voice note:', error);
+            setVoicenotes(prev => prev.map(v => (v.id === vn.id ? { ...v, title: prevTitle } : v)));
+            alert('Could not update title. Run the latest migration and try again.');
+        }
+    };
+
+    const toggleDrawingMode = async () => {
+        if (!isHost || !activeRoom) return;
+        const newVal = activeRoom.allow_drawing === false ? true : false;
+        await supabase.from('study_rooms').update({ allow_drawing: newVal }).eq('id', activeRoom.id);
+        setActiveRoom({...activeRoom, allow_drawing: newVal});
+    };
 
     // ── Status ────────────────────────────────────────────────────────────
     const updateStatus = (s: ParticipantStatus) => {
@@ -327,35 +843,264 @@ export default function StudyRoomsPage() {
         supabase.from('study_room_participants').update({ status: s }).eq('room_id', activeRoom.id).eq('user_id', uid);
     };
 
+    const parseMentions = (content: string): RoomMessage['mentions'] => {
+        const tokens = [...content.matchAll(/(^|\s)@([a-zA-Z0-9_.-]+)/g)].map(m => m[2]);
+        if (!tokens.length) return [];
+
+        const seen = new Set<string>();
+        const result: NonNullable<RoomMessage['mentions']> = [];
+
+        for (const raw of tokens) {
+            const key = raw.toLowerCase();
+            if (key === 'ai') continue;
+            if (key === 'all') {
+                if (!seen.has('all')) {
+                    result.push({ type: 'all' });
+                    seen.add('all');
+                }
+                continue;
+            }
+
+            const target = participants.find(p => {
+                const username = p.profiles?.username?.toLowerCase() || '';
+                const name = p.profiles?.name?.toLowerCase().replace(/\s+/g, '') || '';
+                return username === key || name === key;
+            });
+            if (!target) continue;
+
+            const ukey = `user:${target.user_id}`;
+            if (seen.has(ukey)) continue;
+            result.push({ type: 'user', user_id: target.user_id, username: target.profiles?.username || undefined });
+            seen.add(ukey);
+        }
+
+        return result;
+    };
+
+    const insertMention = (handle: string) => {
+        setChatInput(prev => prev.replace(/(^|\s)@[a-zA-Z0-9_.-]*$/, `$1@${handle} `));
+    };
+
+    const scrollToMessage = (messageId: string) => {
+        const el = messageRefs.current[messageId];
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-emerald-400');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-emerald-400'), 1200);
+    };
+
+    const renderMentionedText = (text: string) => {
+        return text.split(/(@[a-zA-Z0-9_.-]+)/g).map((part, idx) => {
+            if (/^@[a-zA-Z0-9_.-]+$/.test(part)) {
+                return <span key={idx} className="font-semibold underline decoration-current/50">{part}</span>;
+            }
+            return <span key={idx}>{part}</span>;
+        });
+    };
+
+    const insertVoiceNoteReference = (voiceNoteId: string) => {
+        setChatInput(prev => prev.replace(/(^|\s)@voicenote\s*$/i, `$1[voicenote:${voiceNoteId}] `));
+    };
+
+    const renderMessageContent = (text: string) => {
+        const parts = text.split(/(\[voicenote:[a-f0-9-]+\])/gi);
+        return parts.map((part, idx) => {
+            const tokenMatch = part.match(/^\[voicenote:([a-f0-9-]+)\]$/i);
+            if (!tokenMatch) return <span key={`text-${idx}`}>{renderMentionedText(part)}</span>;
+
+            const voiceNoteId = tokenMatch[1];
+            const vn = voicenotes.find(v => v.id === voiceNoteId);
+            if (!vn) {
+                return (
+                    <span key={`vn-missing-${idx}`} className="inline-flex items-center mt-1 px-2 py-1 rounded-lg text-xs bg-slate-200/60 dark:bg-zinc-700/60">
+                        Voice note unavailable
+                    </span>
+                );
+            }
+
+            return (
+                <button
+                    key={`vn-${idx}`}
+                    type="button"
+                    onClick={() => playVoiceNote(vn)}
+                    className="mt-1 mb-0.5 w-full max-w-[260px] text-left rounded-xl border border-white/30 dark:border-zinc-600 bg-white/25 dark:bg-zinc-800/60 px-2.5 py-2 hover:bg-white/35 dark:hover:bg-zinc-700/70 transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-violet-600 text-white inline-flex items-center justify-center shrink-0">
+                            {playingVoiceId === vn.id ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block text-xs font-semibold truncate">{vn.title?.trim() || 'Voice note'}</span>
+                            <span className="block text-[10px] opacity-80 truncate">{vn.profiles?.name || 'User'}</span>
+                        </span>
+                    </div>
+                </button>
+            );
+        });
+    };
+
+    const getReplyPreviewText = (content?: string) => {
+        if (!content) return 'Original message unavailable';
+        const tokenMatch = content.match(/\[voicenote:([a-f0-9-]+)\]/i);
+        if (!tokenMatch) return content;
+        const voiceNoteId = tokenMatch[1];
+        const vn = voicenotes.find(v => v.id === voiceNoteId);
+        return vn ? `Voice note: ${vn.title?.trim() || 'Untitled voice note'}` : 'Voice note unavailable';
+    };
+
+    const notifyStudyMentions = async (message: RoomMessage) => {
+        if (!uid || !activeRoom || !message.mentions?.length) return;
+
+        const recipientSet = new Set<string>();
+        for (const mention of message.mentions) {
+            if (mention.type === 'all') {
+                participants.forEach(p => {
+                    if (p.user_id !== uid) recipientSet.add(p.user_id);
+                });
+            } else if (mention.type === 'user' && mention.user_id !== uid) {
+                recipientSet.add(mention.user_id);
+            }
+        }
+
+        const recipientIds = [...recipientSet];
+        if (!recipientIds.length) return;
+
+        const senderName = participants.find(p => p.user_id === uid)?.profiles?.name || 'Someone';
+        const actionUrl = `/app/study?room=${activeRoom.id}&message=${message.id}`;
+
+        const richRows = recipientIds.map(userId => ({
+            user_id: userId,
+            type: 'mention',
+            sender_id: uid,
+            title: 'Mention in Study Room',
+            message: `${senderName} mentioned you in ${activeRoom.name}`,
+            data: {
+                room_id: activeRoom.id,
+                room_name: activeRoom.name,
+                message_id: message.id,
+            },
+            action_url: actionUrl,
+            read: false,
+            created_at: new Date().toISOString(),
+        }));
+
+        const legacyRows = recipientIds.map(userId => ({
+            user_id: userId,
+            type: 'mention',
+            sender_id: uid,
+            content: `${senderName} mentioned you in ${activeRoom.name}`,
+            data: {
+                room_id: activeRoom.id,
+                room_name: activeRoom.name,
+                message_id: message.id,
+            },
+            action_url: actionUrl,
+            created_at: new Date().toISOString(),
+        }));
+
+        const firstTry = await supabase.from('notifications').insert(richRows);
+        if (!firstTry.error) return;
+
+        const fallbackTry = await supabase.from('notifications').insert(legacyRows);
+        if (fallbackTry.error) {
+            console.error('Study mention notification insert failed:', firstTry.error, fallbackTry.error);
+        }
+    };
+
+    const sendStudyRoomNotification = async (params: {
+        recipientId: string;
+        senderId: string;
+        title: string;
+        message: string;
+        roomId: string;
+        roomName: string;
+        requestId?: string;
+    }) => {
+        const actionUrl = `/app/study?room=${params.roomId}`;
+        const data = {
+            room_id: params.roomId,
+            room_name: params.roomName,
+            join_request_id: params.requestId || null,
+        };
+
+        const rich = {
+            user_id: params.recipientId,
+            type: 'study_invite',
+            sender_id: params.senderId,
+            title: params.title,
+            message: params.message,
+            data,
+            action_url: actionUrl,
+            read: false,
+            created_at: new Date().toISOString(),
+        };
+
+        const legacy = {
+            user_id: params.recipientId,
+            type: 'study_invite',
+            sender_id: params.senderId,
+            content: params.message,
+            data,
+            action_url: actionUrl,
+            created_at: new Date().toISOString(),
+        };
+
+        const firstTry = await supabase.from('notifications').insert(rich);
+        if (!firstTry.error) return;
+        const fallbackTry = await supabase.from('notifications').insert(legacy);
+        if (fallbackTry.error) {
+            console.error('Study room notification insert failed:', firstTry.error, fallbackTry.error);
+        }
+    };
+
     // ── Chat ──────────────────────────────────────────────────────────────
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!chatInput.trim() || !uid || !activeRoom || sending) return;
         setSending(true);
         const c = chatInput.trim(); setChatInput('');
+        const detectedMentions = parseMentions(c);
         const clientMsg: RoomMessage = {
             id: crypto.randomUUID(),
             room_id: activeRoom.id,
             user_id: uid,
             content: c,
             created_at: new Date().toISOString(),
+            reply_to_message_id: replyToMessageId,
+            mentions: detectedMentions,
             profiles: participants.find(p => p.user_id === uid)?.profiles || { name: 'Me', avatar_url: null }
         };
 
         // Append locally instantly so user feels instant updates
         setMessages(prev => [...prev, clientMsg]);
+        setReplyToMessageId(null);
         setSending(false);
 
-        const { error } = await supabase.from('study_room_messages').insert({
+        const insertPayload: Record<string, unknown> = {
             id: clientMsg.id,
             room_id: clientMsg.room_id,
             user_id: clientMsg.user_id,
-            content: clientMsg.content
-        });
+            content: clientMsg.content,
+            reply_to_message_id: clientMsg.reply_to_message_id || null,
+            mentions: clientMsg.mentions || [],
+        };
+
+        let { error } = await supabase.from('study_room_messages').insert(insertPayload);
+        if (error && /reply_to_message_id|mentions|column/i.test(error.message || '')) {
+            const retry = await supabase.from('study_room_messages').insert({
+                id: clientMsg.id,
+                room_id: clientMsg.room_id,
+                user_id: clientMsg.user_id,
+                content: clientMsg.content,
+            });
+            error = retry.error;
+        }
 
         if (error) {
             console.error('Chat error:', error);
             // alert('Failed to broadcast message: ' + error.message);
+        } else {
+            await notifyStudyMentions(clientMsg);
         }
 
         // AI assistant: triggered by @AI prefix
@@ -395,18 +1140,75 @@ export default function StudyRoomsPage() {
         setNewDoc({ title: '', content: '', doc_url: '' }); setShowDocForm(false); setSavingDoc(false);
     };
 
+    const deleteDoc = async (doc: RoomDocument) => {
+        if (!uid || !activeRoom) return;
+        const canDelete = doc.shared_by === uid || isHost;
+        if (!canDelete) return;
+
+        const prevDocs = docs;
+        setDocs(prev => prev.filter(d => d.id !== doc.id));
+        if (openDocId === doc.id) setOpenDocId(null);
+
+        const { error } = await supabase
+            .from('study_room_documents')
+            .update({ is_active: false })
+            .eq('id', doc.id);
+
+        if (error) {
+            console.error('Failed to delete document:', error);
+            setDocs(prevDocs);
+            alert('Could not delete this document. Check room permissions/policies.');
+        }
+    };
+
     // ── Polls ─────────────────────────────────────────────────────────────
     const savePoll = async () => {
         if (!uid || !activeRoom || !newPoll.question.trim()) return;
+        if (!isHost) {
+            alert('Only the room host can create polls.');
+            return;
+        }
         const valid = newPoll.options.filter(o => o.trim());
-        if (valid.length < 2) return;
+        if (valid.length < 2) {
+            alert('Please add at least 2 options.');
+            return;
+        }
         setSavingPoll(true);
-        const options: PollOption[] = valid.map((text, i) => ({ id: `o${i}`, text }));
-        await supabase.from('study_room_polls').insert({
-            id: crypto.randomUUID(),
-            room_id: activeRoom.id, created_by: uid, question: newPoll.question.trim(), options
-        });
-        setNewPoll({ question: '', options: ['', ''] }); setShowPollForm(false); setSavingPoll(false);
+        try {
+            const options: PollOption[] = valid.map((text, i) => ({ id: `o${i}`, text: text.trim() }));
+            const payload = {
+                id: crypto.randomUUID(),
+                room_id: activeRoom.id,
+                created_by: uid,
+                question: newPoll.question.trim(),
+                options,
+                is_active: true,
+            };
+
+            let { error } = await supabase.from('study_room_polls').insert(payload);
+            if (error && /id|uuid|default/i.test(error.message || '')) {
+                const retry = await supabase.from('study_room_polls').insert({
+                    room_id: activeRoom.id,
+                    created_by: uid,
+                    question: newPoll.question.trim(),
+                    options,
+                    is_active: true,
+                });
+                error = retry.error;
+            }
+
+            if (error) {
+                console.error('Poll create failed:', error);
+                alert(`Poll could not be created: ${error.message}`);
+                return;
+            }
+
+            setNewPoll({ question: '', options: ['', ''] });
+            setShowPollForm(false);
+            await fetchPolls(activeRoom.id);
+        } finally {
+            setSavingPoll(false);
+        }
     };
 
     const castVote = async (pollId: string, optId: string) => {
@@ -425,14 +1227,35 @@ export default function StudyRoomsPage() {
     if (activeRoom) {
         const tabs: TabDef[] = [
             { id: 'chat', label: 'Chat', icon: MessageCircle },
-            { id: 'board', label: 'Board', icon: PenTool },
+            { id: 'board', label: 'Board', icon: PenTool, badge: voicenotes.length || undefined },
+            { id: 'structure', label: 'Structure', icon: List, badge: voicenotes.length || undefined },
             { id: 'docs', label: 'Docs', icon: FileText, badge: docs.length || undefined },
             { id: 'polls', label: 'Polls', icon: BarChart2, badge: polls.filter(p => p.is_active).length || undefined },
             { id: 'people', label: 'People', icon: Users, badge: participants.length || undefined },
         ];
 
+        const replyTarget = replyToMessageId ? messages.find(m => m.id === replyToMessageId) : null;
+        const mentionMatch = chatInput.match(/(^|\s)@([a-zA-Z0-9_.-]*)$/);
+        const mentionQuery = mentionMatch?.[2]?.toLowerCase() || '';
+        const voiceNotePickerOpen = /(^|\s)@voicenote\s*$/i.test(chatInput);
+        const mentionSuggestions = mentionMatch
+            ? [
+                { label: 'all', value: 'all', subtitle: 'Notify everyone in room' },
+                { label: 'voicenote', value: 'voicenote', subtitle: 'Attach a board voice note' },
+                ...participants
+                    .map(p => ({
+                        label: p.profiles?.username || p.profiles?.name || 'user',
+                        value: p.profiles?.username || (p.profiles?.name || '').replace(/\s+/g, ''),
+                        subtitle: p.profiles?.name || 'User',
+                    }))
+                    .filter(m => m.value)
+                    .filter(m => m.value.toLowerCase().includes(mentionQuery) || m.subtitle.toLowerCase().includes(mentionQuery))
+                    .slice(0, 6),
+            ]
+            : [];
+
         return (
-            <div className="fixed inset-0 z-[100] bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col h-[100dvh] w-full sm:static sm:z-auto sm:bg-transparent sm:h-[calc(100vh-96px)]">
+            <div className="fixed inset-0 z-[100] bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col h-[100dvh] w-full pt-[env(safe-area-inset-top)] sm:pt-0 sm:static sm:z-auto sm:bg-transparent sm:h-[calc(100vh-96px)]">
                 
                 {/* ── Room Header (Fixed Top) ── */}
                 <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 shadow-sm z-10 flex items-center justify-between gap-3 sm:gap-4">
@@ -460,16 +1283,6 @@ export default function StudyRoomsPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                            onClick={() => {
-                                const link = `${window.location.origin}/app/study?room=${activeRoom.id}`;
-                                navigator.clipboard.writeText(link);
-                                alert('Invite link copied to clipboard!');
-                            }}
-                            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium text-xs rounded-xl transition-colors"
-                        >
-                            <Link2 className="w-4 h-4" /> <span>Invite</span>
-                        </button>
                         {/* Status pill */}
                         <div className="relative hidden sm:block">
                             <select
@@ -483,15 +1296,6 @@ export default function StudyRoomsPage() {
                             </select>
                             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
                         </div>
-                        {isHost && (
-                            <button
-                                onClick={deleteRoom}
-                                className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-full sm:text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                            >
-                                <Trash2 className="w-5 h-5 sm:w-3 sm:h-3" />
-                                <span className="hidden sm:inline">Delete</span>
-                            </button>
-                        )}
                         <button
                             onClick={leaveRoom}
                             className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-full sm:text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
@@ -508,7 +1312,7 @@ export default function StudyRoomsPage() {
                     {tab === 'chat' && (
                         <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0b141a] sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm relative">
                             {/* AI shortcut banner */}
-                            <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-50 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex-shrink-0">
+                            <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-50 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 flex-shrink-0 overflow-x-auto">
                                 <div className="w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center shadow-sm flex-shrink-0">
                                     <Bot className="w-3 h-3 text-white dark:text-zinc-900" />
                                 </div>
@@ -518,10 +1322,28 @@ export default function StudyRoomsPage() {
                                         {q}
                                     </button>
                                 ))}
+                                {currentTrack && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleExpanded}
+                                        className="ml-1 text-[10px] px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 font-semibold transition-colors whitespace-nowrap flex-shrink-0"
+                                        title={currentTrack.title}
+                                    >
+                                        {isPlaying ? 'Podcast: Playing' : 'Podcast: Paused'}
+                                    </button>
+                                )}
                             </div>
 
                             {/* Messages area — scrollable, takes all remaining space */}
-                            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+                            <div
+                                ref={chatScrollRef}
+                                onScroll={(e) => {
+                                    const el = e.currentTarget;
+                                    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+                                    isChatNearBottomRef.current = distanceFromBottom < 120;
+                                }}
+                                className="flex-1 overflow-y-auto px-4 py-5 space-y-4"
+                            >
                                 {messages.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400 py-12">
                                         <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-emerald-100 dark:from-violet-900/30 dark:to-emerald-900/30 flex items-center justify-center shadow-inner">
@@ -536,6 +1358,9 @@ export default function StudyRoomsPage() {
                                     const isMe = msg.user_id === uid;
                                     const isAI = msg.isAI === true;
                                     const showName = !isMe && !isAI && (!messages[i - 1] || messages[i - 1].user_id !== msg.user_id);
+                                    const repliedTo = msg.reply_to_message_id
+                                        ? messages.find(m => m.id === msg.reply_to_message_id)
+                                        : null;
 
                                     if (isAI) return (
                                         <div key={msg.id} className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
@@ -555,7 +1380,11 @@ export default function StudyRoomsPage() {
                                     );
 
                                     return (
-                                        <div key={msg.id} className={`flex gap-2.5 group/msg ${isMe ? 'flex-row-reverse' : ''}`}>
+                                        <div
+                                            key={msg.id}
+                                            ref={el => { messageRefs.current[msg.id] = el; }}
+                                            className={`flex gap-2.5 group/msg ${isMe ? 'flex-row-reverse' : ''}`}
+                                        >
                                             {!isMe && (
                                                 <div className="flex-shrink-0 self-end">
                                                     <Avatar src={msg.profiles?.avatar_url} name={msg.profiles?.name} size={8} />
@@ -572,10 +1401,36 @@ export default function StudyRoomsPage() {
                                                         ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-tr-sm'
                                                         : 'bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 rounded-tl-sm border border-slate-100 dark:border-zinc-700'
                                                 }`}>
-                                                    {msg.content}
+                                                    {msg.reply_to_message_id && (
+                                                        <button
+                                                            onClick={() => scrollToMessage(msg.reply_to_message_id!)}
+                                                            className={`mb-2 w-full text-left px-2 py-1 rounded-lg text-[11px] ${
+                                                                isMe
+                                                                    ? 'bg-white/20 hover:bg-white/30 text-emerald-50'
+                                                                    : 'bg-slate-100 dark:bg-zinc-700/60 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-300'
+                                                            }`}
+                                                        >
+                                                            <div className="font-semibold truncate">
+                                                                Replying to {repliedTo?.profiles?.name || 'message'}
+                                                            </div>
+                                                            <div className="truncate opacity-80">
+                                                                {getReplyPreviewText(repliedTo?.content)}
+                                                            </div>
+                                                        </button>
+                                                    )}
+                                                    {renderMessageContent(msg.content)}
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] text-slate-400 dark:text-zinc-600 px-1">{timeAgo(msg.created_at)}</span>
+                                                    {!msg.isAI && (
+                                                        <button
+                                                            onClick={() => setReplyToMessageId(msg.id)}
+                                                            className="opacity-0 group-hover/msg:opacity-100 p-0.5 text-slate-300 hover:text-emerald-500 transition-all"
+                                                            title="Reply"
+                                                        >
+                                                            <CornerUpLeft className="w-3 h-3" />
+                                                        </button>
+                                                    )}
                                                     {isMe && !msg.isAI && (
                                                         <button
                                                             onClick={async () => { await supabase.from('study_room_messages').delete().eq('id', msg.id); setMessages(prev => prev.filter(m => m.id !== msg.id)); }}
@@ -612,23 +1467,66 @@ export default function StudyRoomsPage() {
 
                             {/* Input bar — pinned to bottom */}
                             <div className="flex-shrink-0 sticky bottom-0 z-10 px-3 pb-4 pt-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-b-2xl space-y-2">
+                                {replyTarget && (
+                                    <div className="mx-1 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Replying to {replyTarget.profiles?.name || 'User'}</p>
+                                            <p className="text-xs text-emerald-600/80 dark:text-emerald-300/80 truncate">{getReplyPreviewText(replyTarget.content)}</p>
+                                        </div>
+                                        <button onClick={() => setReplyToMessageId(null)} className="p-1 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-800/40">
+                                            <X className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
+                                        </button>
+                                    </div>
+                                )}
                                 <form onSubmit={sendMessage} className="flex gap-2 items-end">
                                     <div className="flex-1 relative">
                                         <input
                                             value={chatInput}
                                             onChange={e => setChatInput(e.target.value)}
-                                            placeholder="Type a message…"
+                                            placeholder="Type a message… (@all, @username, @AI)"
                                             maxLength={500}
                                             className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow pr-12"
                                         />
                                         {chatInput.startsWith('@AI') && (
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-violet-500 bg-violet-100 dark:bg-violet-900/40 px-1.5 py-0.5 rounded-full">AI</span>
                                         )}
+                                        {mentionSuggestions.length > 0 && (
+                                            <div className="absolute bottom-14 left-0 right-0 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-hidden z-30 max-h-56 overflow-y-auto">
+                                                {mentionSuggestions.map(m => (
+                                                    <button
+                                                        key={`${m.value}-${m.subtitle}`}
+                                                        type="button"
+                                                        onClick={() => insertMention(m.value)}
+                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                                                    >
+                                                        <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200">@{m.label}</p>
+                                                        <p className="text-[11px] text-slate-500 dark:text-zinc-400">{m.subtitle}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {voiceNotePickerOpen && (
+                                            <div className="absolute bottom-14 left-0 right-0 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-hidden z-30 max-h-56 overflow-y-auto">
+                                                {voicenotes.length === 0 ? (
+                                                    <div className="px-3 py-2 text-xs text-slate-500 dark:text-zinc-400">No voice notes available in this room.</div>
+                                                ) : voicenotes.slice(0, 8).map(vn => (
+                                                    <button
+                                                        key={vn.id}
+                                                        type="button"
+                                                        onClick={() => insertVoiceNoteReference(vn.id)}
+                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                                                    >
+                                                        <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{vn.title?.trim() || 'Voice note'}</p>
+                                                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{vn.profiles?.name || 'User'} • {timeAgo(vn.created_at)}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <button
                                         type="submit"
                                         disabled={!chatInput.trim() || sending || aiThinking}
-                                        className="w-11 h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white disabled:opacity-40 transition-all flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40 flex-shrink-0"
+                                        className="w-11 h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white disabled:opacity-40 transition-all flex items-center justify-center shadow-lg flex-shrink-0"
                                     >
                                         {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                     </button>
@@ -643,39 +1541,207 @@ export default function StudyRoomsPage() {
                 {/* ── BOARD ── */}
                 {tab === 'board' && (() => {
                     const wboUrl = `https://wbo.ophir.dev/boards/unilink-${activeRoom.id}`;
+                    const canDraw = activeRoom.allow_drawing !== false || isHost;
+
                     return (
-                        <div className="flex-1 w-full flex flex-col overflow-hidden sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900 min-h-[500px] relative">
+                        <div 
+                            className="flex-1 w-full flex flex-col overflow-hidden sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900 min-h-[500px] relative group"
+                            onPointerMove={handleDragMove}
+                            onPointerUp={handleDragEnd}
+                            onPointerLeave={handleDragEnd} // Also end drag if cursor leaves the board area
+                        >
                             {/* Board header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-10 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                            <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <PenTool className="w-5 h-5 text-violet-500" />
-                                    <span className="text-sm font-bold text-slate-800 dark:text-white">Collaborative Board</span>
-                                    <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Sync
+                                    <div className="flex items-center gap-1.5 mr-1">
+                                        <PenTool className="w-4 h-4 text-violet-500" />
+                                        <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">Board</span>
+                                    </div>
+                                    
+                                    <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                                        canDraw 
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                    }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${canDraw ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                        {canDraw ? 'Live Sync' : 'Read Only'}
                                     </span>
-                                    <span className="text-[10px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 hidden sm:inline-block">Auto-saves instantly</span>
+
+                                    {/* Recording Button */}
+                                    <button 
+                                        onClick={startVoiceNote}
+                                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                                            recordingVoice 
+                                                ? 'bg-red-500 text-white animate-pulse' 
+                                                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                        }`}
+                                    >
+                                        <Mic className={`w-3 h-3 ${recordingVoice ? 'fill-current' : ''}`} />
+                                        {recordingVoice ? 'Recording...' : 'Add Voice Note'}
+                                    </button>
+
+                                    {/* Host drawing toggle */}
+                                    {isHost && (
+                                        <button 
+                                            onClick={toggleDrawingMode}
+                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                                                activeRoom.allow_drawing !== false
+                                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                                                    : 'bg-zinc-900 text-white border border-zinc-900'
+                                            }`}
+                                        >
+                                            {activeRoom.allow_drawing !== false ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                            {activeRoom.allow_drawing !== false ? 'Lock Board' : 'Unlock Board'}
+                                        </button>
+                                    )}
                                 </div>
-                                <a
-                                    href={wboUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hidden sm:flex text-[11px] text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition-colors items-center gap-1"
-                                >
-                                    Full screen ↗
-                                </a>
+                                <div className="flex items-center gap-3">
+                                    {!canDraw && !isHost && (
+                                        <div className="flex items-center gap-1 text-[10px] text-red-500 font-medium whitespace-nowrap">
+                                            <EyeOff className="w-3 h-3" /> Drawing Disabled
+                                        </div>
+                                    )}
+                                    <a
+                                        href={wboUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="hidden sm:flex text-[11px] text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition-colors items-center gap-1"
+                                    >
+                                        Full screen ↗
+                                    </a>
+                                </div>
                             </div>
-                            {/* WBO embed - natively auto-saves to WBO deterministic cloud and uses ultra-low latency WebSockets */}
+
+                            {/* Main Board Area */}
                             <div className="flex-1 relative overflow-hidden bg-[#f8f9fa] dark:bg-zinc-950">
-                                <iframe
-                                    src={wboUrl}
-                                    className="w-full h-full absolute inset-0 border-none"
-                                    title="Collaborative Whiteboard"
-                                    allow="clipboard-read; clipboard-write; display-capture"
-                                />
+                                {/* Voice Notes Layer */}
+                                <div 
+                                    className={`absolute inset-0 z-10 ${draggingVnId ? 'pointer-events-auto cursor-grabbing' : 'pointer-events-none'}`}
+                                >
+                                    {voicenotes.map(vn => (
+                                        <div 
+                                            key={vn.id}
+                                            className="absolute pointer-events-auto group/vn touch-none transition-transform active:scale-125"
+                                            style={{ 
+                                                left: `${vn.x_pos}%`, 
+                                                top: `${vn.y_pos}%`,
+                                                zIndex: draggingVnId === vn.id ? 50 : 10
+                                            }}
+                                            onPointerDown={(e) => handleDragStart(e, vn.id)}
+                                        >
+                                            <div className="relative">
+                                                <button
+                                                    onClick={() => playVoiceNote(vn)}
+                                                    className={`w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center shadow-lg transition-all border-2 ${
+                                                        playingVoiceId === vn.id 
+                                                            ? 'bg-violet-600 border-white text-white scale-110 ring-4 ring-violet-500/20' 
+                                                            : 'bg-white dark:bg-zinc-800 border-violet-500 text-violet-500 hover:bg-violet-50'
+                                                    } ${draggingVnId === vn.id ? 'opacity-50 ring-2 ring-violet-400' : ''}`}
+                                                >
+                                                    {playingVoiceId === vn.id ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                                                    
+                                                    {playingVoiceId === vn.id && (
+                                                        <div className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                                                    )}
+                                                </button>
+
+                                                {(isHost || vn.user_id === uid) && (
+                                                    <button
+                                                        onClick={() => deleteVoiceNote(vn)}
+                                                        className="absolute -top-4 left-3 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md opacity-0 group-hover/vn:opacity-100 transition-opacity"
+                                                        title="Delete voice note"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                                
+                                                {/* Drag Handle Icon for UI hint */}
+                                                {(isHost || vn.user_id === uid) && (
+                                                    <div className="absolute -top-7 -left-2 opacity-0 group-hover/vn:opacity-100 transition-opacity bg-white dark:bg-zinc-800 p-1 rounded-md shadow-sm border border-slate-200 dark:border-zinc-700 cursor-grab active:cursor-grabbing">
+                                                        <GripHorizontal className="w-3 h-3 text-slate-400" />
+                                                    </div>
+                                                )}
+
+                                                {/* Profile tooltip */}
+                                                <div className="absolute top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover/vn:opacity-100 transition-opacity bg-zinc-900/90 text-[9px] text-white px-2 py-1 rounded whitespace-nowrap pointer-events-none z-50">
+                                                    {vn.title?.trim() || (vn.profiles?.name || 'User')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Board iframe */}
+                                <div ref={boardRef} className={`w-full h-full relative z-0 ${!canDraw ? 'pointer-events-none grayscale-[0.5] opacity-90' : ''}`}>
+                                    <iframe
+                                        src={wboUrl}
+                                        className="w-full h-full absolute inset-0 border-none"
+                                        title="Collaborative Whiteboard"
+                                        allow="clipboard-read; clipboard-write; display-capture"
+                                    />
+                                    {!canDraw && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-4 py-2 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-xl flex items-center gap-2">
+                                                <Lock className="w-4 h-4 text-slate-400" />
+                                                <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Host disabled drawing</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     );
                 })()}
+
+                {/* ── VOICE STRUCTURE ── */}
+                {tab === 'structure' && (
+                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                        {voicenotes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+                                <Mic className="w-10 h-10 opacity-40" />
+                                <p className="text-sm font-medium">No voice notes yet</p>
+                                <p className="text-xs text-center max-w-xs">Record notes in the Board tab and they will appear here in order.</p>
+                            </div>
+                        ) : voicenotes.map((vn, idx) => (
+                            <div key={vn.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-4 shadow-sm">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Avatar src={vn.profiles?.avatar_url} name={vn.profiles?.name} size={8} />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{vn.title?.trim() || `Voice Note ${voicenotes.length - idx}`}</p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{vn.profiles?.name || 'User'} • {timeAgo(vn.created_at)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {(isHost || vn.user_id === uid) && (
+                                            <button
+                                                onClick={() => renameVoiceNote(vn)}
+                                                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                            >
+                                                Rename
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => playVoiceNote(vn)}
+                                            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors"
+                                        >
+                                            {playingVoiceId === vn.id ? 'Playing...' : 'Play'}
+                                        </button>
+                                        {(isHost || vn.user_id === uid) && (
+                                            <button
+                                                onClick={() => deleteVoiceNote(vn)}
+                                                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-[11px] text-slate-500 dark:text-zinc-400">Board position: {Math.round(vn.x_pos)}% x, {Math.round(vn.y_pos)}% y</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* ── DOCS ── */}
                 {tab === 'docs' && (
@@ -814,11 +1880,11 @@ export default function StudyRoomsPage() {
                                             >
                                                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openDocId === doc.id ? 'rotate-180' : ''}`} />
                                             </button>
-                                            {doc.shared_by === uid && (
+                                            {(doc.shared_by === uid || isHost) && (
                                                 <button 
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        supabase.from('study_room_documents').update({ is_active: false }).eq('id', doc.id); 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void deleteDoc(doc);
                                                     }} 
                                                     className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-colors"
                                                 >
@@ -930,11 +1996,13 @@ export default function StudyRoomsPage() {
                                             </div>
                                             {isHost && (
                                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                                    {poll.is_active && (
-                                                        <button onClick={() => supabase.from('study_room_polls').update({ is_active: false }).eq('id', poll.id).then(() => fetchPolls(activeRoom.id))} className="p-1.5 text-emerald-500 hover:text-slate-400 transition-colors" title="Close poll">
-                                                            <ToggleRight className="w-5 h-5" />
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        onClick={() => supabase.from('study_room_polls').update({ is_active: !poll.is_active }).eq('id', poll.id).then(() => fetchPolls(activeRoom.id))}
+                                                        className={`p-1.5 transition-colors ${poll.is_active ? 'text-emerald-500 hover:text-slate-400' : 'text-amber-500 hover:text-emerald-500'}`}
+                                                        title={poll.is_active ? 'Close poll' : 'Reopen poll'}
+                                                    >
+                                                        <ToggleRight className={`w-5 h-5 ${poll.is_active ? '' : 'rotate-180'}`} />
+                                                    </button>
                                                     <button onClick={async () => { await supabase.from('study_room_poll_votes').delete().eq('poll_id', poll.id); await supabase.from('study_room_polls').delete().eq('id', poll.id); setPolls(prev => prev.filter(p => p.id !== poll.id)); }} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete poll">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
@@ -978,6 +2046,23 @@ export default function StudyRoomsPage() {
                     {/* ── PEOPLE ── */}
                     {tab === 'people' && (
                         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+                            {isHost && joinRequests.length > 0 && (
+                                <div className="mb-3 bg-white dark:bg-zinc-900 rounded-2xl border border-amber-200 dark:border-amber-800/50 p-3 space-y-2">
+                                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Join Requests</p>
+                                    {joinRequests.map(req => (
+                                        <div key={req.id} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-amber-50/70 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100 truncate">{req.profiles?.name || 'User'}</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">@{req.profiles?.username || 'user'} · requested {timeAgo(req.created_at)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => handleJoinRequest(req, true)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Approve</button>
+                                                <button onClick={() => handleJoinRequest(req, false)} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors">Reject</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {participants.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
                                     <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center">
@@ -1055,7 +2140,7 @@ export default function StudyRoomsPage() {
                 {uid && (
                     <button
                         onClick={() => setShowCreate(true)}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-sm transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/40"
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-sm transition-all shadow-md"
                     >
                         <Plus className="w-4 h-4" />New Room
                     </button>
@@ -1080,7 +2165,7 @@ export default function StudyRoomsPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {rooms.map(room => (
-                        <div key={room.id} className="group relative bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 hover:border-emerald-300 dark:hover:border-emerald-700/50 hover:shadow-xl hover:shadow-emerald-100/50 dark:hover:shadow-emerald-900/20 transition-all flex flex-col h-full overflow-hidden">
+                        <div key={room.id} className="group relative bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 hover:border-emerald-300 dark:hover:border-emerald-700/50 hover:shadow-xl transition-all flex flex-col h-full overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
                             <div className="flex items-start gap-4 mb-3">
                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 flex items-center justify-center flex-shrink-0 shadow-inner">
@@ -1091,6 +2176,30 @@ export default function StudyRoomsPage() {
                                     {room.subject && (
                                         <div className="inline-flex mt-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-[10px] font-bold text-slate-600 dark:text-zinc-300 uppercase tracking-wider truncate max-w-full">
                                             {room.subject}
+                                        </div>
+                                    )}
+                                    {uid === room.creator_id && (
+                                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    void copyRoomInviteLink(room.id);
+                                                }}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                                title="Copy invite link"
+                                            >
+                                                <Link2 className="w-3 h-3" /> Invite
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    void deleteRoomFromList(room);
+                                                }}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                                                title="Delete room"
+                                            >
+                                                <Trash2 className="w-3 h-3" /> Delete
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -1109,13 +2218,33 @@ export default function StudyRoomsPage() {
                                     {room.participant_count ?? 0} {room.participant_count === 1 ? 'person' : 'people'}
                                 </div>
                                 {uid ? (
-                                    <button
-                                        onClick={() => joinRoom(room)}
-                                        disabled={joining === room.id}
-                                        className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold text-xs transition-colors disabled:opacity-60 flex-shrink-0 ${room.creator_id === uid ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-slate-100 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:text-zinc-300 text-slate-700'}`}
-                                    >
-                                        {joining === room.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : (room.creator_id === uid ? 'Enter Your Room' : 'Join Room')}
-                                    </button>
+                                    (() => {
+                                        const isCreator = room.creator_id === uid;
+                                        const isMember = myJoinedRoomIds.has(room.id);
+                                        const reqStatus = myJoinRequests[room.id];
+                                        const needsRequest = !!room.is_private && !isCreator && !isMember;
+                                        const label = joining === room.id
+                                            ? 'Joining...'
+                                            : needsRequest
+                                                ? (reqStatus === 'pending' ? 'Request Sent' : reqStatus === 'rejected' ? 'Request Again' : 'Request Access')
+                                                : (isCreator ? 'Enter Your Room' : 'Join Room');
+
+                                        return (
+                                            <button
+                                                onClick={() => joinRoom(room)}
+                                                disabled={joining === room.id || (needsRequest && reqStatus === 'pending')}
+                                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold text-xs transition-colors disabled:opacity-60 flex-shrink-0 ${
+                                                    isCreator
+                                                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                        : needsRequest
+                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                                                            : 'bg-slate-100 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:text-zinc-300 text-slate-700'
+                                                }`}
+                                            >
+                                                {joining === room.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : label}
+                                            </button>
+                                        );
+                                    })()
                                 ) : (
                                     <span className="text-xs font-medium text-slate-400">Sign in to join</span>
                                 )}
@@ -1172,7 +2301,7 @@ export default function StudyRoomsPage() {
                             </div>
                             <div className="pt-2">
                                 <button onClick={handleCreate} disabled={creating || !newRoom.name.trim()}
-                                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/40 disabled:opacity-60 disabled:shadow-none flex items-center justify-center gap-2 active:scale-[0.98]">
+                                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md disabled:opacity-60 disabled:shadow-none flex items-center justify-center gap-2 active:scale-[0.98]">
                                     {creating ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : 'Create & Enter Room'}
                                 </button>
                             </div>

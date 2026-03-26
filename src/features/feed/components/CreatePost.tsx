@@ -406,7 +406,7 @@ export default function CreatePost({ onCreate, communityId, user, initialContent
                     <button
                         type="submit"
                         disabled={(!content.trim() && imageFiles.length === 0 && !videoFile && !showPoll) || isPosting}
-                        className="bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 dark:hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-200 dark:hover:shadow-none transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
+                        className="bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 dark:hover:bg-emerald-500 hover:shadow-lg dark:hover:shadow-none transition-all disabled:opacity-50 disabled:hover:shadow-none flex items-center gap-2"
                     >
                         <Send className="w-4 h-4" />
                         {isPosting ? 'Posting...' : 'Post'}

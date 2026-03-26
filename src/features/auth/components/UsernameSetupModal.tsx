@@ -90,7 +90,7 @@ export default function UsernameSetupModal({ user, onComplete }: UsernameSetupMo
                     <button
                         type="submit"
                         disabled={loading || !username}
-                        className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-slate-900 transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2"
+                        className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-slate-900 transition-all shadow-lg flex items-center justify-center gap-2"
                     >
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Claim Username <Check className="w-5 h-5" /></>}
                     </button>

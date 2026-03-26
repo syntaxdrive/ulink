@@ -188,7 +188,7 @@ export default function CampusChallengePage() {
 
             {/* Header */}
             <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30">
+                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg">
                     <Zap className="w-6 h-6" />
                 </div>
                 <div>

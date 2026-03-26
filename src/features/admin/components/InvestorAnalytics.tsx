@@ -227,7 +227,7 @@ export default function InvestorAnalytics() {
                                 <div
                                     className={`w-full rounded-t-md transition-all duration-500 ${
                                         isToday
-                                            ? 'bg-emerald-500 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40'
+                                            ? 'bg-emerald-500 shadow-lg'
                                             : 'bg-emerald-200 dark:bg-emerald-800/40 group-hover:bg-emerald-400 dark:group-hover:bg-emerald-600'
                                     }`}
                                     style={{

@@ -169,7 +169,7 @@ export default function NetworkPage() {
                                     ? 'bg-emerald-50 text-emerald-600'
                                     : sentRequests.has(profile.id)
                                         ? 'bg-stone-100 text-stone-500 cursor-default'
-                                        : 'bg-stone-900 text-white hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-200'
+                                        : 'bg-stone-900 text-white hover:bg-emerald-600 hover:shadow-lg'
                                     }`}
                             >
                                 {connections.has(profile.id) ? (

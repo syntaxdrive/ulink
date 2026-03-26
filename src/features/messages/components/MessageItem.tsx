@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 
@@ -14,7 +14,7 @@ interface MessageItemProps {
     onForward?: (msg: Message) => void;
 }
 
-export default function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, onForward }: MessageItemProps) {
+function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, onForward }: MessageItemProps) {
     const [showMenu, setShowMenu] = useState(false);
     const longPressTimer = useRef<any>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -56,9 +56,23 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
         displayContent = msg.content.substring(splitIndex + 2);
     }
 
+    const waveformBars = useMemo(() => {
+        const seedSource = `${msg.id}-${msg.audio_url || ''}`;
+        let seed = 0;
+        for (let i = 0; i < seedSource.length; i += 1) {
+            seed = (seed * 31 + seedSource.charCodeAt(i)) % 9973;
+        }
+
+        return Array.from({ length: 15 }, (_, i) => {
+            const value = (seed + i * 97) % 70;
+            return 30 + value;
+        });
+    }, [msg.id, msg.audio_url]);
+
     return (
         <div
             className={`relative flex items-end gap-2 group ${isMe ? 'justify-end' : 'justify-start'} px-2`}
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '120px' }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onTouchMove={handleTouchMove}
@@ -147,12 +161,12 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
                         <div className="flex-1 h-8 flex items-center">
                             {/* Visualizer Placeholder */}
                             <div className="flex items-center gap-0.5 h-full w-full opacity-60">
-                                {[...Array(15)].map((_, i) => (
+                                {waveformBars.map((height, i) => (
                                     <div
                                         key={i}
                                         className={`w-1 rounded-full ${isMe ? 'bg-white' : 'bg-stone-400'} animate-pulse`}
                                         style={{
-                                            height: `${30 + Math.random() * 70}%`,
+                                            height: `${height}%`,
                                             animationDelay: `${i * 0.1}s`
                                         }}
                                     />
@@ -253,3 +267,13 @@ export default function MessageItem({ msg, isMe, onReply, activeChat, onImageCli
         </div>
     );
 }
+
+function arePropsEqual(prev: MessageItemProps, next: MessageItemProps) {
+    return (
+        prev.msg === next.msg &&
+        prev.isMe === next.isMe &&
+        prev.activeChat?.id === next.activeChat?.id
+    );
+}
+
+export default memo(MessageItem, arePropsEqual);

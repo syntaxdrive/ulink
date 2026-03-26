@@ -120,7 +120,7 @@ export default function ReferralCard() {
                     <button
                         onClick={shareLink}
                         disabled={!profile?.referral_code}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-full px-8 rounded-2xl shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 py-4 md:py-0 disabled:opacity-50"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-full px-8 rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-3 py-4 md:py-0 disabled:opacity-50"
                     >
                         <Share2 className="w-5 h-5" />
                         Share Now

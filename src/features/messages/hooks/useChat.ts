@@ -13,6 +13,17 @@ export function useChat() {
 
     const activeChatRef = useRef<Profile | null>(null);
 
+    const fetchUnreadCounts = useCallback(async (myId: string) => {
+        const { data: unreadData } = await supabase.rpc('fetch_unread_counts', { current_user_id: myId });
+        if (unreadData) {
+            const counts: Record<string, number> = {};
+            unreadData.forEach((item: any) => {
+                counts[item.sender_id] = parseInt(item.unread_count, 10) || 0;
+            });
+            setUnreadCounts(counts);
+        }
+    }, []);
+
     useEffect(() => {
         activeChatRef.current = activeChat;
         if (activeChat) {
@@ -69,19 +80,11 @@ export function useChat() {
             if (!user) return;
             setUserId(user.id);
             await fetchConversations(user.id);
-
-            const { data: unreadData } = await supabase.rpc('fetch_unread_counts', { current_user_id: user.id });
-            if (unreadData) {
-                const counts: Record<string, number> = {};
-                unreadData.forEach((item: any) => {
-                    counts[item.sender_id] = parseInt(item.unread_count, 10) || 0;
-                });
-                setUnreadCounts(counts);
-            }
+            await fetchUnreadCounts(user.id);
             setLoading(false);
         };
         init();
-    }, [fetchConversations]);
+    }, [fetchConversations, fetchUnreadCounts]);
 
     // Global Listener (Unread counts & Presence)
     useEffect(() => {
@@ -136,6 +139,18 @@ export function useChat() {
             }
         };
     }, [userId, fetchConversations]);
+
+    // Realtime fallback: periodic sync for unread counts + conversation ordering.
+    useEffect(() => {
+        if (!userId) return;
+
+        const timer = setInterval(() => {
+            void fetchConversations(userId);
+            void fetchUnreadCounts(userId);
+        }, 12000);
+
+        return () => clearInterval(timer);
+    }, [userId, fetchConversations, fetchUnreadCounts]);
 
     // Active Chat Messages & Subscription
     useEffect(() => {
@@ -210,6 +225,29 @@ export function useChat() {
         };
     }, [activeChat, userId, markAsRead]);
 
+    // Realtime fallback for active conversation: keep chat state fresh even if channel events drop.
+    useEffect(() => {
+        if (!activeChat || !userId) return;
+
+        const timer = setInterval(async () => {
+            const { data } = await supabase
+                .from('messages')
+                .select('*')
+                .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
+                .order('created_at', { ascending: true })
+                .limit(100);
+
+            if (data) {
+                setMessages(prev => {
+                    const tempMsgs = prev.filter(m => m.id.startsWith('temp-'));
+                    return [...data, ...tempMsgs.filter(t => !data.some(d => d.content === t.content && d.sender_id === t.sender_id && d.recipient_id === t.recipient_id))];
+                });
+            }
+        }, 4000);
+
+        return () => clearInterval(timer);
+    }, [activeChat, userId]);
+
     const sendMessage = async (content: string, imageUrl: string | null = null, replyTo?: Message, audioUrl: string | null = null) => {
         if (!activeChat || !userId) return;
 
@@ -241,18 +279,22 @@ export function useChat() {
 
         setMessages((prev) => [...prev, tempMsg]);
 
-        const { error } = await supabase.from('messages').insert({
+        const { data: inserted, error } = await supabase.from('messages').insert({
             sender_id: userId,
             recipient_id: activeChat.id,
             content: finalContent || (audioUrl ? 'Voice Message' : ''),
             image_url: imageUrl,
             audio_url: audioUrl
-        });
+        }).select('*').single();
 
         if (error) {
             console.error('Error sending message:', error);
-            // Ideally rollback or show error
+            setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+            throw error;
         } else {
+            if (inserted) {
+                setMessages(prev => prev.map(m => m.id === tempMsg.id ? inserted as Message : m));
+            }
             fetchConversations(userId);
         }
     };

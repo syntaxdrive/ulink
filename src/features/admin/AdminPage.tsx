@@ -107,7 +107,7 @@ export default function AdminPage() {
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-900/20">
+                    <div className="p-3 bg-stone-900 dark:bg-emerald-600 text-white rounded-2xl shadow-lg">
                         <Shield className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                     <div>
@@ -118,7 +118,7 @@ export default function AdminPage() {
 
                 <button
                     onClick={() => setIsEmailModalOpen(true)}
-                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 transition-all text-sm"
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold shadow-lg transition-all text-sm"
                 >
                     <Mail className="w-4 h-4" />
                     <span className="hidden sm:inline">Send Broadcast</span>

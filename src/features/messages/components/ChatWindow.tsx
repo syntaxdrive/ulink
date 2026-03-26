@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText, Mic, Square, Loader2, Smile } from 'lucide-react';
@@ -31,6 +31,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const [isTyping, setIsTyping] = useState(false);
     const typingTimeoutRef = useRef<any>(null);
     const lastTypedRef = useRef<number>(0);
+    const typingChannelRef = useRef<any>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomAnchorRef = useRef<HTMLDivElement>(null);
@@ -68,13 +69,16 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             })
             .subscribe();
 
+        typingChannelRef.current = channel;
+
         return () => {
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingChannelRef.current = null;
             supabase.removeChannel(channel);
         };
     }, [userId, activeChat.id]);
 
-    const handleTyping = async () => {
+    const handleTyping = useCallback(async () => {
         if (!userId || !activeChat) return;
 
         const now = Date.now();
@@ -82,49 +86,46 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         if (now - lastTypedRef.current > 2000) {
             lastTypedRef.current = now;
 
-            const sortedIds = [userId, activeChat.id].sort((a, b) => a.localeCompare(b));
-            const channelId = `chat-room:${sortedIds.join('-')}`;
-
-            await supabase.channel(channelId).send({
+            await typingChannelRef.current?.send({
                 type: 'broadcast',
                 event: 'typing',
                 payload: { sender_id: userId }
             });
         }
-    };
+    }, [userId, activeChat]);
 
     // Track scroll position to show/hide jump-to-bottom button
-    const handleScroll = () => {
+    const handleScroll = useCallback(() => {
         if (!scrollRef.current) return;
         const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
         const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
         const atBottom = distanceFromBottom < 80;
         setIsAtBottom(atBottom);
         setShowScrollBtn(!atBottom && scrollHeight > clientHeight + 200);
-    };
+    }, []);
 
-    const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
         bottomAnchorRef.current?.scrollIntoView({ behavior, block: 'end' });
-    };
+    }, []);
 
     // Auto-scroll to bottom on new messages — smooth when user is near bottom
     useEffect(() => {
         if (isAtBottom) {
             scrollToBottom('smooth');
         }
-    }, [messages, isTyping]);
+    }, [messages.length, isTyping, isAtBottom, scrollToBottom]);
 
     // Scroll to bottom instantly when switching chats
     useEffect(() => {
-        scrollToBottom('instant' as ScrollBehavior);
+        requestAnimationFrame(() => scrollToBottom('instant' as ScrollBehavior));
         setIsAtBottom(true);
         setShowScrollBtn(false);
-    }, [activeChat.id]);
+    }, [activeChat.id, scrollToBottom]);
 
     // After reply/image added, scroll gently
     useEffect(() => {
         if (replyingTo || imageFile) scrollToBottom('smooth');
-    }, [replyingTo, imageFile]);
+    }, [replyingTo, imageFile, scrollToBottom]);
 
 
     const handleImageClick = () => {
@@ -420,7 +421,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                 ref={scrollRef}
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll"
-                style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
                 {messages.map((msg) => (
                     <MessageItem
@@ -453,7 +454,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             {showScrollBtn && (
                 <button
                     onClick={() => scrollToBottom('smooth')}
-                    className="absolute bottom-24 right-4 z-20 p-2.5 bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-200 animate-in fade-in zoom-in-95 duration-200 hover:bg-emerald-700 active:scale-90 transition-all"
+                    className="absolute bottom-24 right-4 z-20 p-2.5 bg-emerald-600 text-white rounded-full shadow-lg animate-in fade-in zoom-in-95 duration-200 hover:bg-emerald-700 active:scale-90 transition-all"
                     title="Jump to latest"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
