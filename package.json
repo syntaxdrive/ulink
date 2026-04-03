@@ -16,7 +16,8 @@
     "deploy:bundle": "npm run build && npx capawesome bundles:create --path dist",
     "deploy:dev": "npm run deploy:bundle && npx capawesome bundles:channels:assign development --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')",
     "deploy:staging": "npm run deploy:bundle && npx capawesome bundles:channels:assign staging --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')",
-    "deploy:production": "npm run deploy:bundle && npx capawesome bundles:channels:assign production --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')"
+    "deploy:production": "npm run deploy:bundle && npx capawesome bundles:channels:assign production --bundle-id $(npx capawesome bundles:list --limit 1 --json | jq -r '.[0].id')",
+    "seed:engagement": "node scripts/seed_engagement_posts.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
@@ -37,11 +38,14 @@
     "@tldraw/tldraw": "^4.3.1",
     "@types/three": "^0.182.0",
     "canvas-confetti": "^1.9.4",
+    "capacitor-voice-recorder": "^7.0.6",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "inkjs": "^2.4.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.562.0",
     "pdfjs-dist": "^5.5.207",
+    "phaser": "^3.90.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-helmet-async": "^2.0.5",

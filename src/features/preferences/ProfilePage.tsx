@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import ImageCropper from '../../components/ImageCropper';
 import ProfileCompletion from '../../components/ProfileCompletion';
-import { cloudinaryService } from '../../services/cloudinaryService';
+import { cloudinaryService, getOptimizedMediaUrl } from '../../services/cloudinaryService';
 import { NIGERIAN_UNIVERSITIES } from '../../lib/universities';
 
 export default function ProfilePage() {
@@ -82,7 +82,7 @@ export default function ProfilePage() {
         setLocation(data.location || '');
         setUniversity(data.university || '');
         setExpectedGradYear(data.expected_graduation_year ? data.expected_graduation_year.toString() : '');
-        setAvatarUrl(data.avatar_url || '');
+        setAvatarUrl(getOptimizedMediaUrl(data.avatar_url) || '');
         setAbout(data.about || '');
         setUsername(data.username || '');
         setSkills(data.skills || []);
@@ -94,7 +94,7 @@ export default function ProfilePage() {
         setInstagram(data.instagram_url || '');
         setTwitter(data.twitter_url || '');
         setFacebook(data.facebook_url || '');
-        setBgUrl(data.background_image_url || '');
+        setBgUrl(getOptimizedMediaUrl(data.background_image_url) || '');
         setResumeUrl(data.resume_url || '');
         // New social links
         setYoutube((data as any).youtube_url || '');
@@ -302,9 +302,45 @@ export default function ProfilePage() {
         }
     };
 
+    const handleResumeDelete = async () => {
+        if (!profile || !resumeUrl) return;
+        if (!confirm('Are you sure you want to delete your resume?')) return;
+
+        try {
+            setResumeUploading(true);
+
+            // Optional: Delete from storage if it's a Supabase URL
+            if (resumeUrl.includes('/storage/v1/object/public/resumes/')) {
+                const path = resumeUrl.split('/resumes/')[1];
+                if (path) {
+                    await supabase.storage.from('resumes').remove([path]);
+                }
+            }
+
+            await supabase
+                .from('profiles')
+                .update({ resume_url: null })
+                .eq('id', profile.id);
+
+            setResumeUrl('');
+            alert('Resume deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting resume:', error);
+            alert('Failed to delete resume');
+        } finally {
+            setResumeUploading(false);
+        }
+    };
+
     // Certificate PDF Upload
     const handleCertificatePdfUpload = async (certId: string, file: File) => {
         if (!profile) return;
+
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (!isPdf) {
+            alert('Please upload a PDF file for certificates.');
+            return;
+        }
 
         if (file.size > 10 * 1024 * 1024) {
             alert('Certificate must be less than 10MB');
@@ -316,7 +352,7 @@ export default function ProfilePage() {
             const fileName = `${profile.id}/cert_${certId}_${Date.now()}.pdf`;
             const { error: uploadError } = await supabase.storage
                 .from('certificates')
-                .upload(fileName, file);
+                .upload(fileName, file, { upsert: true });
 
             if (uploadError) throw uploadError;
 
@@ -324,12 +360,21 @@ export default function ProfilePage() {
                 .from('certificates')
                 .getPublicUrl(fileName);
 
-            // Update certificate in array
-            setCertificates(prev => prev.map(cert =>
+            // Update certificate in array and persist immediately.
+            const nextCertificates = certificates.map(cert =>
                 cert.id === certId
                     ? { ...cert, certificate_pdf_url: publicUrl }
                     : cert
-            ));
+            );
+
+            setCertificates(nextCertificates);
+
+            const { error: profileUpdateError } = await supabase
+                .from('profiles')
+                .update({ certificates: nextCertificates, updated_at: new Date().toISOString() })
+                .eq('id', profile.id);
+
+            if (profileUpdateError) throw profileUpdateError;
 
         } catch (error) {
             console.error('Error uploading certificate:', error);
@@ -437,21 +482,44 @@ export default function ProfilePage() {
     };
 
     // Certificates Management
-    const addCertificate = () => {
-        if (newCertificate.title && newCertificate.issuing_org) {
-            const cert: Certificate = {
-                id: `cert-${Date.now()}`,
-                user_id: profile!.id,
-                title: newCertificate.title,
-                issuing_org: newCertificate.issuing_org,
-                issue_date: newCertificate.issue_date,
-                credential_url: newCertificate.credential_url,
-                credential_id: newCertificate.credential_id
-            };
-            setCertificates([...certificates, cert]);
-            setNewCertificate({ title: '', issuing_org: '', issue_date: '' });
-            setShowCertificateForm(false);
+    const addCertificate = async () => {
+        if (!profile) return;
+
+        const title = (newCertificate.title || '').trim();
+        const issuingOrg = (newCertificate.issuing_org || '').trim();
+
+        if (!title || !issuingOrg) {
+            alert('Certificate title and issuing organization are required.');
+            return;
         }
+
+        const cert: Certificate = {
+            id: `cert-${Date.now()}`,
+            user_id: profile.id,
+            title,
+            issuing_org: issuingOrg,
+            issue_date: newCertificate.issue_date,
+            credential_url: newCertificate.credential_url,
+            credential_id: newCertificate.credential_id
+        };
+
+        const nextCertificates = [...certificates, cert];
+        setCertificates(nextCertificates);
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ certificates: nextCertificates, updated_at: new Date().toISOString() })
+            .eq('id', profile.id);
+
+        if (error) {
+            setCertificates(certificates);
+            console.error('Error saving certificate:', error);
+            alert('Failed to add certificate. Please try again.');
+            return;
+        }
+
+        setNewCertificate({ title: '', issuing_org: '', issue_date: '' });
+        setShowCertificateForm(false);
     };
 
     const removeCertificate = (id: string) => {
@@ -883,8 +951,17 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => resumeInputRef.current?.click()}
                                             className="p-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg transition-colors"
+                                            title="Replace resume"
                                         >
                                             <Upload className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
+                                        </button>
+                                        <button
+                                            onClick={handleResumeDelete}
+                                            disabled={resumeUploading}
+                                            className="p-2 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors"
+                                            title="Delete resume"
+                                        >
+                                            <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
                                         </button>
                                     </div>
                                 </div>
@@ -1013,7 +1090,13 @@ export default function ProfilePage() {
                         </div>
 
                         {showCertificateForm && (
-                            <div className="mb-8 p-6 bg-stone-50 dark:bg-zinc-800 rounded-xl border border-stone-200 dark:border-zinc-700 space-y-4">
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    void addCertificate();
+                                }}
+                                className="mb-8 p-6 bg-stone-50 dark:bg-zinc-800 rounded-xl border border-stone-200 dark:border-zinc-700 space-y-4"
+                            >
                                 <input
                                     type="text"
                                     placeholder="Certificate Title"
@@ -1052,19 +1135,20 @@ export default function ProfilePage() {
                                 />
                                 <div className="flex justify-end gap-2">
                                     <button
+                                        type="button"
                                         onClick={() => setShowCertificateForm(false)}
                                         className="px-4 py-2 text-sm text-stone-500 dark:text-zinc-500 hover:text-stone-700 dark:hover:text-zinc-300"
                                     >
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={addCertificate}
+                                        type="submit"
                                         className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700"
                                     >
                                         Add Certificate
                                     </button>
                                 </div>
-                            </div>
+                            </form>
                         )}
 
                         <div className="space-y-4">
@@ -1112,7 +1196,7 @@ export default function ProfilePage() {
                                                         onClick={() => {
                                                             const input = document.createElement('input');
                                                             input.type = 'file';
-                                                            input.accept = 'application/pdf,image/*';
+                                                            input.accept = 'application/pdf';
                                                             input.onchange = (e) => {
                                                                 const file = (e.target as HTMLInputElement).files?.[0];
                                                                 if (file) handleCertificatePdfUpload(cert.id, file);

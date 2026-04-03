@@ -188,31 +188,51 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
 
     const startRecording = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Check if we're on native (APK) or Web
+            const { Capacitor } = await import('@capacitor/core');
+            const isNative = Capacitor.isNativePlatform();
 
-            // Check supported types (Safari prefers mp4, Chrome prefers webm)
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-                : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
-                    : '';
-
-            const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-            mediaRecorderRef.current = mediaRecorder;
-            audioChunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
+            if (isNative) {
+                // NATIVE APK PATH: Use Capacitor Plugin for permissions & stability
+                const { VoiceRecorder } = await import('capacitor-voice-recorder');
+                
+                // Fast-check/ask for permissions
+                const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+                if (!hasPermission) {
+                    const { value: nowHasPermission } = await VoiceRecorder.requestAudioRecordingPermission();
+                    if (!nowHasPermission) {
+                        alert('Microphone permission denied. Please enable it in Android settings.');
+                        return;
+                    }
                 }
-            };
 
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' });
-                await sendAudioMessage(audioBlob);
-                // Stop all tracks
-                stream.getTracks().forEach(track => track.stop());
-            };
+                await VoiceRecorder.startRecording();
+            } else {
+                // WEB BROWSER PATH: Use standard MediaRecorder
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                    : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+                        : '';
 
-            mediaRecorder.start();
+                const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+                mediaRecorderRef.current = mediaRecorder;
+                audioChunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunksRef.current.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' });
+                    await sendAudioMessage(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+            }
+
             setIsRecording(true);
             setRecordingTime(0);
             recordingTimerRef.current = setInterval(() => {
@@ -225,12 +245,35 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         }
     };
 
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
+    const stopRecording = async () => {
+        if (!isRecording) return;
+        
+        const { Capacitor } = await import('@capacitor/core');
+        const isNative = Capacitor.isNativePlatform();
+
+        if (isNative) {
+            const { VoiceRecorder } = await import('capacitor-voice-recorder');
+            const { value: recording } = await VoiceRecorder.stopRecording();
+            
+            // Native recorder returns base64 directly — awesome for APK performance
+            const base64Audio = `data:audio/aac;base64,${recording.recordDataBase64}`;
+            
+            setIsSending(true);
+            try {
+                await onSendMessage('', null, replyingTo || undefined, base64Audio);
+                setReplyingTo(null);
+            } catch (error) {
+                console.error('Failed to send voice note:', error);
+                alert('Failed to send voice note');
+            } finally {
+                setIsSending(false);
+            }
+        } else if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         }
+        
+        setIsRecording(false);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
 
     const sendAudioMessage = async (audioBlob: Blob) => {

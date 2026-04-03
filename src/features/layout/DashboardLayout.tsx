@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -31,6 +31,7 @@ function isOnboardingComplete(profile: Profile) {
 }
 
 export default function DashboardLayout({ session }: DashboardLayoutProps) {
+
     const navigate = useNavigate();
     const location = useLocation();
     const { isImmersive, isDarkMode, toggleDarkMode } = useUIStore();
@@ -382,6 +383,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         {icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
         {icon: GraduationCap, label: 'Courses', path: '/app/learn'},
+        {icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         {icon: Library, label: 'Study Rooms', path: '/app/study'},
         // { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
@@ -783,25 +785,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-mobile-header'}`}>
                 <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-4 md:p-8 pb-32"}>
                     <ErrorBoundary>
-                        {/* Skip page-transition on any route that renders position:fixed modals/overlays.
-                            CSS transform+opacity animations create a stacking context that confines
-                            fixed-position children to the animated ancestor rather than the viewport. */}
-                        {(() => {
-                            const skipTransition =
-                                location.pathname === '/app/messages' ||
-                                location.pathname === '/app/study' ||
-                                location.pathname.startsWith('/app/communities/') ||
-                                location.pathname.startsWith('/app/profile/') ||
-                                location.pathname.startsWith('/app/post/') ||
-                                location.pathname.startsWith('/app/podcasts/');
-                            return skipTransition ? (
-                                <Outlet />
-                            ) : (
-                                <div key={location.pathname} className="page-transition">
-                                    <Outlet />
-                                </div>
-                            );
-                        })()}
+                        <Outlet />
                     </ErrorBoundary>
                 </div>
             </main>

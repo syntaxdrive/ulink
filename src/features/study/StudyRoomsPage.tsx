@@ -16,26 +16,41 @@ async function askAI(_question: string, _context: string): Promise<string> {
     return '🤖 *UniLink AI Assistant is currently cooking...* 🚀\n\nThis feature is coming soon to help you and your study group with questions, summaries, and explanations!';
 }
 
-async function uploadFileForRoom(file: File): Promise<string> {
-    // Primary: Supabase Storage (fast, no CORS issues)
+import { cloudinaryService } from '../../services/cloudinaryService';
+
+async function uploadFileForRoom(file: File, userId?: string | null): Promise<string> {
+    // Primary: Cloudinary (optimizes speed & serves via global CDN)
+    if (cloudinaryService.isConfigured()) {
+        try {
+            const isImage = file.type.startsWith('image/');
+            const isVideo = file.type.startsWith('video/');
+            
+            if (isImage) {
+                const res = await cloudinaryService.uploadImage(file, { folder: 'ulink/study-rooms/docs' });
+                return res.secureUrl;
+            } else if (isVideo) {
+                const res = await cloudinaryService.uploadVideo(file, { folder: 'ulink/study-rooms/videos' });
+                return res.secureUrl;
+            } else {
+                const res = await cloudinaryService.uploadDocument(file, { folder: 'ulink/study-rooms/docs' });
+                return res.secureUrl;
+            }
+        } catch (err) {
+            console.warn('[Study Room Upload] Cloudinary failed, falling back to Supabase:', err);
+        }
+    }
+
+    // Fallback: Supabase Storage
     const ext = file.name.split('.').pop() ?? 'bin';
-    const path = `study-room-files/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const ownerPath = userId ? `${userId}/` : '';
+    const path = `${ownerPath}study-room-files/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage.from('uploads').upload(path, file, { upsert: true });
+    
     if (!error) {
         return supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl;
     }
-    // Fallback: Cloudinary
-    const cloud = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloud || !preset) throw new Error('Upload failed — storage not configured');
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('upload_preset', preset);
-    fd.append('resource_type', 'auto');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/auto/upload`, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('Upload failed');
-    const data = await res.json();
-    return data.secure_url as string;
+    
+    throw new Error('Upload failed — please check your connection.');
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -589,11 +604,6 @@ export default function StudyRoomsPage() {
 
     const isHost = activeRoom?.creator_id === uid;
 
-    const stopVoiceNote = () => {
-        if (mediaRecorderRef.current && recordingVoice) {
-            mediaRecorderRef.current.stop();
-        }
-    };
 
     const startVoiceNote = async () => {
         if (!uid || !activeRoom) return;
@@ -602,67 +612,112 @@ export default function StudyRoomsPage() {
             return;
         }
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const preferredMime = MediaRecorder.isTypeSupported('audio/mp4')
-                ? 'audio/mp4'
-                : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? 'audio/webm;codecs=opus'
-                    : 'audio/webm';
-            const mr = new MediaRecorder(stream, { mimeType: preferredMime });
-            mediaRecorderRef.current = mr;
-            audioChunksRef.current = [];
+            const { Capacitor } = await import('@capacitor/core');
+            const isNative = Capacitor.isNativePlatform();
 
-            mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-            mr.onstop = async () => {
-                const chunkType = audioChunksRef.current[0]?.type || mr.mimeType || preferredMime;
-                const blob = new Blob(audioChunksRef.current, { type: chunkType });
-                stream.getTracks().forEach(t => t.stop());
-                setRecordingVoice(false);
-
-                if (!blob.size) {
-                    alert('Recording was empty. Please try again.');
-                    return;
-                }
-
-                const titleInput = window.prompt('Voice note title (optional)', '') ?? '';
-                const noteTitle = titleInput.trim();
+            if (isNative) {
+                // NATIVE APK PATH: Use Capacitor Plugin for permissions & stability
+                const { VoiceRecorder } = await import('capacitor-voice-recorder');
                 
-                const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
-                const file = new File([blob], `voicenote_${Date.now()}.${ext}`, { type: blob.type });
-                try {
-                    const url = await uploadFileForRoom(file);
-                    const { data: inserted, error } = await supabase.from('study_room_voicenotes').insert({
-                        room_id: activeRoom.id,
-                        user_id: uid,
-                        audio_url: url,
-                        title: noteTitle || null,
-                        x_pos: 10 + Math.random() * 80,
-                        y_pos: 10 + Math.random() * 80
-                    }).select('*').single();
-
-                    if (error) throw error;
-
-                    if (inserted) {
-                        const profile = participants.find(p => p.user_id === uid)?.profiles;
-                        setVoicenotes(prev => [{
-                            ...inserted,
-                            profiles: profile ? { name: profile.name, avatar_url: profile.avatar_url } : { name: 'You', avatar_url: null },
-                        }, ...prev]);
+                const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+                if (!hasPermission) {
+                    const { value: nowHasPermission } = await VoiceRecorder.requestAudioRecordingPermission();
+                    if (!nowHasPermission) {
+                        alert('Microphone permission denied. Please enable it in Android settings.');
+                        return;
                     }
-
-                    await fetchVoiceNotes(activeRoom.id);
-                } catch (e) {
-                    console.error('Voice note save failed', e);
-                    alert('Voice note could not be saved. Check storage/policies and try again.');
                 }
-            };
 
-            mr.start();
+                await VoiceRecorder.startRecording();
+            } else {
+                // WEB BROWSER PATH
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const preferredMime = MediaRecorder.isTypeSupported('audio/mp4')
+                    ? 'audio/mp4'
+                    : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                        ? 'audio/webm;codecs=opus'
+                        : 'audio/webm';
+                const mr = new MediaRecorder(stream, { mimeType: preferredMime });
+                mediaRecorderRef.current = mr;
+                audioChunksRef.current = [];
+
+                mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+                mr.onstop = async () => {
+                    const chunkType = audioChunksRef.current[0]?.type || mr.mimeType || preferredMime;
+                    const blob = new Blob(audioChunksRef.current, { type: chunkType });
+                    stream.getTracks().forEach(t => t.stop());
+                    await handleSavedAudio(blob);
+                };
+
+                mr.start();
+            }
             setRecordingVoice(true);
         } catch (e) {
             alert('Microphone access denied or not available.');
             console.error('Microphone exception:', e);
         }
+    };
+
+    const handleSavedAudio = async (blob: Blob | string, isBase64: boolean = false) => {
+        if (!uid || !activeRoom) return;
+        setRecordingVoice(false);
+
+        const titleInput = window.prompt('Voice note title (optional)', '') ?? '';
+        const noteTitle = titleInput.trim();
+        
+        let file: File;
+        if (isBase64 && typeof blob === 'string') {
+            // Convert base64 to File for uploadFileForRoom helper
+            const res = await fetch(blob);
+            const buf = await res.arrayBuffer();
+            file = new File([buf], `voicenote_${Date.now()}.aac`, { type: 'audio/aac' });
+        } else if (blob instanceof Blob) {
+            const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+            file = new File([blob], `voicenote_${Date.now()}.${ext}`, { type: blob.type });
+        } else {
+            return;
+        }
+
+        try {
+            const url = await uploadFileForRoom(file, uid);
+            const { data: inserted, error } = await supabase.from('study_room_voicenotes').insert({
+                room_id: activeRoom.id,
+                user_id: uid,
+                audio_url: url,
+                title: noteTitle || null,
+                x_pos: 10 + Math.random() * 80,
+                y_pos: 10 + Math.random() * 80
+            }).select('*').single();
+
+            if (inserted) {
+                const profile = participants.find(p => p.user_id === uid)?.profiles;
+                setVoicenotes(prev => [{
+                    ...inserted,
+                    profiles: profile ? { name: profile.name, avatar_url: profile.avatar_url } : { name: 'You', avatar_url: null },
+                }, ...prev]);
+            }
+            await fetchVoiceNotes(activeRoom.id);
+        } catch (e) {
+            console.error('Voice note save failed', e);
+            alert('Voice note could not be saved.');
+        }
+    };
+
+    const stopVoiceNote = async () => {
+        if (!recordingVoice) return;
+        
+        const { Capacitor } = await import('@capacitor/core');
+        const isNative = Capacitor.isNativePlatform();
+
+        if (isNative) {
+            const { VoiceRecorder } = await import('capacitor-voice-recorder');
+            const { value: recording } = await VoiceRecorder.stopRecording();
+            const base64Audio = `data:audio/aac;base64,${recording.recordDataBase64}`;
+            await handleSavedAudio(base64Audio, true);
+        } else if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+        }
+        setRecordingVoice(false);
     };
 
     const playVoiceNote = (vn: VoiceNote) => {
@@ -1132,12 +1187,29 @@ export default function StudyRoomsPage() {
     const saveDoc = async () => {
         if (!uid || !activeRoom || !newDoc.title.trim()) return;
         setSavingDoc(true);
-        await supabase.from('study_room_documents').insert({
-            id: crypto.randomUUID(),
-            room_id: activeRoom.id, shared_by: uid, title: newDoc.title.trim(),
-            content: newDoc.content.trim(), doc_url: newDoc.doc_url.trim() || null,
-        });
-        setNewDoc({ title: '', content: '', doc_url: '' }); setShowDocForm(false); setSavingDoc(false);
+        try {
+            const payload = {
+                id: crypto.randomUUID(),
+                room_id: activeRoom.id,
+                shared_by: uid,
+                title: newDoc.title.trim(),
+                content: newDoc.content.trim(),
+                doc_url: newDoc.doc_url.trim() || null,
+                is_active: true,
+            };
+
+            const { error } = await supabase.from('study_room_documents').insert(payload);
+            if (error) throw error;
+
+            await fetchDocs(activeRoom.id);
+            setNewDoc({ title: '', content: '', doc_url: '' });
+            setShowDocForm(false);
+        } catch (error) {
+            console.error('Document save failed:', error);
+            alert('Could not share this document. Check room/storage policies and try again.');
+        } finally {
+            setSavingDoc(false);
+        }
     };
 
     const deleteDoc = async (doc: RoomDocument) => {
@@ -1786,7 +1858,7 @@ export default function StudyRoomsPage() {
                                                 if (!file) return;
                                                 setUploadingDoc(true);
                                                 try {
-                                                    const url = await uploadFileForRoom(file);
+                                                    const url = await uploadFileForRoom(file, uid);
                                                     setNewDoc(p => ({
                                                         ...p,
                                                         doc_url: url,
@@ -2126,7 +2198,7 @@ export default function StudyRoomsPage() {
     // ROOMS LIST
     // ─────────────────────────────────────────────────────────────────────
     return (
-        <div className="w-full max-w-5xl lg:max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        <div className="w-full max-w-5xl lg:max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:pb-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 flex items-center gap-2.5">
@@ -2258,7 +2330,7 @@ export default function StudyRoomsPage() {
             {showCreate && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ zIndex: 99999 }}>
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setShowCreate(false)} />
-                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 sm:zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
+                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 sm:zoom-in-95 duration-300 flex flex-col max-h-[90dvh]">
                         {/* Mobile drag handle */}
                         <div className="w-full h-1.5 flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
                             <div className="w-12 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full" />
@@ -2273,7 +2345,7 @@ export default function StudyRoomsPage() {
                                 <X className="w-4 h-4 text-slate-500" />
                             </button>
                         </div>
-                        <div className="p-5 space-y-4 overflow-y-auto">
+                        <div className="p-5 space-y-4 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:pb-5">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Room Name <span className="text-emerald-500">*</span></label>
                                 <input value={newRoom.name} onChange={e => setNewRoom(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Final exam prep — Biochem 301" maxLength={80} autoFocus

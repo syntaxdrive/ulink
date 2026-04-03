@@ -3,7 +3,28 @@ import { supabase } from '../../../lib/supabase';
 import type { Post, Comment } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
-import { cloudinaryService } from '../../../services/cloudinaryService';
+import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
+
+function optimizePostMedia(post: any) {
+    if (!post) return post;
+    return {
+        ...post,
+        image_url: getOptimizedMediaUrl(post.image_url),
+        image_urls: post.image_urls ? post.image_urls.map((u: string) => getOptimizedMediaUrl(u)) : null,
+        video_url: getOptimizedMediaUrl(post.video_url),
+        profiles: post.profiles ? {
+            ...post.profiles,
+            avatar_url: getOptimizedMediaUrl(post.profiles.avatar_url),
+            background_image_url: getOptimizedMediaUrl(post.profiles.background_image_url)
+        } : null,
+        community: post.community ? {
+            ...post.community,
+            icon_url: getOptimizedMediaUrl(post.community.icon_url),
+            cover_url: getOptimizedMediaUrl(post.community.cover_url)
+        } : null,
+        original_post: post.original_post ? optimizePostMedia(post.original_post) : null
+    };
+}
 
 
 export function useFeed(communityId?: string) {
@@ -349,7 +370,7 @@ export function useFeed(communityId?: string) {
                 });
             }
 
-            let formatted = data.map((post: any) => ({
+            let formatted = data.map((post: any) => optimizePostMedia({
                 ...post,
                 likes_count: likesMap[post.id]?.count || 0,
                 comments_count: commentsMap[post.id] || 0,
@@ -532,7 +553,7 @@ export function useFeed(communityId?: string) {
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
             const formatted = data
-                .map((post: any) => ({
+                .map((post: any) => optimizePostMedia({
                     ...post,
                     likes_count: likesMap[post.id]?.count || 0,
                     comments_count: commentsMap[post.id] || 0,
@@ -575,12 +596,12 @@ export function useFeed(communityId?: string) {
             // If viewing a specific community, verify this post belongs to it
             if (communityId && data.community_id !== communityId) return;
 
-            const newPost = {
+            const newPost = optimizePostMedia({
                 ...data,
                 likes_count: data.likes ? data.likes.length : 0,
                 comments_count: data.comments ? data.comments.length : 0,
                 user_has_liked: user ? data.likes.some((like: any) => like.user_id === user.id) : false
-            };
+            });
 
             const exists = posts.some(p => p.id === newPost.id);
             if (exists) {
@@ -604,63 +625,74 @@ export function useFeed(communityId?: string) {
             // ── Upload Images ──────────────────────────────────────────────────
             // Strategy: Try Cloudinary first (f_auto, q_auto, fl_lossy = ~70% smaller).
             // On ANY failure, fall back to Supabase silently so the post still goes through.
-            for (const file of imageFiles) {
-                let uploadedUrl: string | null = null;
-
-                // Attempt 1: Cloudinary
-                if (cloudinaryService.isConfigured()) {
-                    try {
-                        const result = await cloudinaryService.uploadImage(file, {
-                            folder: 'ulink/posts',
-                        });
-                        uploadedUrl = result.secureUrl;
-                    } catch (cloudErr) {
-                        console.warn('[Post image] Cloudinary upload failed, falling back to Supabase:', cloudErr);
+            // ── Upload Images (Parallel) ──────────────────────────────────────
+            if (imageFiles.length > 0) {
+                const uploadPromises = imageFiles.map(async (file) => {
+                    let uploadedUrl: string | null = null;
+                    
+                    // Attempt 1: Cloudinary
+                    if (cloudinaryService.isConfigured()) {
+                        try {
+                            const result = await cloudinaryService.uploadImage(file, {
+                                folder: 'ulink/posts',
+                            });
+                            uploadedUrl = result.secureUrl;
+                        } catch (cloudErr) {
+                            console.warn('[Post image] Cloudinary upload failed, falling back to Supabase:', cloudErr);
+                        }
                     }
-                }
 
-                // Attempt 2: Supabase fallback (if Cloudinary skipped or failed)
-                if (!uploadedUrl) {
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+                    // Attempt 2: Supabase fallback
+                    if (!uploadedUrl) {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+                        const filePath = `posts/${fileName}`;
+                        const { error: uploadError } = await supabase.storage
+                            .from('post-images')
+                            .upload(filePath, file);
+
+                        if (!uploadError) {
+                            const { data: { publicUrl } } = supabase.storage
+                                .from('post-images')
+                                .getPublicUrl(filePath);
+                            uploadedUrl = publicUrl;
+                        }
+                    }
+                    return uploadedUrl;
+                });
+
+                const results = await Promise.all(uploadPromises);
+                imageUrls.push(...results.filter((url): url is string => !!url));
+            }
+
+            // ── Upload Video ────────────────────────────────────────────────────
+            if (videoFile) {
+                try {
+                    const result = await cloudinaryService.uploadVideo(videoFile, {
+                        folder: 'ulink/posts/videos',
+                    });
+                    videoUrl = result.secureUrl;
+                } catch (videoErr) {
+                    console.warn('[Post video] Cloudinary upload failed, falling back to Supabase:', videoErr);
+                    
+                    const fileExt = videoFile.name.split('.').pop();
+                    const fileName = `video_${Date.now()}_${Math.random()}.${fileExt}`;
                     const filePath = `posts/${fileName}`;
                     const { error: uploadError } = await supabase.storage
                         .from('post-images')
-                        .upload(filePath, file);
+                        .upload(filePath, videoFile);
 
                     if (uploadError) {
-                        console.error('[Post image] Supabase upload also failed:', file.name, uploadError);
-                        continue; // skip this file entirely rather than crash
+                        console.error('Error uploading video to Supabase:', videoFile.name, uploadError);
+                        alert('Failed to upload video even after fallback. Please try a smaller file.');
+                        throw uploadError;
                     }
 
                     const { data: { publicUrl } } = supabase.storage
                         .from('post-images')
                         .getPublicUrl(filePath);
-                    uploadedUrl = publicUrl;
+                    videoUrl = publicUrl;
                 }
-
-                if (uploadedUrl) imageUrls.push(uploadedUrl);
-            }
-
-            // ── Upload Video (Supabase only — not changing this pass) ────────────
-            if (videoFile) {
-                const fileExt = videoFile.name.split('.').pop();
-                const fileName = `video_${Date.now()}_${Math.random()}.${fileExt}`;
-                const filePath = `posts/${fileName}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('post-images')
-                    .upload(filePath, videoFile);
-
-                if (uploadError) {
-                    console.error('Error uploading video:', videoFile.name, uploadError);
-                    alert('Failed to upload video');
-                    throw uploadError;
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('post-images')
-                    .getPublicUrl(filePath);
-                videoUrl = publicUrl;
             }
 
 
@@ -683,13 +715,13 @@ export function useFeed(communityId?: string) {
 
             if (error) throw error;
             if (data) {
-                const newPost = {
+                const newPost = optimizePostMedia({
                     ...data,
                     likes_count: 0,
                     comments_count: 0,
                     user_has_liked: false,
                     profiles: currentUserProfile || { id: user.id, name: 'You' }
-                };
+                });
                 addPost(newPost);
 
                 // Notify mentioned users
@@ -830,14 +862,14 @@ export function useFeed(communityId?: string) {
                 alert('Failed to repost: ' + (error.message || 'Unknown error'));
             } else if (data) {
                 // Instant UI Update: Add the nested repost to the feed
-                const newRepostItem: any = {
+                const newRepostItem: any = optimizePostMedia({
                     ...data,
                     likes_count: 0,
                     comments_count: 0,
                     user_has_liked: false,
                     original_post: targetPost,
                     profiles: currentUserProfile || data.profiles
-                };
+                });
                 addPost(newRepostItem);
             }
         }
@@ -855,7 +887,17 @@ export function useFeed(communityId?: string) {
                     .select(`*, profiles: author_id(*)`)
                     .eq('post_id', postId)
                     .order('created_at', { ascending: true });
-                if (data) setComments(prev => ({ ...prev, [postId]: data }));
+                if (data) setComments(prev => ({ 
+                    ...prev, 
+                    [postId]: data.map((c: any) => ({
+                        ...c,
+                        sticker_url: getOptimizedMediaUrl(c.sticker_url),
+                        profiles: c.profiles ? {
+                            ...c.profiles,
+                            avatar_url: getOptimizedMediaUrl(c.profiles.avatar_url)
+                        } : null
+                    }))
+                }));
                 setLoadingComments(false);
             }
         }
@@ -872,11 +914,14 @@ export function useFeed(communityId?: string) {
             post_id: postId,
             author_id: user.id,
             content: content,
-            sticker_url: stickerUrl,
+            sticker_url: getOptimizedMediaUrl(stickerUrl),
             type: type,
             parent_id: parentId,
             created_at: new Date().toISOString(),
-            profiles: currentUserProfile || { id: user.id, name: 'You' }
+            profiles: currentUserProfile ? {
+                ...currentUserProfile,
+                avatar_url: getOptimizedMediaUrl(currentUserProfile.avatar_url)
+            } : { id: user.id, name: 'You' }
         };
 
         setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), optimisticComment] }));
@@ -906,7 +951,15 @@ export function useFeed(communityId?: string) {
         }
 
         if (data) {
-            setComments(prev => ({ ...prev, [postId]: prev[postId].map(c => c.id === tempId ? data : c) }));
+            const formattedComment = {
+                ...data,
+                sticker_url: getOptimizedMediaUrl(data.sticker_url),
+                profiles: data.profiles ? {
+                    ...data.profiles,
+                    avatar_url: getOptimizedMediaUrl(data.profiles.avatar_url)
+                } : null
+            };
+            setComments(prev => ({ ...prev, [postId]: prev[postId].map(c => c.id === tempId ? formattedComment : c) }));
 
             // Notify mentioned users in comment if content exists
             if (content) {

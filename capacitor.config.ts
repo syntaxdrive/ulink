@@ -20,11 +20,12 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 1500,
       launchAutoHide: true,
       backgroundColor: "#ffffffff",
+      darkBackgroundColor: "#18181B", // zinc-900 (dark mode)
       androidScaleType: "CENTER_CROP",
-      showSpinner: true,
+      showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
     },

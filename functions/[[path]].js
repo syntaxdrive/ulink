@@ -3,10 +3,11 @@ export default {
         const url = new URL(request.url);
         
         // Only intercept requests for specific shareable paths we care about
-        // e.g., /app/post/:id, /app/podcasts/:id, /app/marketplace
         const isPostShare = url.pathname.startsWith('/app/post/');
         const isPodcastShare = url.pathname.startsWith('/app/podcasts/');
         const isStudyRoomShare = url.pathname.startsWith('/app/study') && url.searchParams.has('room');
+        const isProfileShare = url.pathname.startsWith('/app/profile/');
+        const isMarketplaceItem = url.pathname.startsWith('/app/marketplace/') && url.pathname.split('/').length > 3;
         
         // If it's an API request or static asset, pass it through normal mapping
         if (
@@ -16,7 +17,9 @@ export default {
             url.pathname.endsWith('.png') ||
             url.pathname.endsWith('.jpg') ||
             url.pathname.endsWith('.svg') ||
-            url.pathname.endsWith('.ico')
+            url.pathname.endsWith('.ico') ||
+            url.pathname.endsWith('.json') ||
+            url.pathname.endsWith('.webmanifest')
         ) {
             return env.ASSETS.fetch(request);
         }
@@ -33,13 +36,9 @@ export default {
             if (isPostShare) {
                 const postId = url.pathname.split('/').pop();
                 if (postId && sbUrlHost && sbAnonKey) {
-                    const sbUrl = `${sbUrlHost}/rest/v1/posts?id=eq.${postId}&select=content,image_url,image_urls,profiles(name)&limit=1`;
+                    const sbUrl = `${sbUrlHost}/rest/v1/posts?id=eq.${postId}&select=content,image_url,image_urls,video_url,profiles(name)&limit=1`;
                     const res = await fetch(sbUrl, {
-                        headers: {
-                            'apikey': sbAnonKey,
-                            'Authorization': `Bearer ${sbAnonKey}`,
-                            'Accept': 'application/json'
-                        }
+                        headers: { 'apikey': sbAnonKey, 'Authorization': `Bearer ${sbAnonKey}`, 'Accept': 'application/json' }
                     });
                     
                     if (res.ok) {
@@ -47,57 +46,60 @@ export default {
                         if (data && data.length > 0) {
                             const post = data[0];
                             const authorName = post.profiles?.name || 'UniLink User';
-                            
                             title = `Post by ${authorName} on UniLink`;
                             
-                            // Get first available image
-                            const postImage = post.image_url || (post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : null);
-                            if (postImage) {
-                                image = postImage;
+                            // Image logic
+                            image = post.image_url || (post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : image);
+                            
+                            // Video thumbnail logic
+                            if (!post.image_url && post.video_url && post.video_url.includes('res.cloudinary.com')) {
+                                // Extract public_id and build thumbnail URL
+                                const match = post.video_url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+                                if (match) {
+                                    image = `https://res.cloudinary.com/rwtdjpw/video/upload/so_0,f_auto,q_auto,c_fill,w_640,h_360/${match[1]}.jpg`;
+                                }
                             }
                             
                             if (post.content) {
-                                // Strip HTML if any and truncate
                                 const cleanContent = post.content.replace(/<[^>]*>?/gm, '');
-                                description = cleanContent.length > 150 
-                                    ? cleanContent.substring(0, 150) + '...' 
-                                    : cleanContent;
-                            } else if (postImage) {
-                                description = `View this image posted by ${authorName} on UniLink.`;
+                                description = cleanContent.length > 150 ? cleanContent.substring(0, 150) + '...' : cleanContent;
                             }
                         }
                     }
                 }
             } 
+            else if (isProfileShare) {
+                const username = url.pathname.split('/').pop();
+                if (username && sbUrlHost && sbAnonKey) {
+                    const sbUrl = `${sbUrlHost}/rest/v1/profiles?username=eq.${username}&select=name,bio,avatar_url,university&limit=1`;
+                    const res = await fetch(sbUrl, {
+                        headers: { 'apikey': sbAnonKey, 'Authorization': `Bearer ${sbAnonKey}`, 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.length > 0) {
+                            const p = data[0];
+                            title = `${p.name} (@${username}) on UniLink`;
+                            description = p.bio || `Connect with ${p.name} from ${p.university || 'university'} on UniLink.`;
+                            if (p.avatar_url) image = p.avatar_url;
+                        }
+                    }
+                }
+            }
             else if (isPodcastShare) {
                 const podcastId = url.pathname.split('/').pop();
                 if (podcastId && sbUrlHost && sbAnonKey) {
                     const sbUrl = `${sbUrlHost}/rest/v1/podcasts?id=eq.${podcastId}&select=title,description,cover_url,profiles!podcasts_creator_id_fkey(name)&limit=1`;
                     const res = await fetch(sbUrl, {
-                        headers: {
-                            'apikey': sbAnonKey,
-                            'Authorization': `Bearer ${sbAnonKey}`,
-                            'Accept': 'application/json'
-                        }
+                        headers: { 'apikey': sbAnonKey, 'Authorization': `Bearer ${sbAnonKey}`, 'Accept': 'application/json' }
                     });
-                    
                     if (res.ok) {
                         const data = await res.json();
                         if (data && data.length > 0) {
                             const podcast = data[0];
-                            const authorName = podcast.profiles?.name || 'UniLink User';
-                            
-                            title = `${podcast.title} by ${authorName} - UniLink Podcasts`;
-                            
-                            if (podcast.cover_url) {
-                                image = podcast.cover_url;
-                            }
-                            
-                            if (podcast.description) {
-                                description = podcast.description;
-                            } else {
-                                description = `Listen to ${podcast.title} on UniLink podcasts.`;
-                            }
+                            title = `${podcast.title} by ${podcast.profiles?.name || 'UniLink'} - UniLink Podcasts`;
+                            if (podcast.cover_url) image = podcast.cover_url;
+                            description = podcast.description || `Listen to ${podcast.title} on UniLink.`;
                         }
                     }
                 }
@@ -106,14 +108,7 @@ export default {
                 const roomId = url.searchParams.get('room');
                 if (roomId && sbUrlHost && sbAnonKey) {
                     const sbUrl = `${sbUrlHost}/rest/v1/study_rooms?id=eq.${roomId}&select=name,description,is_private,profiles(name)&limit=1`;
-                    const res = await fetch(sbUrl, {
-                        headers: {
-                            'apikey': sbAnonKey,
-                            'Authorization': `Bearer ${sbAnonKey}`,
-                            'Accept': 'application/json'
-                        }
-                    });
-                    
+                    const res = await fetch(sbUrl, { headers: { 'apikey': sbAnonKey, 'Authorization': `Bearer ${sbAnonKey}`, 'Accept': 'application/json' } });
                     if (res.ok) {
                         const data = await res.json();
                         if (data && data.length > 0) {
@@ -125,55 +120,48 @@ export default {
                                 title = `${room.name} - UniLink Study Room`;
                                 description = room.description || `Join ${room.profiles?.name || 'our'} study room on UniLink to collaborate and learn.`;
                             }
-                        } else {
-                            // If RLS blocks the query (because room is private), it returns empty array
-                            title = "Private Study Room - UniLink";
-                            description = "Join our private study room on UniLink to collaborate and learn.";
                         }
-                    } else {
-                        title = "Private Study Room - UniLink";
-                        description = "Join our private study room on UniLink to collaborate and learn.";
                     }
                 }
             }
         } catch (err) {
-            console.error('Error fetching metadata for OG tags:', err);
-            // Fallback to defaults on error
+            console.error('Meta fetch error:', err);
         }
 
-        // Fetch the index.html from static assets
+        // Fetch index.html
         const response = await env.ASSETS.fetch(request);
-        
-        // If it's an HTML response, inject our dynamically fetched metadata
         const contentType = response.headers.get("content-type");
+        
         if (contentType && contentType.includes("text/html")) {
-            const html = await response.text();
+            let html = await response.text();
             
-            // Replace the default meta tags with dynamic ones
-            const ogTitleRegex = /<meta property="og:title" content="[^"]*"\s*\/?>/i;
-            const ogDescRegex = /<meta property="og:description" content="[^"]*"\s*\/?>/i;
-            const ogImageRegex = /<meta property="og:image" content="[^"]*"\s*\/?>/i;
-            const twTitleRegex = /<meta name="twitter:title" content="[^"]*"\s*\/?>/i;
-            const twDescRegex = /<meta name="twitter:description" content="[^"]*"\s*\/?>/i;
-            const twImageRegex = /<meta name="twitter:image" content="[^"]*"\s*\/?>/i;
-            
-            let modHtml = html
-                .replace(ogTitleRegex, `<meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />`)
-                .replace(ogDescRegex, `<meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />`)
-                .replace(ogImageRegex, `<meta property="og:image" content="${image.replace(/"/g, '&quot;')}" />`)
-                .replace(twTitleRegex, `<meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />`)
-                .replace(twDescRegex, `<meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />`)
-                .replace(twImageRegex, `<meta name="twitter:image" content="${image.replace(/"/g, '&quot;')}" />`);
-            
-            // Return modified HTML
-            return new Response(modHtml, {
+            // Reusable injection helper - uses more flexible regex to handle line breaks/formatting in index.html
+            const injectMeta = (html, property, content, attrName = "property") => {
+                const regex = new RegExp(`<meta\\s+${attrName}=["']${property}["'][^>]*content=["'][^"']*["'][^>]*>`, "is");
+                const newTag = `<meta ${attrName}="${property}" content="${content.replace(/"/g, '&quot;')}" />`;
+                if (regex.test(html)) {
+                    return html.replace(regex, newTag);
+                } else {
+                    // Fallback: inject before </head> if not found
+                    return html.replace("</head>", `${newTag}\n</head>`);
+                }
+            };
+
+            html = injectMeta(html, "og:title", title);
+            html = injectMeta(html, "og:description", description);
+            html = injectMeta(html, "og:image", image);
+            html = injectMeta(html, "twitter:title", title, "name");
+            html = injectMeta(html, "twitter:description", description, "name");
+            html = injectMeta(html, "twitter:image", image, "name");
+            html = injectMeta(html, "description", description, "name");
+
+            return new Response(html, {
                 headers: { "content-type": "text/html;charset=UTF-8" },
                 status: response.status,
                 statusText: response.statusText
             });
         }
         
-        // Return original if not HTML or not intercepted
         return response;
     }
 }

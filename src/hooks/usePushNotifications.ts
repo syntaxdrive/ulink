@@ -63,25 +63,72 @@ export function useLocalNotifications() {
             // 4. Initial check when app first opens
             await checkMissedNotifications();
 
-            // 5. Schedule Inactivity Reminder (Not opened app today)
-            const INACTIVITY_NOTIF_ID = 888888;
+            // 5. Multi-Stage Inactivity Sequence (Retainment System)
+            const INACTIVITY_IDS = [888001, 888002, 888003];
+            
             App.addListener('appStateChange', async ({ isActive }) => {
                 if (isActive) {
-                    await LocalNotifications.cancel({ notifications: [{ id: INACTIVITY_NOTIF_ID }] });
+                    // User is back! Clear all pending inactivity nudges
+                    await LocalNotifications.cancel({ notifications: INACTIVITY_IDS.map(id => ({ id })) });
                     checkMissedNotifications();
+                    
+                    // Update last_seen in DB
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id).then();
+                    }
                 } else {
-                    // Schedule for 24 hours of inactivity
-                    await LocalNotifications.schedule({
-                        notifications: [{
-                            id: INACTIVITY_NOTIF_ID,
-                            title: '🌟 Stay Connected!',
-                            body: 'You haven\'t checked your UniLink updates today. See what\'s happening on your campus!',
+                    // User left. Schedule a sequence of re-engagement nudges
+                    const now = Date.now();
+                    
+                    const sequence = [
+                        { 
+                            id: INACTIVITY_IDS[0], 
+                            delay: 6 * 60 * 60 * 1000, // 6 Hours
+                            title: '🌟 Trending on Campus',
+                            body: 'See what students are discussing right now on UniLink!' 
+                        },
+                        { 
+                            id: INACTIVITY_IDS[1], 
+                            delay: 24 * 60 * 60 * 1000, // 24 Hours
+                            title: '📰 You missed some updates',
+                            body: 'Multiple posts and announcements were shared since you last visited. Check them out!' 
+                        },
+                        { 
+                            id: INACTIVITY_IDS[2], 
+                            delay: 72 * 60 * 60 * 1000, // 3 Days
+                            title: '🤝 Your network is moving!',
+                            body: 'New connections and community activities are waiting for you. Stay ahead of the curve!' 
+                        }
+                    ];
+
+                    const notifications = sequence.map(item => {
+                        const scheduledTime = new Date(now + item.delay);
+                        const hours = scheduledTime.getHours();
+                        
+                        // "Not disturbing users" logic: 
+                        // If scheduled between 10 PM and 8 AM, push it forward to 10 AM same day
+                        if (hours >= 22 || hours < 8) {
+                            scheduledTime.setHours(10, 0, 0, 0);
+                            // If shifting it made it in the past (e.g. it's 11 PM now and we hit 22+ case), 
+                            // push it to 10 AM tomorrow
+                            if (scheduledTime.getTime() <= Date.now() + item.delay) {
+                                scheduledTime.setDate(scheduledTime.getDate() + 1);
+                            }
+                        }
+
+                        return {
+                            id: item.id,
+                            title: item.title,
+                            body: item.body,
                             smallIcon: 'ic_launcher',
-                            iconColor: '#059669',
-                            schedule: { at: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+                            iconColor: '#4f46e5',
+                            schedule: { at: scheduledTime },
                             extra: { type: 'inactivity' }
-                        }]
+                        };
                     });
+
+                    await LocalNotifications.schedule({ notifications });
                 }
             });
 

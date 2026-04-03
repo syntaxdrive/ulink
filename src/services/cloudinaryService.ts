@@ -26,6 +26,8 @@
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '';
 
+import { compressImage } from '../lib/mediaCompression';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UploadProgressCallback {
@@ -227,10 +229,26 @@ export class CloudinaryService {
 
     async uploadImage(
         file: File,
-        opts: { folder?: string; onProgress?: UploadProgressCallback } = {}
+        opts: { folder?: string; onProgress?: UploadProgressCallback; compress?: boolean } = {}
     ): Promise<ImageUploadResult> {
+        let fileToUpload: File | Blob = file;
+
+        // Auto-compress images over 1MB or if explicitly requested
+        const shouldCompress = opts.compress !== false && (file.size > 1024 * 1024 || opts.compress === true);
+
+        if (shouldCompress) {
+            try {
+                // Downscale to 1600px max (sharp enough for most screens, saves ~80% bandwidth)
+                fileToUpload = await compressImage(file, 1600, 1600, 0.85);
+                console.log(`[Cloudinary] Compressed ${file.name} from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+            } catch (err) {
+                console.warn('[Cloudinary] Image compression failed, uploading original:', err);
+                fileToUpload = file;
+            }
+        }
+
         const res = await uploadToCloudinary(
-            file,
+            fileToUpload as File,
             'image',
             opts.folder ?? 'ulink/images',
             opts.onProgress
@@ -304,3 +322,23 @@ export const cloudinaryService = new CloudinaryService();
 export { buildImageUrl as getOptimizedImageUrl };
 export { buildVideoUrl as getOptimizedVideoUrl };
 export { buildVideoThumbnailUrl as getVideoThumbnail };
+
+/**
+ * Instantly rewrite Supabase URLs to Cloudinary Fetch URLs
+ * This reduces Supabase CDN Egress to near-zero for legacy images.
+ */
+export function getOptimizedMediaUrl(url: string | null | undefined): string {
+    if (!url) return '';
+    if (!CLOUD_NAME) return url;
+    
+    // If it's a Supabase public Storage URL (but not a video)
+    if (url.includes('.supabase.co/storage/v1/object/public/') && !url.includes('res.cloudinary.com')) {
+        // Skip optimizing videos via fetch unless specifically intended, as it consumes heavy bytes
+        if (url.match(/\.(mp4|webm|mov)$/i)) {
+            return url;
+        }
+        return `https://res.cloudinary.com/${CLOUD_NAME}/image/fetch/f_auto,q_auto/${url}`;
+    }
+    
+    return url;
+}

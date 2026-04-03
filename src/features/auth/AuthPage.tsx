@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import ThreeBackground from '../../components/ThreeBackground';
 import { signInWithGoogle } from '../../lib/auth-helpers';
@@ -80,7 +81,7 @@ export default function AuthPage() {
                 </button>
 
                 <p className="mt-8 text-[10px] text-slate-400">
-                    By continuing, you agree to our <a href="/legal/terms" className="underline hover:text-slate-600">Terms</a> and <a href="/legal/privacy" className="underline hover:text-slate-600">Privacy Policy</a>.
+                    By continuing, you agree to our <Link to="/legal/terms" className="underline hover:text-slate-600">Terms</Link> and <Link to="/legal/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.
                 </p>
             </div>
         </div>

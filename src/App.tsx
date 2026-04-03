@@ -30,6 +30,7 @@ import PodcastsPage from './features/podcasts/PodcastsPage';
 import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
 import PodcastManagePage from './features/podcasts/PodcastManagePage';
 import StudyRoomsPage from './features/study/StudyRoomsPage';
+import StoryModePage from './features/story/StoryModePage';
 // import MarketplacePage from './features/marketplace/MarketplacePage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
@@ -43,6 +44,7 @@ import { initializeNativeAuth } from './lib/auth-helpers';
 import DeepLinkHelper from './components/DeepLinkHelper';
 
 function App() {
+
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { setDarkMode } = useUIStore();
@@ -161,6 +163,7 @@ function App() {
             <Route path="study" element={<StudyRoomsPage />} />
             <Route path="marketplace" element={<Navigate to="/app" replace />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="story" element={<StoryModePage />} />
             <Route path="challenge" element={<CampusChallengePage />} />
             <Route path="news" element={<NewsPage />} />
             <Route path="podcasts" element={<PodcastsPage />} />

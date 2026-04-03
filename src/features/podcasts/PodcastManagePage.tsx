@@ -15,7 +15,7 @@ const CATEGORIES = [
     'Health', 'Sports', 'News', 'Comedy', 'Arts', 'Other',
 ];
 
-const MIN_DURATION_SECS = 60; // 1 minute
+const MIN_DURATION_SECS = 120; // 2 minutes (Must match database CHECK constraint)
 const MAX_FILE_MB = 200;
 const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/x-m4a', 'audio/aac', 'audio/webm'];
 
@@ -99,6 +99,8 @@ export default function PodcastManagePage() {
         } catch (err: any) {
             if (err?.code === '23505') {
                 setAppError('You already have a podcast application.');
+            } else if (err?.code === '42501') {
+                setAppError('Permission denied. You need at least 100 points to apply for a podcast channel.');
             } else if (err?.message?.includes('points')) {
                 setAppError('You need at least 100 points to apply.');
             } else {
@@ -266,6 +268,10 @@ export default function PodcastManagePage() {
         } catch (err: any) {
             if (err?.code === 'P0001' || err?.message?.toLowerCase().includes('rate')) {
                 setEpError('Episode limit reached. You can upload max 3 episodes per day and 10 per week.');
+            } else if (err?.code === '23514') {
+                setEpError('Duration violation: Episodes must be at least 2 minutes (120 seconds) long.');
+            } else if (err?.code === '42501') {
+                setEpError('Permission denied. Ensure your podcast is approved before uploading episodes.');
             } else {
                 setEpError(err?.message ?? 'Failed to publish episode.');
             }

@@ -15,24 +15,32 @@ CREATE TABLE IF NOT EXISTS study_rooms (
     timer_paused_at         TIMESTAMPTZ,          -- NULL = running, non-NULL = paused at this time
     timer_elapsed_seconds   INT NOT NULL DEFAULT 0,
     is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_drawing           BOOLEAN NOT NULL DEFAULT TRUE,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_study_rooms_active   ON study_rooms(is_active, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_study_rooms_creator  ON study_rooms(creator_id);
 
+-- Ensure allow_drawing column exists on existing tables
+ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS allow_drawing BOOLEAN NOT NULL DEFAULT TRUE;
+
 ALTER TABLE study_rooms ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "study_rooms_select" ON study_rooms;
 CREATE POLICY "study_rooms_select" ON study_rooms
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "study_rooms_insert" ON study_rooms;
 CREATE POLICY "study_rooms_insert" ON study_rooms
     FOR INSERT WITH CHECK (auth.uid() = creator_id);
 
 -- Creator can update timer state / deactivate
+DROP POLICY IF EXISTS "study_rooms_update" ON study_rooms;
 CREATE POLICY "study_rooms_update" ON study_rooms
     FOR UPDATE USING (auth.uid() = creator_id);
 
+DROP POLICY IF EXISTS "study_rooms_delete" ON study_rooms;
 CREATE POLICY "study_rooms_delete" ON study_rooms
     FOR DELETE USING (auth.uid() = creator_id);
 
@@ -52,19 +60,49 @@ CREATE INDEX IF NOT EXISTS idx_study_participants_user ON study_room_participant
 
 ALTER TABLE study_room_participants ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "study_participants_select" ON study_room_participants;
 CREATE POLICY "study_participants_select" ON study_room_participants
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "study_participants_insert" ON study_room_participants;
 CREATE POLICY "study_participants_insert" ON study_room_participants
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "study_participants_update" ON study_room_participants;
 CREATE POLICY "study_participants_update" ON study_room_participants
     FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "study_participants_delete" ON study_room_participants;
 CREATE POLICY "study_participants_delete" ON study_room_participants
     FOR DELETE USING (auth.uid() = user_id);
 
 
--- Enable Realtime for live presence updates
-ALTER PUBLICATION supabase_realtime ADD TABLE study_rooms;
-ALTER PUBLICATION supabase_realtime ADD TABLE study_room_participants;
+-- Enable Realtime for live presence and content updates
+-- Wrap publication changes in a DO block to prevent "already exists" errors
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_rooms') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_rooms;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_participants') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_participants;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_messages') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_messages;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_documents') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_documents;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_polls') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_polls;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_poll_votes') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_poll_votes;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_voicenotes') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_voicenotes;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'study_room_join_requests') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE study_room_join_requests;
+  END IF;
+END $$;
