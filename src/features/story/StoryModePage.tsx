@@ -63,6 +63,8 @@ export default function StoryModePage() {
   const activeStoryId = useRef<string>('');
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [choices, setChoices] = useState<{text: string, index: number}[]>([]);
+  const [currentSceneImg, setCurrentSceneImg] = useState<string | null>(null);
+  const [currentCharacter, setCurrentCharacter] = useState<{name: string, expression?: string} | null>(null);
   
   // Player metrics
   const [totalXp, setTotalXp] = useState(0);
@@ -139,6 +141,8 @@ export default function StoryModePage() {
       setTotalXp(0);
       setDialogueLines([]);
       setChoices([]);
+      setCurrentSceneImg(storyInfo.coverPrompt);
+      setCurrentCharacter(null);
       
       // Start
       setAppState('playing');
@@ -192,6 +196,12 @@ export default function StoryModePage() {
         } else if (t.startsWith('image_')) {
           const imageName = t.replace('image_', '');
           pendingImage = imageName;
+          setCurrentSceneImg(imageName);
+        } else if (t.startsWith('speaker_')) {
+          const name = t.replace('speaker_', '');
+          setCurrentCharacter({ name });
+        } else if (t === 'hide_speaker') {
+          setCurrentCharacter(null);
         }
       });
       syncVariables();
@@ -389,8 +399,33 @@ export default function StoryModePage() {
     );
   }
 
+  const activeStory = STORIES.find(s => s.id === activeStoryId.current);
+
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-0 pt-4 pb-12 font-serif min-h-full">
+    <div className={`relative min-h-screen font-serif transition-colors duration-1000 ${activeStory?.theme ? `bg-gradient-to-br ${activeStory.theme}` : 'bg-white dark:bg-zinc-950'}`}>
+      {/* Immersive Background Illustration */}
+      {currentSceneImg && (
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 bg-black/40 dark:bg-black/60 z-10" />
+          <div className="absolute inset-0 opacity-40 blur-xl scale-110">
+            <StoryImage prompt={currentSceneImg} />
+          </div>
+          <div className="absolute inset-0 opacity-20 bg-grid-white/[0.05]" />
+        </div>
+      )}
+
+      {/* Character Portrait (Side-view) */}
+      {currentCharacter && (
+        <div className="fixed bottom-0 right-0 z-10 w-full max-w-sm pointer-events-none animate-in slide-in-from-right-20 duration-700">
+           <img 
+              src={`https://api.dicebear.com/9.x/notionists/svg?seed=${currentCharacter.name.replace(/\s+/g, '')}&backgroundColor=transparent`} 
+              alt={currentCharacter.name}
+              className="w-full h-auto drop-shadow-2xl translate-y-12"
+           />
+        </div>
+      )}
+
+      <div className="relative z-20 max-w-2xl mx-auto px-4 md:px-0 pt-4 pb-12 min-h-full">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
@@ -401,12 +436,12 @@ export default function StoryModePage() {
       )}
 
       {/* Minimal Header */}
-      <header className="shrink-0 py-3 mb-4 flex items-center justify-between border-b mx-4 md:mx-0 border-slate-200/60 dark:border-zinc-800/60">
-        <button onClick={restartStory} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-widest">
-          <ChevronRight className="w-4 h-4 rotate-180" /> Back
+      <header className="shrink-0 py-4 mb-8 flex items-center justify-between border-b mx-4 md:mx-0 border-white/10 backdrop-blur-md bg-black/10 rounded-2xl px-6">
+        <button onClick={restartStory} className="text-white hover:text-indigo-200 transition-colors flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-widest group">
+          <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" /> Back
         </button>
         
-        <div className="flex items-center gap-4 sm:gap-6 font-sans text-xs font-bold text-slate-500 dark:text-zinc-400">
+        <div className="flex items-center gap-4 sm:gap-6 font-sans text-xs font-bold text-white/80">
           <div className="flex items-center gap-1.5" title="XP">
             <Award className="w-3.5 h-3.5" /> {totalXp}
           </div>
@@ -424,6 +459,7 @@ export default function StoryModePage() {
         id="story-dialogue-container"
         className="px-4 md:px-8 space-y-6 pb-2"
       >
+        <div className="w-full h-px bg-white/10 mb-8" />
         {dialogueLines.map((line, i) => {
           if (line.text === '---') {
             return (
@@ -434,29 +470,30 @@ export default function StoryModePage() {
               </div>
             );
           }
+
           if (line.speaker === 'Location') {
             return (
-               <div key={i} className="py-6 text-center">
-                 {line.image && (
-                   <div className="w-full mb-8">
-                     <StoryImage prompt={line.image} />
-                   </div>
-                 )}
-                 <div className="inline-block px-4 py-1 border border-slate-200 dark:border-zinc-800 rounded-full text-slate-500 dark:text-zinc-400 font-sans text-[10px] font-bold tracking-[0.2em] uppercase">
-                   {line.text.replace(/^[📍⏰]\s*/, '')}
-                 </div>
-               </div>
-            )
+              <div key={i} className="py-10 text-center animate-in zoom-in-95 duration-700">
+                {line.image && (
+                  <div className="w-full mb-10 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10 transition-transform hover:scale-[1.01] duration-500">
+                    <StoryImage prompt={line.image} />
+                  </div>
+                )}
+                <div className="inline-block px-6 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white font-sans text-[11px] font-black tracking-[0.25em] uppercase shadow-xl">
+                  {line.text.replace(/^[📍⏰]\s*/, '')}
+                </div>
+              </div>
+            );
           }
 
           if (line.speaker === 'Decision') {
             return (
-              <div key={i} className="decision-block my-8 p-5 pl-6 border-l-4 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-400/80 rounded-r-2xl shadow-sm">
-                <div className="text-indigo-600 dark:text-indigo-400 font-sans font-black text-[10px] tracking-widest uppercase mb-1.5 opacity-80 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                  You Chose
+              <div key={i} className="decision-block my-10 p-6 pl-8 border-l-4 border-indigo-400 bg-white/10 backdrop-blur-md border-y border-r border-white/10 rounded-r-3xl shadow-2xl animate-in slide-in-from-left duration-700">
+                <div className="text-indigo-400 font-sans font-black text-[11px] tracking-widest uppercase mb-2 opacity-90 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></div>
+                  Your Choice
                 </div>
-                <div className="text-lg md:text-xl font-serif text-slate-900 dark:text-white font-medium">
+                <div className="text-xl md:text-2xl font-serif text-white font-medium italic">
                   {line.text}
                 </div>
               </div>
@@ -465,9 +502,9 @@ export default function StoryModePage() {
 
           if (line.speaker === 'System' || !line.speaker) {
             return (
-              <div key={i} className="py-2 text-slate-700 dark:text-zinc-300 md:text-lg leading-relaxed md:leading-[1.8]">
+              <div key={i} className="py-4 text-white/90 md:text-xl leading-relaxed md:leading-[1.9] drop-shadow-sm font-medium">
                  {line.image && (
-                   <div className="w-full my-6">
+                   <div className="w-full my-8 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10 transition-transform hover:scale-[1.01] duration-500">
                      <StoryImage prompt={line.image} />
                    </div>
                  )}
@@ -478,17 +515,19 @@ export default function StoryModePage() {
 
           // Spoken dialogue formatting
           return (
-            <div key={i} className="py-2 leading-relaxed md:leading-[1.8] md:text-lg text-slate-800 dark:text-zinc-200">
-              <span className="font-sans font-bold text-[11px] uppercase tracking-widest text-slate-600 dark:text-zinc-400 mr-3 inline-flex items-center gap-2">
-                <img 
-                  src={`https://api.dicebear.com/9.x/notionists/svg?seed=${line.speaker.replace(/\s+/g, '')}&backgroundColor=transparent`} 
-                  alt={line.speaker} 
-                  className="w-6 h-6 rounded-full bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 pointer-events-none select-none"
-                  loading="lazy"
-                />
+            <div key={i} className="py-4 leading-relaxed md:leading-[1.9] md:text-xl text-white drop-shadow-md animate-in fade-in duration-500">
+              <span className="font-sans font-black text-[12px] uppercase tracking-widest text-indigo-300 mr-4 inline-flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center p-0.5 overflow-hidden shadow-lg">
+                  <img 
+                    src={`https://api.dicebear.com/9.x/notionists/svg?seed=${line.speaker.replace(/\s+/g, '')}&backgroundColor=transparent`} 
+                    alt={line.speaker} 
+                    className="w-full h-full pointer-events-none select-none"
+                    loading="lazy"
+                  />
+                </div>
                 {line.speaker}
               </span> 
-              <span>
+              <span className="font-medium italic leading-relaxed">
                 "{line.text}"
               </span>
             </div>
@@ -514,21 +553,36 @@ export default function StoryModePage() {
 
       {/* Modern Minimal Choices */}
       {choices.length > 0 && (
-        <div className="mt-4 px-4 md:px-8 space-y-2 pb-6 animate-in fade-in duration-700">
-          <div className="w-full h-px bg-slate-100 dark:bg-zinc-800/50 mb-4"></div>
-          {choices.map((c, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleChoice(c.index)}
-              className="w-full text-left py-2.5 px-3 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-600 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-all font-sans text-sm flex gap-3 items-center group
-                         focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-zinc-800 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-700 group-hover:bg-slate-500 dark:group-hover:bg-zinc-400 transition-colors"></span>
-              <span>{c.text}</span>
-            </button>
-          ))}
+        <div className="mt-8 px-4 md:px-8 space-y-3 pb-12 animate-in slide-in-from-bottom-10 duration-1000">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px flex-1 bg-white/20"></div>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Next Path</span>
+            <div className="h-px flex-1 bg-white/20"></div>
+          </div>
+          {choices.map((c, idx) => {
+            const mockPercent = Math.floor(20 + Math.random() * 60);
+            return (
+              <button
+                key={idx}
+                onClick={() => handleChoice(c.index)}
+                className="w-full text-left py-4 px-6 rounded-2xl border border-white/10 hover:border-white/30 text-white/90 hover:text-white transition-all font-sans text-base flex justify-between items-center group
+                           focus:outline-none focus:ring-2 focus:ring-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 shadow-2xl relative overflow-hidden"
+              >
+                <div className="absolute inset-y-0 left-0 bg-white/5 pointer-events-none group-hover:w-full transition-all duration-700" style={{ width: '0%' }} />
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-2 h-2 rounded-full bg-white/30 group-hover:bg-white transition-colors"></div>
+                  <span className="font-bold">{c.text}</span>
+                </div>
+                <div className="flex items-center gap-2 relative z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="text-[10px] font-sans font-black uppercase tracking-widest text-indigo-300">Community: {mockPercent}%</div>
+                   <ChevronRight className="w-4 h-4 text-indigo-300" />
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
+      </div>
     </div>
   );
 }
