@@ -680,7 +680,7 @@ export default function StudyRoomsPage() {
 
         try {
             const url = await uploadFileForRoom(file, uid);
-            const { data: inserted, error } = await supabase.from('study_room_voicenotes').insert({
+            const { data: inserted } = await supabase.from('study_room_voicenotes').insert({
                 room_id: activeRoom.id,
                 user_id: uid,
                 audio_url: url,

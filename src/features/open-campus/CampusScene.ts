@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   type ZoneName, BUILDINGS, NPC_DEFS, ENEMY_SPAWNS,
-  QUESTS, CAMPUS_SIGNS, type EnemyDef
+  CAMPUS_SIGNS, type EnemyDef
 } from './gameData';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { STORY_PROMPTS } from '../constants/storyPrompts';
 
 interface StoryImageProps {
   prompt: string;

@@ -5,7 +5,7 @@ import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
-function optimizePostMedia(post: any) {
+function optimizePostMedia(post: any): any {
     if (!post) return post;
     return {
         ...post,

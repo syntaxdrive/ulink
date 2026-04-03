@@ -27,7 +27,8 @@ export const ZONE_CONFIG: Record<ZoneName, { emoji: string; color: string; gradi
 
 export const ZONES: ZoneName[] = ['Library', 'Lab', 'Cafeteria', 'Gym', 'Dorm'];
 
-// Old QUESTS object was removed because it is now driven purely by Ink scripts in src/stories/
+// ─── QUESTS (Legacy Export) ──────────────────────────────────────────────────
+export const QUESTS: any[] = []; // Now driven by Ink scripts in src/stories/
 
 // ─── ITEM DEFINITIONS ───────────────────────────────────────────────────────
 export interface GameItem {
@@ -116,3 +117,8 @@ export const CAMPUS_SIGNS = [
   'DORM QUIET HOURS: 10PM-8AM\nAnime with headphones ONLY',
   'NOTICE: Whoever keeps\nresetting the WiFi router\nwith a fork — please stop.',
 ];
+
+export interface DialogueLine {
+  speaker: string;
+  text: string;
+}
