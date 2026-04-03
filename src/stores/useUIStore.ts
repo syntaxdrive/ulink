@@ -9,6 +9,8 @@ interface UIState {
     setDarkMode: (value: boolean) => void;
     showSplash: boolean;
     setShowSplash: (value: boolean) => void;
+    isPostDrawerOpen: boolean;
+    setPostDrawerOpen: (value: boolean) => void;
 }
 
 // Initialize dark mode from localStorage or system preference
@@ -51,4 +53,6 @@ export const useUIStore = create<UIState>((set) => ({
         }
         set({ showSplash: value });
     },
+    isPostDrawerOpen: false,
+    setPostDrawerOpen: (value) => set({ isPostDrawerOpen: value }),
 }));

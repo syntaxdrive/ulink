@@ -58,8 +58,20 @@ function requestNotifPermission() {
     }
 }
 
+// Track recently seen notification IDs to prevent duplicates
+const SEEN_NOTIF_IDS = new Set<string>();
+
 /** Fire a native browser notification */
-function fireBrowserNotif(title: string, body: string, url?: string) {
+function fireBrowserNotif(id: string, title: string, body: string, url?: string) {
+    if (SEEN_NOTIF_IDS.has(id)) return;
+    SEEN_NOTIF_IDS.add(id);
+    
+    // Auto-clean old IDs to keep memory low (keep last 100)
+    if (SEEN_NOTIF_IDS.size > 100) {
+        const first = SEEN_NOTIF_IDS.values().next().value;
+        if (first !== undefined) SEEN_NOTIF_IDS.delete(first);
+    }
+
     if (typeof Notification === 'undefined') return;
     if (Notification.permission !== 'granted') return;
     try {
@@ -67,7 +79,7 @@ function fireBrowserNotif(title: string, body: string, url?: string) {
             body,
             icon: '/icon-192.png',
             badge: '/icon-192.png',
-            tag: url || 'unilink-notif',
+            tag: id,
         });
         if (url) n.onclick = () => { window.location.href = url; n.close(); };
     } catch (err) {
@@ -241,6 +253,7 @@ export function useNotifications() {
                             fetchSingleRequest(payload.new.id);
                             // Fire in-app push notification
                             fireBrowserNotif(
+                                payload.new.id,
                                 '👥 New Connection Request',
                                 'Someone wants to connect with you',
                                 `${window.location.origin}/app/notifications`
@@ -273,6 +286,7 @@ export function useNotifications() {
                             const notifUrl = `${window.location.origin}${relUrl}`;
 
                             fireBrowserNotif(
+                                notif.id,
                                 getNotifTitle(notif.type),
                                 notif.message || notif.title || 'You have a new notification',
                                 notifUrl
@@ -308,7 +322,7 @@ export function useNotifications() {
     useEffect(() => {
         const timer = setInterval(() => {
             void fetchNotifications();
-        }, 15000);
+        }, 120000); // Poll every 2 minutes instead of 15 seconds to reduce noise
 
         const onVisibility = () => {
             if (document.visibilityState === 'visible') {

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Play, Pause, X, Music, ChevronDown, SkipBack, SkipForward, ListMusic } from 'lucide-react';
 import { useAudioStore } from '../../stores/useAudioStore';
 import { useUIStore } from '../../stores/useUIStore';
@@ -12,8 +13,10 @@ function formatTime(secs: number): string {
 
 export default function GlobalAudioPlayer() {
     const { isImmersive } = useUIStore();
-    const isStudyRoute = typeof window !== 'undefined' && window.location.pathname === '/app/study';
-    const useCompactMiniPlayer = isImmersive || isStudyRoute;
+    const location = useLocation();
+    const isStudyRoute = location.pathname === '/app/study';
+    const isMessagesRoute = location.pathname.startsWith('/app/messages');
+    const useCompactMiniPlayer = isImmersive || isStudyRoute || isMessagesRoute;
     const {
         currentTrack, isPlaying, volume,
         currentTime, duration, isExpanded,
@@ -240,10 +243,12 @@ export default function GlobalAudioPlayer() {
             {!isExpanded && !isStudyRoute && (
                 useCompactMiniPlayer ? (
                     <div
-                        className={`fixed z-[120] animate-in fade-in zoom-in-95 duration-300 ${
+                        className={`fixed z-[120] animate-in fade-in zoom-in-95 duration-300 transition-all ${
                             isStudyRoute
                                 ? 'top-[calc(env(safe-area-inset-top)+7.75rem)] right-3 md:top-auto md:bottom-6 md:left-6 md:right-auto'
-                                : 'bottom-24 right-3 md:bottom-6 md:right-6'
+                                : isMessagesRoute
+                                    ? 'top-20 right-3 md:top-auto md:bottom-6 md:right-6'
+                                    : 'bottom-24 right-3 md:bottom-6 md:right-6'
                         }`}
                     >
                         <button
@@ -259,10 +264,12 @@ export default function GlobalAudioPlayer() {
                     </div>
                 ) : (
                     <div
-                        className={`fixed z-50 animate-in slide-in-from-bottom-10 duration-500 ${
+                        className={`fixed z-50 animate-in slide-in-from-bottom-10 duration-500 transition-all ${
                             isStudyRoute
                                 ? 'bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] left-4 right-4 md:bottom-6 md:left-6 md:right-auto md:w-96'
-                                : 'bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96'
+                                : isMessagesRoute
+                                    ? 'top-20 md:top-auto md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96'
+                                    : 'bottom-24 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96'
                         }`}
                     >
                         <div

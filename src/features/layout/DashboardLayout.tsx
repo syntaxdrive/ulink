@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen, RefreshCw } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen, RefreshCw, Plus } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -17,6 +17,7 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useUIStore } from '../../stores/useUIStore';
 import { useLocalNotifications } from '../../hooks/usePushNotifications';
 import GlobalAudioPlayer from '../../components/audio/GlobalAudioPlayer';
+import PostDrawer from '../feed/components/PostDrawer';
 
 export interface DashboardLayoutProps {
     session: Session | null;
@@ -34,7 +35,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { isImmersive, isDarkMode, toggleDarkMode } = useUIStore();
+    const { isImmersive, isDarkMode, toggleDarkMode, setPostDrawerOpen } = useUIStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
 
@@ -264,13 +265,20 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 )
                 .subscribe();
 
-            // Watch the notification store (populated by useNotifications hook's own channel)
-            // so we can show toasts without a second Supabase realtime subscription.
-            let lastSeenNotifId = useNotificationStore.getState().generalNotifications[0]?.id ?? null;
+            const SEEN_TOAST_IDS = new Set<string>();
+            let initialBatch = useNotificationStore.getState().generalNotifications;
+            initialBatch.forEach(n => SEEN_TOAST_IDS.add(n.id));
+
             const unsubNotifStore = useNotificationStore.subscribe((state) => {
                 const newest = state.generalNotifications[0];
-                if (!newest || newest.id === lastSeenNotifId) return;
-                lastSeenNotifId = newest.id;
+                if (!newest || SEEN_TOAST_IDS.has(newest.id)) return;
+                
+                SEEN_TOAST_IDS.add(newest.id);
+                // Keep set small
+                if (SEEN_TOAST_IDS.size > 100) {
+                    const first = SEEN_TOAST_IDS.values().next().value;
+                    if (first) SEEN_TOAST_IDS.delete(first);
+                }
 
                 if (locationRef.current.startsWith('/app/notifications')) return;
 
@@ -439,7 +447,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 
             {/* Mobile Top Bar */}
-            {location.pathname !== '/app/learn' && (
+            {!(location.pathname === '/app/learn' || location.pathname === '/app/story') && (
                 <header className="md:hidden flex items-center justify-between px-4 mobile-header-h bg-white/80 dark:bg-bg-dark/80 backdrop-blur-xl border-b border-slate-100 dark:border-zinc-800 fixed top-0 left-0 right-0 z-40 transition-transform duration-300">
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
@@ -797,7 +805,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             </aside>
 
 
-            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${location.pathname === '/app/learn' ? 'pt-0' : 'pt-mobile-header'}`}>
+            <main className={`flex-1 md:ml-[280px] min-h-screen relative z-10 transition-colors duration-300 md:pt-0 bg-[#FAFAFA] dark:bg-zinc-950 ${(location.pathname === '/app/learn' || location.pathname === '/app/story') ? 'pt-0' : 'pt-mobile-header'}`}>
                 <div className={location.pathname === '/app/learn' ? "w-full h-full p-0" : "max-w-7xl mx-auto p-4 md:p-8 pb-32"}>
                     <ErrorBoundary>
                         <Outlet />
@@ -806,25 +814,61 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             </main>
 
             {/* Mobile Bottom Nav */}
-            <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-t border-stone-200 dark:border-zinc-800 flex justify-around p-3 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] transition-transform duration-300 ${isImmersive ? 'translate-y-full' : 'translate-y-0'}`}>
-                {bottomNavItems.map((item) => (
+            <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-stone-100/50 dark:border-zinc-800/30 flex items-center justify-around px-2 py-2.5 pb-safe z-40 transition-transform duration-500 overflow-visible ${isImmersive ? 'translate-y-full' : 'translate-y-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]'}`}>
+                {/* First half of nav */}
+                {bottomNavItems.slice(0, 2).map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
                         end={item.path === '/app'}
                         className={({ isActive }) =>
-                            `relative flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${isActive
+                            `relative flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all duration-300 ${isActive
                                 ? 'text-emerald-600'
                                 : 'text-stone-400 hover:text-stone-600'
                             }`
                         }
                     >
                         <div className="relative">
-                            <item.icon className="w-6 h-6" strokeWidth={1.5} />
+                            <item.icon className={`w-6 h-6 transition-transform duration-300`} strokeWidth={1.75} />
                             {getBadgeCount(item.label) > 0 && (
                                 <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white ring-2 ring-white dark:ring-zinc-900 shadow-sm">
+                                        {getBadgeCount(item.label)}
+                                    </span>
+                                </span>
+                            )}
+                        </div>
+                    </NavLink>
+                ))}
+
+                {/* Centered Floating Action Button */}
+                <div className="relative px-1 -mt-6">
+                    <button
+                        onClick={() => setPostDrawerOpen(true)}
+                        className="relative w-12 h-12 bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl flex items-center justify-center shadow-2xl active:scale-95 transition-all duration-300 border-4 border-white dark:border-zinc-950"
+                    >
+                        <Plus className="w-6 h-6" strokeWidth={3} />
+                    </button>
+                </div>
+
+                {/* Second half of nav */}
+                {bottomNavItems.slice(2).map((item) => (
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === '/app'}
+                        className={({ isActive }) =>
+                            `relative flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all duration-300 ${isActive
+                                ? 'text-emerald-600'
+                                : 'text-stone-400 hover:text-stone-600'
+                            }`
+                        }
+                    >
+                        <div className="relative">
+                            <item.icon className="w-6 h-6 transition-transform duration-300" strokeWidth={1.75} />
+                            {getBadgeCount(item.label) > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                    <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white ring-2 ring-white dark:ring-zinc-900 shadow-sm">
                                         {getBadgeCount(item.label)}
                                     </span>
                                 </span>
@@ -856,6 +900,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             />
 
             <GlobalAudioPlayer />
+            <PostDrawer />
         </div>
     );
 }

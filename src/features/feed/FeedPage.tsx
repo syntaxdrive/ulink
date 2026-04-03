@@ -458,9 +458,9 @@ export default function FeedPage() {
                         </div>
                     )}
 
-                    {/* Create Post */}
+                    {/* Create Post - Hidden on Mobile, Drawer takes over */}
                     {currentUserId && (
-                        <div className="mb-1">
+                        <div className="mb-1 hidden md:block">
                             <CreatePost onCreate={createPost} user={currentUserProfile} initialContent={shareContent ?? undefined} />
                         </div>
                     )}
