@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen, RefreshCw } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -463,6 +463,13 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                             </button>
                         ) : (
                             <>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="p-2 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-all active:rotate-180"
+                                    title="Refresh"
+                                >
+                                    <RefreshCw className="w-5 h-5" />
+                                </button>
                                 <span className="font-display font-black text-xl tracking-[-0.03em] text-slate-900 dark:text-white">
                                     UniLink
                                 </span>
@@ -745,6 +752,14 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                                     <span className="font-sans text-xs font-semibold">Install App</span>
                                 </button>
                             )}
+
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="flex items-center gap-3 px-4 py-2.5 w-full text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border border-transparent rounded-xl transition-all duration-300 group mb-1"
+                            >
+                                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" strokeWidth={1.5} />
+                                <span className="font-sans text-xs font-semibold">Refresh Page</span>
+                            </button>
 
                             <button
                                 onClick={handleLogout}

@@ -322,9 +322,9 @@
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
 
-/* Prevent rubber-band / bounce overscroll highlighting the background */
+/* Allow native browser pull-to-refresh on mobile (PWA/APK) */
 html, body {
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
 }
 
 /* Smooth scroll utility for overflow containers */
