@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useUIStore } from '../../stores/useUIStore';
 import { useAudioStore } from '../../stores/useAudioStore';
+import { useStudyRoomStore } from '../../stores/useStudyRoomStore';
 import {
     Users, Plus, LogOut, X, Loader2, BookOpen, Coffee, CheckCircle2,
     MessageCircle, FileText, BarChart2, Send, ChevronDown, ChevronLeft,
@@ -137,7 +138,7 @@ function StatusBadge({ status }: { status: ParticipantStatus }) {
 export default function StudyRoomsPage() {
     const { setImmersive } = useUIStore();
     const { currentTrack, isPlaying, toggleExpanded } = useAudioStore();
-    const [rooms, setRooms] = useState<StudyRoom[]>([]);
+    const { rooms, setRooms, needsRefresh } = useStudyRoomStore();
     const [loading, setLoading] = useState(true);
     const [activeRoom, setActiveRoom] = useState<StudyRoom | null>(null);
     const [uid, setUid] = useState<string | null>(null);
@@ -213,7 +214,10 @@ export default function StudyRoomsPage() {
     }, []);
 
     // ── Rooms list ────────────────────────────────────────────────────────
-    const fetchRooms = useCallback(async () => {
+    const fetchRooms = useCallback(async (isSilent = false) => {
+        const cacheExists = useStudyRoomStore.getState().rooms.length > 0;
+        if (!isSilent && !cacheExists) setLoading(true);
+
         // Fetch active rooms then participant counts (filtered to active rooms only)
         const { data: roomsData } = await supabase
             .from('study_rooms')
@@ -243,12 +247,18 @@ export default function StudyRoomsPage() {
         setLoading(false);
     }, [uid]);
 
-    useEffect(() => { fetchRooms(); }, [fetchRooms]);
+    useEffect(() => { 
+        if (needsRefresh() || rooms.length === 0) {
+            void fetchRooms(); 
+        } else {
+            setLoading(false);
+        }
+    }, [fetchRooms]);
 
     useEffect(() => {
         const ch = supabase.channel('rooms_list')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_rooms' }, fetchRooms)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_participants' }, fetchRooms)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_rooms' }, () => { void fetchRooms(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_participants' }, () => { void fetchRooms(); })
             .subscribe();
         return () => { supabase.removeChannel(ch); };
     }, [fetchRooms]);
@@ -591,7 +601,7 @@ export default function StudyRoomsPage() {
             return;
         }
 
-        setRooms(prev => prev.filter(r => r.id !== room.id));
+        setRooms((rooms || []).filter((r: StudyRoom) => r.id !== room.id));
         if (activeRoom?.id === room.id) {
             setActiveRoom(null);
             setParticipants([]);

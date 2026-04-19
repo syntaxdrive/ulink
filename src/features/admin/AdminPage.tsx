@@ -72,12 +72,12 @@ export default function AdminPage() {
             const { data: statsData } = await supabase.rpc('get_admin_stats');
             if (statsData) setStats(statsData);
 
-            // 2. Fetch Recent Users
+            // 2. Fetch Recent Users (bumped to 500 for accurate table)
             const { data: usersData } = await supabase
                 .from('profiles')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(500);
             if (usersData) setUsers(usersData as any);
 
             // 4. Fetch Reports

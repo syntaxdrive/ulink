@@ -52,7 +52,7 @@ export default function InvestorAnalytics() {
                 supabase.from('podcasts').select('*', { count: 'exact', head: true }),
                 supabase.from('study_rooms').select('*', { count: 'exact', head: true }),
                 supabase.from('communities').select('*', { count: 'exact', head: true }),
-                supabase.from('profiles').select('id, created_at, university').order('created_at'),
+                supabase.from('profiles').select('id, created_at, university').order('created_at').limit(5000),
             ]);
 
             setTotalUsers(uc ?? 0);

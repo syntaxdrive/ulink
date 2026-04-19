@@ -3,10 +3,14 @@ import { supabase } from '../lib/supabase';
 import type { Course, CourseCategory, CourseDocument, UserDocumentDownload } from '../types/courses';
 import { ACCEPTED_DOC_TYPES, MAX_DOC_SIZE_BYTES, resolveDocMimeType } from '../types/courses';
 import { extractYouTubeId, getYouTubeThumbnail } from '../utils/youtube';
+import { useCourseStore } from '../stores/useCourseStore';
 
 export function useCourses(category?: CourseCategory, searchQuery?: string) {
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [loading, setLoading] = useState(true);
+    const store = useCourseStore();
+
+    // Hydrate from store immediately — instant render on revisit
+    const [courses, setCourses] = useState<Course[]>(store.courses);
+    const [loading, setLoading] = useState(store.courses.length === 0);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // Get current user
@@ -19,6 +23,13 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
     // Fetch courses — with fallback if course_documents migration not yet applied
     const fetchCourses = useCallback(async () => {
         try {
+            // Skip fetch if cache is fresh and category hasn't changed
+            const cacheHit = !store.needsRefresh(category ?? null) && store.courses.length > 0;
+            if (cacheHit && !searchQuery) {
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
 
             const BASE_SELECT = `*, profiles:author_id(id,name,username,avatar_url,university,is_verified)`;
@@ -45,7 +56,13 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
                 }
             }
 
-            // Fetch user interactions if logged in
+            const fetchedData: Course[] = data?.map((course: any) => ({
+                ...course,
+                course_documents: course.course_documents ?? [],
+                user_has_liked: false,
+                user_has_enrolled: false,
+            })) || [];
+
             if (currentUserId && data) {
                 const courseIds = data.map((c: any) => c.id);
 
@@ -57,14 +74,17 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
                 const likedIds = new Set(likes?.map((l: any) => l.course_id) || []);
                 const enrolledIds = new Set(enrollments?.map((e: any) => e.course_id) || []);
 
-                setCourses(data.map((course: any) => ({
+                const enriched = fetchedData.map((course) => ({
                     ...course,
-                    course_documents: course.course_documents ?? [],
                     user_has_liked: likedIds.has(course.id),
                     user_has_enrolled: enrolledIds.has(course.id),
-                })));
+                }));
+                setCourses(enriched);
+                // Only persist to store if not a search query (search results are transient)
+                if (!searchQuery) store.setCourses(enriched, category ?? null);
             } else {
-                setCourses((data || []).map((c: any) => ({ ...c, course_documents: c.course_documents ?? [] })));
+                setCourses(fetchedData);
+                if (!searchQuery) store.setCourses(fetchedData, category ?? null);
             }
         } catch (error) {
             console.error('Error fetching courses:', error);
@@ -265,6 +285,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         const { error } = await supabase.from('courses').delete().eq('id', courseId);
         if (error) throw error;
         setCourses(prev => prev.filter(c => c.id !== courseId));
+        store.removeCourse(courseId);
     };
 
     // Toggle like
@@ -279,14 +300,14 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
             if (course.user_has_liked) {
                 await supabase.from('course_likes').delete()
                     .eq('course_id', courseId).eq('user_id', user.id);
-                setCourses(prev => prev.map(c =>
-                    c.id === courseId ? { ...c, user_has_liked: false, likes_count: c.likes_count - 1 } : c
-                ));
+                const patch = { user_has_liked: false, likes_count: course.likes_count - 1 };
+                setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
+                store.updateCourse(courseId, patch);
             } else {
                 await supabase.from('course_likes').insert({ course_id: courseId, user_id: user.id });
-                setCourses(prev => prev.map(c =>
-                    c.id === courseId ? { ...c, user_has_liked: true, likes_count: c.likes_count + 1 } : c
-                ));
+                const patch = { user_has_liked: true, likes_count: course.likes_count + 1 };
+                setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
+                store.updateCourse(courseId, patch);
             }
         } catch (error) {
             console.error('Error toggling like:', error);
@@ -305,14 +326,14 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
             if (course.user_has_enrolled) {
                 await supabase.from('course_enrollments').delete()
                     .eq('course_id', courseId).eq('user_id', user.id);
-                setCourses(prev => prev.map(c =>
-                    c.id === courseId ? { ...c, user_has_enrolled: false, enrollments_count: c.enrollments_count - 1 } : c
-                ));
+                const patch = { user_has_enrolled: false, enrollments_count: course.enrollments_count - 1 };
+                setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
+                store.updateCourse(courseId, patch);
             } else {
                 await supabase.from('course_enrollments').insert({ course_id: courseId, user_id: user.id });
-                setCourses(prev => prev.map(c =>
-                    c.id === courseId ? { ...c, user_has_enrolled: true, enrollments_count: c.enrollments_count + 1 } : c
-                ));
+                const patch = { user_has_enrolled: true, enrollments_count: course.enrollments_count + 1 };
+                setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
+                store.updateCourse(courseId, patch);
             }
         } catch (error) {
             console.error('Error toggling enrollment:', error);

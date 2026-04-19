@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 import { Trophy, Medal, Award, TrendingUp, BadgeCheck, Loader2 } from 'lucide-react';
+import { useLeaderboardStore } from '../../stores/useLeaderboardStore';
 
 interface LeaderboardEntry {
     rank: number;
@@ -31,39 +32,50 @@ const POINT_ACTIVITIES = [
 ];
 
 export default function LeaderboardPage() {
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [userRank, setUserRank] = useState<UserRank | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const store = useLeaderboardStore();
+
+    // Hydrate from store immediately for instant render on revisit
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(store.leaderboard);
+    const [userRank, setUserRank] = useState<UserRank | null>(store.userRank);
+    const [loading, setLoading] = useState(store.leaderboard.length === 0);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(store.currentUserId);
 
     useEffect(() => {
+        // Skip fetch if cache is still fresh
+        if (!store.needsRefresh() && store.leaderboard.length > 0) {
+            setLoading(false);
+            return;
+        }
         fetchLeaderboard();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
 
-            // Get current user
             const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUserId(user?.id || null);
+            const uid = user?.id || null;
+            setCurrentUserId(uid);
 
-            // Fetch leaderboard using the SQL function
             const { data: leaderboardData, error: leaderboardError } = await supabase
                 .rpc('get_leaderboard', { p_limit: 100, p_offset: 0 });
 
             if (leaderboardError) throw leaderboardError;
-            setLeaderboard(leaderboardData || []);
+            const lb = leaderboardData || [];
+            setLeaderboard(lb);
 
-            // Fetch current user's rank if logged in
-            if (user?.id) {
+            let rank: UserRank | null = null;
+            if (uid) {
                 const { data: rankData, error: rankError } = await supabase
-                    .rpc('get_user_rank', { p_user_id: user.id });
-
+                    .rpc('get_user_rank', { p_user_id: uid });
                 if (!rankError && rankData && rankData.length > 0) {
-                    setUserRank(rankData[0]);
+                    rank = rankData[0];
+                    setUserRank(rank);
                 }
             }
+
+            // Persist to store for instant render on next visit
+            store.setLeaderboardData({ leaderboard: lb, userRank: rank, currentUserId: uid });
         } catch (error) {
             console.error('Error fetching leaderboard:', error);
         } finally {

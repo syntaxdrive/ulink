@@ -1,59 +1,88 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Profile, Message } from '../../../types';
+import { useChatStore } from '../../../stores/useChatStore';
 
 export function useChat() {
-    const [conversations, setConversations] = useState<Profile[]>([]);
-    const [activeChat, setActiveChat] = useState<Profile | null>(null);
+    const {
+        conversations,
+        setConversations: storeSetConversations,
+        messages: storeMessages,
+        setMessages: storeSetMessages,
+        activeChatId,
+        setActiveChatId,
+        unreadCounts,
+        setUnreadCount,
+        incrementUnread,
+        clearUnread
+    } = useChatStore();
+
+    const [activeChat, setActiveChatState] = useState<Profile | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [userId, setUserId] = useState<string | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
+
+    // Sync activeChat state with store's activeChatId
+    useEffect(() => {
+        if (!activeChatId) {
+            setActiveChatState(null);
+            setMessages([]);
+        } else {
+            const conv = conversations.find(c => c.id === activeChatId);
+            if (conv) setActiveChatState(conv);
+            setMessages(storeMessages[activeChatId] || []);
+        }
+    }, [activeChatId, conversations, storeMessages]);
+
+    const setActiveChat = useCallback((chat: Profile | null) => {
+        setActiveChatId(chat?.id || null);
+    }, [setActiveChatId]);
 
     const activeChatRef = useRef<Profile | null>(null);
 
     const fetchUnreadCounts = useCallback(async (myId: string) => {
         const { data: unreadData } = await supabase.rpc('fetch_unread_counts', { current_user_id: myId });
         if (unreadData) {
-            const counts: Record<string, number> = {};
             unreadData.forEach((item: any) => {
-                counts[item.sender_id] = parseInt(item.unread_count, 10) || 0;
+                setUnreadCount(item.sender_id, parseInt(item.unread_count, 10) || 0);
             });
-            setUnreadCounts(counts);
         }
-    }, []);
+    }, [setUnreadCount]);
 
     useEffect(() => {
         activeChatRef.current = activeChat;
         if (activeChat) {
             // clear unread for this chat
-            setUnreadCounts(prev => {
-                if (!prev[activeChat.id]) return prev;
-                const newCounts = { ...prev };
-                delete newCounts[activeChat.id];
-                return newCounts;
-            });
+            clearUnread(activeChat.id);
         }
     }, [activeChat]);
 
-    const fetchConversations = useCallback(async (myId: string) => {
+    const fetchConversations = useCallback(async (myId: string, isSilent = false) => {
+        const cacheExists = useChatStore.getState().conversations.length > 0;
+        if (!isSilent && !cacheExists) setLoading(true);
+
         const { data, error } = await supabase.rpc('get_sorted_conversations', { current_user_id: myId });
 
         if (error) {
             console.error('Error fetching conversations:', error);
+            setLoading(false);
             return;
         }
 
         if (data) {
-            setConversations(data);
+            storeSetConversations(data);
         }
-    }, []);
+        setLoading(false);
+    }, [storeSetConversations]);
 
     const markAsRead = useCallback(async (senderId: string) => {
         if (!userId) return;
 
-        setMessages(prev => prev.map(m =>
+        // Optimistic update in store for messages of this chatId
+        const chatId = senderId;
+        const currentMsgs = useChatStore.getState().messages[chatId] || [];
+        storeSetMessages(chatId, currentMsgs.map(m =>
             (m.sender_id === senderId && !m.read_at)
                 ? { ...m, read_at: new Date().toISOString() }
                 : m
@@ -66,12 +95,8 @@ export function useChat() {
             .eq('recipient_id', userId)
             .is('read_at', null);
 
-        setUnreadCounts(prev => {
-            const newCounts = { ...prev };
-            delete newCounts[senderId];
-            return newCounts;
-        });
-    }, [userId]);
+        clearUnread(senderId);
+    }, [userId, storeSetMessages, clearUnread]);
 
     // Initial load
     useEffect(() => {
@@ -99,12 +124,9 @@ export function useChat() {
                     const senderId = newMsg.sender_id;
 
                     if (activeChatRef.current?.id !== senderId) {
-                        setUnreadCounts(prev => ({
-                            ...prev,
-                            [senderId]: (prev[senderId] || 0) + 1
-                        }));
+                        incrementUnread(senderId);
                     }
-                    fetchConversations(userId);
+                    fetchConversations(userId, true);
                 })
             .subscribe();
 
@@ -157,6 +179,9 @@ export function useChat() {
         if (!activeChat || !userId) return;
 
         const fetchMessages = async () => {
+            const chatId = activeChat.id;
+            
+            // Background sync messages
             const { data } = await supabase
                 .from('messages')
                 .select('*')
@@ -164,7 +189,7 @@ export function useChat() {
                 .order('created_at', { ascending: true })
                 .limit(100);
 
-            setMessages(data || []);
+            if (data) storeSetMessages(chatId, data);
             markAsRead(activeChat.id);
         };
         fetchMessages();
@@ -197,7 +222,9 @@ export function useChat() {
                             if (newMsg.sender_id === activeChat.id) {
                                 markAsRead(activeChat.id);
                             }
-                            return [...prev, newMsg];
+                            const updated = prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg];
+                            storeSetMessages(activeChat.id, updated);
+                            return updated;
                         });
                     }
                 }
@@ -211,7 +238,8 @@ export function useChat() {
                         (updatedMsg.sender_id === activeChat.id && updatedMsg.recipient_id === userId) ||
                         (updatedMsg.sender_id === userId && updatedMsg.recipient_id === activeChat.id)
                     ) {
-                        setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+                        const updated = messages.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+                        storeSetMessages(activeChat.id, updated);
                     }
                 }
             )
@@ -238,10 +266,10 @@ export function useChat() {
                 .limit(100);
 
             if (data) {
-                setMessages(prev => {
-                    const tempMsgs = prev.filter(m => m.id.startsWith('temp-'));
-                    return [...data, ...tempMsgs.filter(t => !data.some(d => d.content === t.content && d.sender_id === t.sender_id && d.recipient_id === t.recipient_id))];
-                });
+                const chatId = activeChat.id;
+                const tempMsgs = messages.filter(m => m.id.startsWith('temp-'));
+                const reconciled = [...data, ...tempMsgs.filter(t => !data.some(d => d.content === t.content && d.sender_id === t.sender_id && d.recipient_id === t.recipient_id))];
+                storeSetMessages(chatId, reconciled);
             }
         }, 4000);
 

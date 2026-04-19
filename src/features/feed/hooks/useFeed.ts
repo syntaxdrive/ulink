@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import type { Post, Comment } from '../../../types';
+import type { Post } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
@@ -29,15 +29,14 @@ function optimizePostMedia(post: any): any {
 
 export function useFeed(communityId?: string) {
     // 1. Use Global Store
-    const { posts, setPosts, addPost, updatePost, removePost } = useFeedStore();
+    const { posts, setPosts, addPost, updatePost, removePost, commentsCache: comments, setCommentsCache: setComments } = useFeedStore();
 
     const [loading, setLoading] = useState(true);
     const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-    // Comment State (Still local as it's ephemeral UI state)
+    // Comment State
     const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
-    const [comments, setComments] = useState<Record<string, Comment[]>>({});
     const [loadingComments, setLoadingComments] = useState(false);
 
     // Pagination State
@@ -89,11 +88,20 @@ export function useFeed(communityId?: string) {
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
                 removePost(payload.old.id);
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, (payload: any) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, async (payload: any) => {
                 const postId = payload.new?.post_id || payload.old?.post_id;
                 const actorId = payload.new?.user_id || payload.old?.user_id;
                 if (!postId) return;
-                // Optimistic counter update — avoids a DB fetch per like event
+                
+                // Get fresh user ID to avoid closure staleness
+                const { data: authData } = await supabase.auth.getUser();
+                const sessionUserId = authData.user?.id;
+                
+                if (actorId && sessionUserId && actorId === sessionUserId) {
+                    return; // Ignore own likes: Optimistic UI already handled this instantly
+                }
+
+                // Optimistic counter update for others' likes
                 const post = useFeedStore.getState().posts.find(p => p.id === postId);
                 if (post) {
                     const delta = payload.eventType === 'INSERT' ? 1 : -1;
@@ -177,7 +185,24 @@ export function useFeed(communityId?: string) {
 
     const fetchPosts = async (userId?: string, isLoadMore = false) => {
         const isInitial = !isLoadMore;
-        if (isInitial) setLoading(true);
+        
+        // Caching Logic: Context-aware cache check
+        const currentContext = communityId || null;
+        const cacheExists = useFeedStore.getState().posts.length > 0;
+        const refreshNeeded = useFeedStore.getState().needsRefresh(currentContext);
+
+        if (isInitial && cacheExists && !refreshNeeded) {
+            setLoading(false);
+            return; // Cache is fresh and matching context, skip network request entirely
+        }
+
+        if (isInitial) {
+            if (!cacheExists || refreshNeeded) {
+                setLoading(true);
+            } else {
+                setLoading(false); // We have data, don't show skeleton (silent refresh)
+            }
+        }
 
         // Cursor-based pagination: each page fetches exactly POSTS_PER_PAGE new rows
         const cursor = isLoadMore ? feedCursor : null;
@@ -432,10 +457,10 @@ export function useFeed(communityId?: string) {
 
             if (isLoadMore) {
                 // Append-only: preserve existing sorted posts, add new batch at the end
-                setPosts([...useFeedStore.getState().posts, ...formatted]);
+                setPosts([...useFeedStore.getState().posts, ...formatted], currentContext);
             } else {
-                // Initial load: full algorithmic sort and replace
-                setPosts(formatted);
+                // Replacement: Context-aware update
+                setPosts(formatted, currentContext);
             }
 
             setHasMore(formatted.length >= POSTS_PER_PAGE);

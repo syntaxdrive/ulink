@@ -38,13 +38,25 @@ export const signInWithGoogle = async () => {
         }
     } else {
         // Standard web flow
-        const { error } = await supabase.auth.signInWithOAuth({
+        // redirectTo must exactly match one of the URLs in your Supabase
+        // project: Authentication > URL Configuration > Redirect URLs
+        const redirectTo = window.location.origin + '/app';
+        console.log('[Auth] Starting Google sign-in, redirectTo:', redirectTo);
+
+        const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + '/app',
+                redirectTo,
             },
         });
-        if (error) console.error('Sign in error:', error);
+
+        if (error) {
+            console.error('[Auth] Google sign-in error:', error.message, error);
+            alert(`Sign-in failed: ${error.message}`);
+            return;
+        }
+
+        console.log('[Auth] OAuth initiated, data:', data);
     }
 };
 

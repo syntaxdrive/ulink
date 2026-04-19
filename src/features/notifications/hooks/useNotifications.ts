@@ -145,12 +145,17 @@ export function useNotifications() {
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
 
-    const fetchNotifications = useCallback(async () => {
+    const fetchNotifications = useCallback(async (isSilent = false) => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+            
+            // Skip if cache is fresh
+            const refreshNeeded = useNotificationStore.getState().needsRefresh();
+            const cacheExists = useNotificationStore.getState().generalNotifications.length > 0;
+            if (isSilent && cacheExists && !refreshNeeded) return;
 
-            setLoading(true);
+            if (!isSilent && !cacheExists) setLoading(true);
 
             // Fetch General Notifications
             const { data: notifData } = await supabase
@@ -326,7 +331,10 @@ export function useNotifications() {
 
         const onVisibility = () => {
             if (document.visibilityState === 'visible') {
-                void fetchNotifications();
+                const refreshNeeded = useNotificationStore.getState().needsRefresh();
+                if (refreshNeeded) {
+                    void fetchNotifications(true); // Always silent on visibility
+                }
             }
         };
 

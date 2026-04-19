@@ -1,23 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Profile } from '../../../types';
-
-
+import { useNetworkStore } from '../../../stores/useNetworkStore';
 
 export function useNetwork() {
-    const [suggestions, setSuggestions] = useState<Profile[]>([]);
-    const [myNetwork, setMyNetwork] = useState<Profile[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [connections, setConnections] = useState<Set<string>>(new Set());
-    const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
+    const store = useNetworkStore();
+
+    // Hydrate local state from store immediately (instant render on revisit)
+    const [suggestions, setSuggestions] = useState<Profile[]>(store.suggestions);
+    const [myNetwork, setMyNetwork] = useState<Profile[]>(store.myNetwork);
+    const [loading, setLoading] = useState(store.suggestions.length === 0);
+    const [connections, setConnections] = useState<Set<string>>(new Set(store.connections));
+    const [sentRequests, setSentRequests] = useState<Set<string>>(new Set(store.sentRequests));
     const [connecting, setConnecting] = useState<string | null>(null);
     const [searchResults, setSearchResults] = useState<Profile[]>([]);
     const [searching, setSearching] = useState(false);
-
-    const [userProfile, setUserProfile] = useState<Profile | null>(null);
+    const [userProfile, setUserProfile] = useState<Profile | null>(store.userProfile);
 
     const fetchNetworkData = useCallback(async () => {
-        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { setLoading(false); return; }
 
@@ -42,7 +42,6 @@ export function useNetwork() {
         if (allConnections) {
             allConnections.forEach((conn: any) => {
                 const otherId = conn.requester_id === user.id ? conn.recipient_id : conn.requester_id;
-
                 if (conn.status === 'accepted') {
                     connectedIds.add(otherId);
                     connectedProfileIds.push(otherId);
@@ -56,21 +55,18 @@ export function useNetwork() {
         setSentRequests(pendingIds);
 
         // 2. Fetch "My Network" Profiles
+        let networkProfiles: Profile[] = [];
         if (connectedProfileIds.length > 0) {
-            const { data: networkProfiles } = await supabase
+            const { data } = await supabase
                 .from('profiles')
                 .select('*')
                 .in('id', connectedProfileIds);
-
-            if (networkProfiles) setMyNetwork(networkProfiles as any);
-        } else {
-            setMyNetwork([]);
+            if (data) networkProfiles = data as any;
         }
+        setMyNetwork(networkProfiles);
 
-        // 3. Fetch candidate profiles for suggestions — select(*) guarantees
-        //    success even if optional columns (points, gold_verified) don't exist.
+        // 3. Fetch suggestions — limit 500, exclude already-connected
         const excludeIds = new Set([user.id, ...Array.from(connectedIds), ...Array.from(pendingIds)]);
-
         const { data: allProfiles, error: profilesError } = await supabase
             .from('profiles')
             .select('*')
@@ -78,28 +74,35 @@ export function useNetwork() {
             .order('created_at', { ascending: false })
             .limit(500);
 
+        let filteredSuggestions: Profile[] = [];
         if (profilesError) {
             console.error('[useNetwork] profiles fetch error:', profilesError);
-            setSuggestions([]);
         } else if (allProfiles) {
             const myUni = profile?.university?.toLowerCase().trim();
             const filtered = allProfiles.filter((p: any) => !excludeIds.has(p.id));
-            // Sort: same university first, then gold verified, then verified
             filtered.sort((a: any, b: any) => {
-                const aUni = a.university?.toLowerCase().trim();
-                const bUni = b.university?.toLowerCase().trim();
-                const aSameUni = myUni && aUni === myUni ? 0 : 1;
-                const bSameUni = myUni && bUni === myUni ? 0 : 1;
+                const aSameUni = myUni && a.university?.toLowerCase().trim() === myUni ? 0 : 1;
+                const bSameUni = myUni && b.university?.toLowerCase().trim() === myUni ? 0 : 1;
                 if (aSameUni !== bSameUni) return aSameUni - bSameUni;
                 if ((b.gold_verified ? 1 : 0) !== (a.gold_verified ? 1 : 0)) return (b.gold_verified ? 1 : 0) - (a.gold_verified ? 1 : 0);
                 if ((b.is_verified ? 1 : 0) !== (a.is_verified ? 1 : 0)) return (b.is_verified ? 1 : 0) - (a.is_verified ? 1 : 0);
                 return 0;
             });
-            setSuggestions(filtered as any);
+            filteredSuggestions = filtered as any;
+            setSuggestions(filteredSuggestions);
         }
 
+        // Persist to store
+        store.setNetworkData({
+            suggestions: filteredSuggestions,
+            myNetwork: networkProfiles,
+            connections: Array.from(connectedIds),
+            sentRequests: Array.from(pendingIds),
+            userProfile: profile as any,
+        });
+
         setLoading(false);
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const searchUsers = async (query: string) => {
         if (!query.trim()) {
@@ -113,7 +116,6 @@ export function useNetwork() {
         if (!user) return;
 
         try {
-            // Try the RPC first
             const { data, error } = await supabase.rpc('search_all_users', {
                 current_user_id: user.id,
                 search_query: query.trim()
@@ -122,7 +124,6 @@ export function useNetwork() {
             if (!error && data) {
                 setSearchResults(data);
             } else {
-                // Fallback: direct ilike query
                 const q = query.trim().toLowerCase();
                 const { data: fallback } = await supabase
                     .from('profiles')
@@ -144,38 +145,33 @@ export function useNetwork() {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
-            // Optimistic Update
-            setSentRequests(prev => {
-                const newSet = new Set(prev);
-                newSet.add(targetUserId);
-                return newSet;
-            });
+            // Optimistic update — both local state and store
+            setSentRequests(prev => new Set([...prev, targetUserId]));
+            store.addSentRequest(targetUserId);
 
             const { error } = await supabase
                 .from('connections')
-                .insert({
-                    requester_id: user.id,
-                    recipient_id: targetUserId,
-                    status: 'pending'
-                });
+                .insert({ requester_id: user.id, recipient_id: targetUserId, status: 'pending' });
 
             if (error) {
                 console.error('Error sending connection request:', error);
                 alert('Failed to send connection request. Please try again.');
                 // Rollback
-                setSentRequests(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(targetUserId);
-                    return newSet;
-                });
+                setSentRequests(prev => { const s = new Set(prev); s.delete(targetUserId); return s; });
+                store.removeSentRequest(targetUserId);
             }
         }
         setConnecting(null);
     };
 
     useEffect(() => {
+        // Use cached data if fresh; otherwise fetch
+        if (!store.needsRefresh() && store.suggestions.length > 0) {
+            setLoading(false);
+            return;
+        }
         fetchNetworkData();
-    }, [fetchNetworkData]);
+    }, [fetchNetworkData, store]);
 
     return {
         suggestions,
@@ -188,6 +184,6 @@ export function useNetwork() {
         searchUsers,
         searchResults,
         searching,
-        userProfile
+        userProfile,
     };
 }

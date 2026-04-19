@@ -59,7 +59,7 @@ export default function NativeVideoPlayer({ src, id }: NativeVideoPlayerProps) {
             controls
             muted={false}
             className="w-full max-h-[500px]"
-            preload="auto"
+            preload="metadata"
             playsInline
             onPlay={() => setPlayingId(id)}
         />

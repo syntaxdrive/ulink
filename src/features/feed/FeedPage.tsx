@@ -19,8 +19,13 @@ import NewsSlider from './components/NewsSlider';
 
 
 
-// Module-level name cache: each user name is fetched at most once per browser session
+// Module-level caches — survive navigation, reset on hard refresh
 const _nameCache = new Map<string, string>();
+
+const _podcastSidebarCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const _podcastStripCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const _activeUsersCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const WIDGET_TTL = 10 * 60 * 1000; // 10 minutes
 async function resolveName(userId: string): Promise<string> {
     if (_nameCache.has(userId)) return _nameCache.get(userId)!;
     const { data } = await supabase.from('profiles').select('name').eq('id', userId).single();
@@ -104,16 +109,23 @@ function LiveTicker({ postCount, latestFeedEvent }: { postCount: number; latestF
 
 
 function PodcastSidebarWidget() {
-    const [podcasts, setPodcasts] = useState<any[]>([]);
+    const [podcasts, setPodcasts] = useState<any[]>(_podcastSidebarCache.data);
 
     useEffect(() => {
+        if (_podcastSidebarCache.data.length > 0 && Date.now() - _podcastSidebarCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
             .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name)')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(3)
-            .then(({ data }) => { if (data?.length) setPodcasts(data); });
+            .then(({ data }) => {
+                if (data?.length) {
+                    _podcastSidebarCache.data = data;
+                    _podcastSidebarCache.ts = Date.now();
+                    setPodcasts(data);
+                }
+            });
     }, []);
 
     if (podcasts.length === 0) return null;
@@ -163,17 +175,24 @@ function PodcastSidebarWidget() {
 // ── Mobile podcast strip (visible below lg breakpoint only) ────
 function MobilePodcastStrip() {
     const navigate = useNavigate();
-    const [podcasts, setPodcasts] = useState<any[]>([]);
+    const [podcasts, setPodcasts] = useState<any[]>(_podcastStripCache.data);
     const { currentTrack, isPlaying } = useAudioStore();
 
     useEffect(() => {
+        if (_podcastStripCache.data.length > 0 && Date.now() - _podcastStripCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
             .select('id, title, cover_url, category, creator:profiles!creator_id(name)')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(8)
-            .then(({ data }) => { if (data?.length) setPodcasts(data); });
+            .then(({ data }) => {
+                if (data?.length) {
+                    _podcastStripCache.data = data;
+                    _podcastStripCache.ts = Date.now();
+                    setPodcasts(data);
+                }
+            });
     }, []);
 
     if (podcasts.length === 0) return null;
@@ -294,14 +313,24 @@ export default function FeedPage() {
         return () => document.removeEventListener('click', closeMenu);
     }, []);
 
-    // Load some recently active users for sidebar
+    // Load some recently active users for sidebar — cached for 10 minutes
     useEffect(() => {
+        if (_activeUsersCache.data.length > 0 && Date.now() - _activeUsersCache.ts < WIDGET_TTL) {
+            setActiveUsers(_activeUsersCache.data);
+            return;
+        }
         supabase
             .from('profiles')
             .select('id, name, username, avatar_url, role')
             .order('updated_at', { ascending: false })
             .limit(5)
-            .then(({ data }) => setActiveUsers(data || []));
+            .then(({ data }) => {
+                if (data) {
+                    _activeUsersCache.data = data;
+                    _activeUsersCache.ts = Date.now();
+                    setActiveUsers(data);
+                }
+            });
     }, []);
 
     // Server-side Search Debounce

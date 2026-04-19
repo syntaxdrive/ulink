@@ -46,7 +46,13 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
     const { requests, generalNotifications } = useNotifications();
     const unreadNotifications = requests.length + generalNotifications.filter(n => !n.read).length;
 
-    const [userProfile, setUserProfile] = useState<Profile | null>(null);
+    const [userProfile, setUserProfile] = useState<Profile | null>(() => {
+        // Load cached profile instantly to avoid the '@handle' flash
+        try {
+            const cached = localStorage.getItem('ulink_profile_cache');
+            return cached ? JSON.parse(cached) : null;
+        } catch { return null; }
+    });
     const [isGuest, setIsGuest] = useState(false);
 
     const [notificationPermission, setNotificationPermission] = useState(() =>
@@ -203,6 +209,8 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
             if (profile) {
                 setUserProfile(profile);
+                // Cache profile for instant display on next load
+                try { localStorage.setItem('ulink_profile_cache', JSON.stringify(profile)); } catch {}
                 // Only redirect if genuinely incomplete — not if a stale call fires
                 // while the user is already heading to or on onboarding
                 if (!isOnboardingComplete(profile) && !window.location.pathname.startsWith('/onboarding')) {
@@ -348,6 +356,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
     }, []);
 
     const handleLogout = async () => {
+        try { localStorage.removeItem('ulink_profile_cache'); } catch {}
         await supabase.auth.signOut();
         navigate('/');
     };
@@ -734,7 +743,9 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                                         {userProfile?.name || 'User'}
                                     </p>
                                     <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black truncate uppercase tracking-tight">
-                                        @{userProfile?.username || 'handle'}
+                                        {userProfile?.username
+                                            ? `@${userProfile.username}`
+                                            : <span className="inline-block w-20 h-2.5 bg-stone-200 dark:bg-zinc-700 rounded-full animate-pulse" />}
                                     </p>
                                     <p className="text-[9px] text-slate-500 dark:text-zinc-400 font-medium truncate uppercase tracking-tighter opacity-70">
                                         {userProfile?.role === 'org' ? 'Organization' : userProfile?.university || userProfile?.role}
