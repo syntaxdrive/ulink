@@ -211,19 +211,31 @@ function CategoryCard({ category, onClick }: { category: string; onClick: () => 
     );
 }
 
+import { usePodcastStore } from '../../stores/usePodcastStore';
+
 // ── Main page ───────────────────────────────────────────────────
 export default function PodcastsPage() {
     const navigate = useNavigate();
-    const [allPodcasts, setAllPodcasts] = useState<Podcast[]>([]);
-    const [loading, setLoading] = useState(true);
+    const store = usePodcastStore();
+    const [allPodcasts, setAllPodcasts] = useState<Podcast[]>(store.podcasts);
+    const [loading, setLoading] = useState(store.podcasts.length === 0);
     const [category, setCategory] = useState('All');
     const [search, setSearch] = useState('');
     const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
-        setLoading(true);
+        if (!store.needsRefresh() && store.podcasts.length > 0) {
+            setLoading(false);
+            return;
+        }
+
+        if (store.podcasts.length === 0) setLoading(true);
+        
         fetchPodcasts()
-            .then(setAllPodcasts)
+            .then(data => {
+                setAllPodcasts(data);
+                store.setPodcasts(data);
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);

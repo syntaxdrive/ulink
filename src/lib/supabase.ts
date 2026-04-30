@@ -10,8 +10,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         flowType: 'pkce',
         // Automatically detect the redirect URL
         detectSessionInUrl: true,
-        // Store session in local storage
-        storage: window.localStorage,
         // Auto refresh tokens
         autoRefreshToken: true,
         // Persist session across page refreshes

@@ -40,13 +40,20 @@ export const signInWithGoogle = async () => {
         // Standard web flow
         // redirectTo must exactly match one of the URLs in your Supabase
         // project: Authentication > URL Configuration > Redirect URLs
-        const redirectTo = window.location.origin + '/app';
+        const origin = window.location.origin;
+        // Ensure we don't have double slashes if origin ends with /
+        const redirectTo = origin.endsWith('/') ? `${origin}app` : `${origin}/app`;
+        
         console.log('[Auth] Starting Google sign-in, redirectTo:', redirectTo);
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo,
+                queryParams: {
+                    prompt: 'select_account',
+                    access_type: 'offline',
+                },
             },
         });
 

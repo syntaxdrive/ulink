@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Send } from 'lucide-react';
 import ChatSidebar from './components/ChatSidebar';
 import ChatWindow from './components/ChatWindow';
 import { useChat } from './hooks/useChat';
+import { supabase } from '../../lib/supabase';
+import type { Profile } from '../../types';
 
 export default function MessagesPage() {
     const {
@@ -16,19 +18,67 @@ export default function MessagesPage() {
         onlineUsers,
         unreadCounts,
         sendMessage,
-        deleteMessage
+        deleteMessage,
+        setConversations
     } = useChat();
 
     const [searchParams] = useSearchParams();
     const initialChatId = searchParams.get('chat');
 
+    const initialMessage = searchParams.get('text');
+    const [activeTab, setActiveTab] = useState<'all' | 'market'>('all');
+    const lastProcessedRef = useRef<string | null>(null);
+    const lastDeepLinkRef = useRef<string | null>(null);
+
+    // Auto-switch to Marketplace tab if we have a market message
+    useEffect(() => {
+        if (initialMessage?.includes('🛒')) {
+            setActiveTab('market');
+        }
+    }, [initialMessage]);
+
     // Handle Deep Linking to Chat
     useEffect(() => {
-        if (initialChatId && conversations.length > 0 && !activeChat) {
-            const target = conversations.find(c => c.id === initialChatId);
+        const handleDeepLink = async () => {
+            if (!initialChatId || conversations.length === 0 || lastDeepLinkRef.current === initialChatId) return;
+            lastDeepLinkRef.current = initialChatId;
+
+            // 1. Try to find in existing conversations
+            let target = conversations.find(c => c.id === initialChatId);
+
+            // 2. If not found, fetch the profile (new chat)
+            if (!target) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', initialChatId)
+                    .single();
+                
+                if (profile) {
+                    target = profile as Profile;
+                    // Add to store so ChatSidebar can show it
+                    setConversations([target, ...conversations]);
+                }
+            }
+
             if (target) setActiveChat(target);
+        };
+
+        handleDeepLink();
+    }, [initialChatId, conversations, activeChat, setActiveChat, setConversations]);
+
+    // Handle Pre-filled Message (Marketplace)
+    useEffect(() => {
+        // We only send if we have a message and a chat, and haven't processed THIS message/chat combo yet
+        const messageKey = `${initialChatId}-${initialMessage}`;
+        
+        if (activeChat && userId && initialMessage && lastProcessedRef.current !== messageKey) {
+            lastProcessedRef.current = messageKey;
+            sendMessage(initialMessage);
+            // Completely clear URL to prevent "stickiness" and resending
+            window.history.replaceState({}, '', window.location.pathname);
         }
-    }, [initialChatId, conversations, activeChat, setActiveChat]);
+    }, [activeChat, userId, initialMessage, sendMessage]);
 
     if (loading) {
         return (
@@ -47,6 +97,8 @@ export default function MessagesPage() {
                 setActiveChat={setActiveChat}
                 unreadCounts={unreadCounts}
                 onlineUsers={onlineUsers}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
             />
 
             {/* Chat Window or Empty State */}

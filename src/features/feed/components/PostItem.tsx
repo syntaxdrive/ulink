@@ -10,7 +10,7 @@ import { useCommunityMembership } from '../../communities/hooks/useCommunityMemb
 import { supabase } from '../../../lib/supabase';
 import { signInWithGoogle } from '../../../lib/auth-helpers';
 import { nativeShare } from '../../../utils/shareUtils';
-import { cloudinaryService } from '../../../services/cloudinaryService';
+import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 import { getBaseUrl } from '../../../config';
 import { checkClientRateLimit } from '../../../utils/rateLimit';
 
@@ -462,7 +462,7 @@ export default function PostItem({
                     >
                         {post.community.icon_url ? (
                             <img
-                                src={post.community.icon_url}
+                                src={getOptimizedMediaUrl(post.community.icon_url)}
                                 alt={post.community.name}
                                 className="w-6 h-6 rounded-md object-cover"
                             />
@@ -509,7 +509,7 @@ export default function PostItem({
                     <div className={`w-10 h-10 ${post.profiles?.role === 'org' ? 'rounded-lg' : 'rounded-full'} overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 dark:from-zinc-800 dark:to-zinc-700`}>
                         <img
                             loading="lazy"
-                            src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.username || post.profiles?.name || 'User')}&size=128&background=${post.profiles?.role === 'org' ? 'f97316' : 'random'}`}
+                            src={getOptimizedMediaUrl(post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.profiles?.username || post.profiles?.name || 'User')}&size=128&background=${post.profiles?.role === 'org' ? 'f97316' : 'random'}`)}
                             alt={post.profiles?.username || post.profiles?.name}
                             className={`w-full h-full ${post.profiles?.role === 'org' ? 'object-contain p-1.5' : 'object-cover'} transition-transform duration-300 group-hover:scale-105`}
                         />
@@ -653,7 +653,7 @@ export default function PostItem({
                         <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 dark:from-zinc-800 dark:to-zinc-700">
                             <img
                                 loading="lazy"
-                                src={post.original_post!.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.original_post!.profiles?.username || post.original_post!.profiles?.name || 'User')}&background=random`}
+                                src={getOptimizedMediaUrl(post.original_post!.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.original_post!.profiles?.username || post.original_post!.profiles?.name || 'User')}&background=random`)}
                                 alt={post.original_post.profiles?.name}
                                 className="w-full h-full object-cover"
                             />
@@ -697,7 +697,7 @@ export default function PostItem({
                                         >
                                             <img
                                                 loading="lazy"
-                                                src={url}
+                                                src={getOptimizedMediaUrl(url)}
                                                 alt="Original post content"
                                                 className={`w-full object-cover bg-stone-900 ${originalImages.length > 1 ? 'h-40 md:h-52' : 'max-h-80'}`}
                                             />
@@ -821,7 +821,7 @@ export default function PostItem({
                                 >
                                     <img
                                         loading="lazy"
-                                        src={url}
+                                        src={getOptimizedMediaUrl(url)}
                                         alt="Post content"
                                         className={`w-full object-cover bg-stone-900 ${images.length > 1 ? 'h-64 md:h-80' : 'max-h-[600px]'}`}
                                     />
@@ -1002,7 +1002,7 @@ export default function PostItem({
                                             >
                                                 <div className={`w-8 h-8 ${comment.profiles?.role === 'org' ? 'rounded-lg' : 'rounded-full'} overflow-hidden ring-1 ring-stone-200 dark:ring-zinc-800 shadow-sm`}>
                                                     <img
-                                                        src={comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.username || comment.profiles?.name || 'User')}&background=random`}
+                                                        src={getOptimizedMediaUrl(comment.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.profiles?.username || comment.profiles?.name || 'User')}&background=random`)}
                                                         className="w-full h-full object-cover"
                                                     />
                                                 </div>
@@ -1011,7 +1011,7 @@ export default function PostItem({
                                                 {comment.sticker_url && !comment.content ? (
                                                     <div className="relative inline-block group/sticker">
                                                         <img
-                                                            src={comment.sticker_url}
+                                                            src={getOptimizedMediaUrl(comment.sticker_url)}
                                                             alt="Sticker"
                                                             className="max-w-[140px] sm:max-w-[180px] h-auto rounded-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95"
                                                             onClick={(e) => {
@@ -1060,7 +1060,7 @@ export default function PostItem({
                                                             <div className="mt-2 flex justify-start">
                                                                 <div className="max-w-[160px] sm:max-w-[200px] relative">
                                                                     <img
-                                                                        src={comment.sticker_url}
+                                                                        src={getOptimizedMediaUrl(comment.sticker_url)}
                                                                         alt="Sticker"
                                                                         className="w-full h-auto rounded-lg shadow-sm hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95"
                                                                         onClick={(e) => {

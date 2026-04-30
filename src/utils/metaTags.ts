@@ -91,7 +91,7 @@ export function resetMetaTags() {
     updateMetaTags({
         title: 'UniLink - The #1 Network for Nigerian Students',
         description: 'Connect with students across Nigerian universities. Network, share opportunities, and build your professional profile.',
-        image: `${window.location.origin}/icon-512.png`,
+        image: `${window.location.origin}/og-preview.png`,
         url: window.location.href
     });
 }

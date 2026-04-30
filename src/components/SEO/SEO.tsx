@@ -46,7 +46,7 @@ export const SEO = ({
         'university of zaria',
         'university of ilorin',
     ],
-    ogImage = 'https://unilink.ng/og-image.jpg', // Default OG image
+    ogImage = 'https://unilink.ng/og-preview.png', // Default branded OG image
     ogType = 'website',
     canonicalUrl = typeof window !== 'undefined' ? window.location.href : '',
 }: SEOProps) => {

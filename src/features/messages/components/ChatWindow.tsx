@@ -5,7 +5,7 @@ import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText
 import type { Message, Profile } from '../../../types';
 import MessageItem from './MessageItem';
 import ForwardMessageModal from './ForwardMessageModal';
-import { cloudinaryService } from '../../../services/cloudinaryService';
+import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
 interface ChatWindowProps {
     activeChat: Profile;
@@ -431,7 +431,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                 <Link to={`/app/profile/${activeChat.username || activeChat.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:bg-stone-50 p-2 -my-2 rounded-lg transition-colors">
                     <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden relative shrink-0">
                         <img
-                            src={activeChat.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}&background=random`}
+                            src={getOptimizedMediaUrl(activeChat.avatar_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}&background=random`}
                             alt={activeChat.name}
                             className="w-full h-full object-cover"
                         />

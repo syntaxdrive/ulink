@@ -2,17 +2,26 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Users, Globe, Lock, Loader2, Compass } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { type Community } from '../../types';
+import { useCommunitiesStore } from '../../stores/useCommunitiesStore';
 import CreateCommunityModal from './components/CreateCommunityModal';
+import type { Community } from '../../types';
 
 export default function CommunitiesPage({ embed = false }: { embed?: boolean }) {
-    const [communities, setCommunities] = useState<Community[]>([]);
-    const [loading, setLoading] = useState(true);
+    const store = useCommunitiesStore();
+    const [communities, setCommunities] = useState<Community[]>(store.communities);
+    const [loading, setLoading] = useState(store.communities.length === 0);
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    const fetchCommunities = async (query: string = '') => {
-        setLoading(true);
+    const fetchCommunities = async (query: string = '', isInitial = false) => {
+        // Only show loading if we don't have data
+        if (isInitial && store.communities.length === 0) {
+            setLoading(true);
+        } else if (query.trim()) {
+            // Show subtle loader for search
+            // setLoading(true); // maybe not for silent background refresh
+        }
+
         try {
             let dbQuery = supabase
                 .from('communities')
@@ -32,7 +41,13 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
                 members_count: c.community_members?.[0]?.count || 0
             }));
 
-            setCommunities(communitiesWithCount || []);
+            const finalData = communitiesWithCount || [];
+            setCommunities(finalData);
+            
+            // Persist to store if this was a global fetch (not a search)
+            if (!query.trim()) {
+                store.setCommunities(finalData);
+            }
         } catch (error) {
             console.error('Error fetching communities:', error);
         } finally {
@@ -42,7 +57,11 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
 
     // Initial fetch
     useEffect(() => {
-        fetchCommunities();
+        if (!store.needsRefresh() && store.communities.length > 0) {
+            setLoading(false);
+            return;
+        }
+        fetchCommunities('', true);
     }, []);
 
     // Debounced search

@@ -1,6 +1,8 @@
 import { memo, useMemo, useRef, useState } from 'react';
-import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X, ShoppingCart, ExternalLink } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
+import { getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
 export const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
 
@@ -86,7 +88,7 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
             {!isMe && activeChat && (
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 dark:bg-zinc-800 mb-1 shadow-sm shrink-0 border border-white dark:border-zinc-900">
                     <img
-                        src={activeChat.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}`}
+                        src={getOptimizedMediaUrl(activeChat.avatar_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}`}
                         alt="Avatar"
                         className="w-full h-full object-cover"
                     />
@@ -110,14 +112,48 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                     </div>
                 )}
 
-                <div className="break-words whitespace-pre-wrap">{displayContent}</div>
+                <div className="break-words whitespace-pre-wrap">
+                    {displayContent.includes('🛒') ? (
+                        <div className="space-y-2">
+                            {/* Header for Market Message */}
+                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">
+                                <ShoppingCart className="w-3 h-3" /> Marketplace Item
+                            </div>
+                            
+                            {/* Main Content */}
+                            <div>{displayContent.replace(/\[Ref: [a-f0-9-]+\]/g, '').trim()}</div>
+
+                            {/* View Item Card */}
+                            {displayContent.match(/\[Ref: ([a-f0-9-]+)\]/) && (
+                                <Link
+                                    to={`/app/marketplace?id=${displayContent.match(/\[Ref: ([a-f0-9-]+)\]/)?.[1]}`}
+                                    className={`mt-3 flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all hover:scale-[1.02] active:scale-95 ${
+                                        isMe 
+                                            ? 'bg-emerald-700/40 border-emerald-500/30 hover:bg-emerald-700/60 text-emerald-50' 
+                                            : 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 shadow-sm'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className={`p-1.5 rounded-lg ${isMe ? 'bg-emerald-800/50' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600'}`}>
+                                            <ShoppingCart className="w-3.5 h-3.5" />
+                                        </div>
+                                        <span className="text-[11px] font-bold truncate">View Marketplace Listing</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+                            )}
+                        </div>
+                    ) : (
+                        displayContent
+                    )}
+                </div>
 
                 {/* Message Attachment (Image or Doc) */}
                 {msg.image_url && (
                     isImage(msg.image_url) ? (
                         <div className="mt-2 rounded-lg overflow-hidden border border-black/10">
                             <img
-                                src={msg.image_url}
+                                src={getOptimizedMediaUrl(msg.image_url)}
                                 alt="Attachment"
                                 className="max-w-full max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => msg.image_url && onImageClick(msg.image_url)}

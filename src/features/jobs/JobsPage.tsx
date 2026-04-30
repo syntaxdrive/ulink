@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Job } from '../../types';
 import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, CheckCircle, Users, MapPin, Calendar, DollarSign, Clock, Share2 } from 'lucide-react';
 import { shareToWhatsApp, nativeShare } from '../../utils/shareUtils';
 import Modal from '../../components/ui/Modal';
+import { useJobsStore } from '../../stores/useJobsStore';
 
 export default function JobsPage() {
-    const [jobs, setJobs] = useState<Job[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
+    const store = useJobsStore();
+    const [jobs, setJobs] = useState<Job[]>(store.jobs);
+    const [loading, setLoading] = useState(store.jobs.length === 0);
     const [userRole, setUserRole] = useState<'student' | 'org' | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [userCompany, setUserCompany] = useState('');
     const [isPosting, setIsPosting] = useState(false);
     const [editingJob, setEditingJob] = useState<Job | null>(null);
     const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
-    const [myApplications, setMyApplications] = useState<Record<string, string>>({});
+    const [myApplications, setMyApplications] = useState<Record<string, string>>(store.myApplications);
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [viewApplicantsJob, setViewApplicantsJob] = useState<Job | null>(null);
     const [applicants, setApplicants] = useState<any[]>([]);
@@ -134,8 +138,11 @@ export default function JobsPage() {
         }
     };
 
-    const fetchJobs = async () => {
-        setLoading(true);
+    const fetchJobs = async (isInitial = false) => {
+        if (isInitial && store.jobs.length === 0) {
+            setLoading(true);
+        }
+        
         const { data, error } = await supabase
             .from('jobs')
             .select('*')
@@ -144,6 +151,7 @@ export default function JobsPage() {
 
         if (!error && data) {
             setJobs(data);
+            store.setJobs(data);
         }
         setLoading(false);
     };
@@ -163,6 +171,7 @@ export default function JobsPage() {
                 apps[app.job_id] = app.status;
             });
             setMyApplications(apps);
+            store.setMyApplications(apps);
         }
     };
 
@@ -183,7 +192,18 @@ export default function JobsPage() {
 
     useEffect(() => {
         checkUserRole();
-        fetchJobs();
+        
+        const action = searchParams.get('action');
+        if (action === 'post') {
+            setShowPostForm(true);
+        }
+
+        if (store.needsRefresh() || store.jobs.length === 0) {
+            fetchJobs(true);
+        } else {
+            setLoading(false);
+        }
+        
         fetchMyApplications();
 
         const channel = supabase
@@ -192,7 +212,9 @@ export default function JobsPage() {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'jobs' },
                 (payload) => {
-                    setJobs(prev => [payload.new as Job, ...prev]);
+                    const nj = payload.new as Job;
+                    setJobs(prev => [nj, ...prev]);
+                    // Also update store if possible
                 }
             )
             .subscribe();

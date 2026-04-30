@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 import { SEO } from '../../components/SEO/SEO';
@@ -1009,6 +1009,20 @@ export default function UserProfilePage() {
                     {/* Jobs Tab (Organizations Only) */}
                     {isOrganization && activeTab === 'jobs' && (
                         <div className="space-y-6">
+                            {currentUser?.id === profile.id && (
+                                <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-5 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                                    <div>
+                                        <h4 className="font-bold text-emerald-900 dark:text-emerald-100">Grow your team</h4>
+                                        <p className="text-sm text-emerald-700 dark:text-emerald-400">Post a new career opportunity for students.</p>
+                                    </div>
+                                    <Link
+                                        to="/app/jobs?action=post"
+                                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 dark:shadow-none flex items-center gap-2 whitespace-nowrap"
+                                    >
+                                        <Plus className="w-4 h-4" /> Post a Job
+                                    </Link>
+                                </div>
+                            )}
                             {orgJobs.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {orgJobs.map((job) => (

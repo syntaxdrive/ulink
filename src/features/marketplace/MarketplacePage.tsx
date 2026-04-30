@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
     ShoppingBag,
     Search,
@@ -22,35 +23,23 @@ import {
     Share2,
     Store,
     Pencil,
+    LayoutGrid,
+    Trophy,
+    ArrowLeft,
+    RotateCcw,
+    Camera
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { cloudinaryService } from '../../services/cloudinaryService';
+import { cloudinaryService, getOptimizedMediaUrl } from '../../services/cloudinaryService';
 import { nativeShare } from '../../utils/shareUtils';
 import { getBaseUrl } from '../../config';
 import Modal from '../../components/ui/Modal';
+import { useMarketplaceStore } from '../../stores/useMarketplaceStore';
+import type { MarketplaceListing } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface MarketplaceListing {
-    id: string;
-    seller_id: string;
-    title: string;
-    description: string | null;
-    price: number;
-    category: string;
-    condition: string;
-    images: string[];
-    is_sold: boolean;
-    contact_info: string | null;
-    university: string | null;
-    created_at: string;
-    profiles?: {
-        name: string;
-        avatar_url: string | null;
-        username: string | null;
-        university: string | null;
-    };
-}
+// MarketplaceListing interface is now imported from types
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -124,7 +113,6 @@ function getInitials(name: string): string {
         .toUpperCase()
         .slice(0, 2);
 }
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -153,9 +141,10 @@ interface ListingCardProps {
 
 function ListingCard({ listing, currentUserId, onDelete, onClick }: ListingCardProps) {
     const isOwner = currentUserId === listing.seller_id;
-    const imageUrl = listing.images?.[0] ?? null;
+    const imageUrl = getOptimizedMediaUrl(listing.images?.[0] ?? null);
     const gradient = CATEGORY_GRADIENTS[listing.category] ?? CATEGORY_GRADIENTS.Other;
     const seller = listing.profiles;
+    const storeDisplayName = seller?.store_name || seller?.name || 'Unknown Seller';
 
     return (
         <div
@@ -230,24 +219,32 @@ function ListingCard({ listing, currentUserId, onDelete, onClick }: ListingCardP
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug">
                     {listing.title}
                 </h3>
+                {listing.category === 'Food' ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded-md">
+                            <ShoppingBag className="w-2.5 h-2.5" />
+                            Menu Available
+                        </div>
+                    </div>
+                ) : null}
 
                 {/* Seller row */}
                 <div className="flex items-center gap-1.5 mt-auto pt-1">
-                    {seller?.avatar_url ? (
-                        <img
-                            src={seller.avatar_url}
-                            alt={seller.name}
-                            className="w-5 h-5 rounded-full object-cover flex-shrink-0"
-                        />
-                    ) : (
-                        <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                        {seller?.avatar_url ? (
+                            <img
+                                src={getOptimizedMediaUrl(seller.avatar_url)}
+                                alt={seller.name}
+                                className="w-full h-full object-cover rounded-full"
+                            />
+                        ) : (
                             <span className="text-[8px] font-bold text-emerald-700 dark:text-emerald-400">
                                 {seller ? getInitials(seller.name) : '?'}
                             </span>
-                        </div>
-                    )}
+                        )}
+                    </div>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                        {seller?.name ?? 'Unknown'} &middot; {formatTimeAgo(listing.created_at)}
+                        {storeDisplayName} &middot; {formatTimeAgo(listing.created_at)}
                     </span>
                 </div>
             </div>
@@ -269,16 +266,43 @@ interface ListingDetailProps {
 }
 
 function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, onEdit, onVisitStore, markingSold }: ListingDetailProps) {
+    const navigate = useNavigate();
     const [copied, setCopied] = useState(false);
     const [imgIndex, setImgIndex] = useState(0);
+    const [foodQuantities, setFoodQuantities] = useState<Record<string, number>>({});
     const isOwner = currentUserId === listing.seller_id;
     const seller = listing.profiles;
     const images = listing.images?.length ? listing.images : [];
     const gradient = CATEGORY_GRADIENTS[listing.category] ?? CATEGORY_GRADIENTS.Other;
 
+    // Parse food data if present
+    let foodData: { options: FoodOption[], description: string } | null = null;
+    if (listing.category === 'Food' && listing.description?.startsWith('FOOD_DATA:')) {
+        try {
+            const jsonStr = listing.description.split('FOOD_DATA:')[1];
+            foodData = JSON.parse(jsonStr);
+        } catch { /* skip */ }
+    }
+
+    const totalFoodPrice = foodData?.options.reduce((sum, opt) => {
+        return sum + (opt.price * (foodQuantities[opt.name] || 0));
+    }, 0) || 0;
+
     const handleContact = () => {
-        if (!listing.contact_info) return;
-        window.open(buildWhatsAppUrl(listing.contact_info), '_blank', 'noopener,noreferrer');
+        let summary = '';
+        if (foodData && totalFoodPrice > 0) {
+            const items = foodData.options
+                .filter(o => (foodQuantities[o.name] || 0) > 0)
+                .map(o => `• ${foodQuantities[o.name]}x ${o.name} (₦${formatPrice(o.price * foodQuantities[o.name])})`);
+            
+            summary = `🛒 [ORDER SUMMARY]\nItem: ${listing.title}\n\n${items.join('\n')}\n\nTotal: ₦${formatPrice(totalFoodPrice)}\n\nHi! I'd like to place this order. Is it available for delivery/pickup?`;
+        } else {
+            summary = `🛒 [MARKET INQUIRY]\nItem: ${listing.title}\nPrice: ₦${formatPrice(listing.price)}\nCondition: ${listing.condition}\n\nHi! I'm interested in this listing. Is it still available?`;
+        }
+
+        onClose();
+        const refLink = `\n\n[Ref: ${listing.id}]`;
+        navigate(`/app/messages?chat=${listing.seller_id}&text=${encodeURIComponent(summary + refLink)}`);
     };
 
     const handleCopyContact = async () => {
@@ -377,8 +401,72 @@ function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, 
                     {/* Title */}
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{listing.title}</h2>
 
-                    {/* Description */}
-                    {listing.description && (
+                    {/* Description / Food Order Builder */}
+                    {foodData ? (
+                        <div className="space-y-4">
+                            {foodData.description && (
+                                <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed italic border-l-2 border-emerald-500 pl-3">
+                                    {foodData.description}
+                                </p>
+                            )}
+                            
+                            <div className="bg-zinc-50 dark:bg-zinc-800/40 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                                <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
+                                    Explore the Menu
+                                </h4>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {foodData.options.map((opt, i) => (
+                                        <div key={i} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-sm hover:shadow-md transition-all group overflow-hidden">
+                                            {opt.image_url && (
+                                                <div className="aspect-video w-full rounded-xl overflow-hidden mb-1 relative">
+                                                    <img src={opt.image_url} alt={opt.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-start gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 truncate">{opt.name}</p>
+                                                    <p className="text-xs font-black text-emerald-600">₦{formatPrice(opt.price)}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-1">
+                                                    <button
+                                                        onClick={() => setFoodQuantities(prev => ({ ...prev, [opt.name]: Math.max(0, (prev[opt.name] || 0) - 1) }))}
+                                                        className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-emerald-500 rounded-md transition-colors"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <span className="w-4 text-center text-[10px] font-black text-zinc-700 dark:text-zinc-300">
+                                                        {foodQuantities[opt.name] || 0}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => setFoodQuantities(prev => ({ ...prev, [opt.name]: (prev[opt.name] || 0) + 1 }))}
+                                                        className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-emerald-500 rounded-md transition-colors"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {totalFoodPrice > 0 && (
+                                    <div className="mt-6 p-4 bg-emerald-600 text-white rounded-2xl flex justify-between items-center animate-in zoom-in-95 duration-300 shadow-lg shadow-emerald-500/20">
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Order Summary</p>
+                                            <p className="text-lg font-black leading-none">₦{formatPrice(totalFoodPrice)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-bold opacity-80">
+                                                {Object.values(foodQuantities).reduce((a, b) => a + b, 0)} items selected
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : listing.description && (
                         <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
                     )}
 
@@ -400,7 +488,7 @@ function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, 
                     <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl justify-between">
                         <div className="flex items-center gap-3 min-w-0">
                             {seller?.avatar_url ? (
-                                <img src={seller.avatar_url} alt={seller.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                                <img src={getOptimizedMediaUrl(seller.avatar_url)} alt={seller.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
                             ) : (
                                 <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
                                     <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
@@ -409,7 +497,9 @@ function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, 
                                 </div>
                             )}
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{seller?.name ?? 'Unknown Seller'}</p>
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                    {seller?.store_name || seller?.name || 'Unknown Seller'}
+                                </p>
                                 {seller?.university && (
                                     <p className="text-xs text-zinc-500 dark:text-zinc-400">{seller.university}</p>
                                 )}
@@ -419,7 +509,7 @@ function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, 
                             <button
                                 onClick={() => {
                                     onClose();
-                                    onVisitStore(listing.seller_id, seller?.name ?? 'Unknown');
+                                    onVisitStore(listing.seller_id, seller?.store_name || seller?.name || 'Store');
                                 }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 focus:outline-emerald-500 text-zinc-700 dark:text-zinc-200 text-xs font-bold rounded-lg transition-colors shrink-0"
                             >
@@ -431,22 +521,24 @@ function ListingDetail({ listing, currentUserId, onClose, onMarkSold, onDelete, 
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
-                        {listing.contact_info && !listing.is_sold && (
+                        {!listing.is_sold && (
                             <>
                                 <button
                                     onClick={handleContact}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/10 active:scale-[0.98]"
                                 >
                                     <MessageCircle className="w-4 h-4" />
-                                    Chat on WhatsApp
+                                    {foodData && totalFoodPrice > 0 ? 'Send Order' : 'Message Seller'}
                                 </button>
-                                <button
-                                    onClick={handleCopyContact}
-                                    className="px-3 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors"
-                                    title="Copy number"
-                                >
-                                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                                </button>
+                                {listing.contact_info && (
+                                    <button
+                                        onClick={handleCopyContact}
+                                        className="px-3 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors"
+                                        title="Copy number"
+                                    >
+                                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                    </button>
+                                )}
                             </>
                         )}
                         <button
@@ -503,10 +595,25 @@ interface ListingFormProps {
     initialData?: MarketplaceListing | null;
 }
 
+interface FoodOption {
+    name: string;
+    price: number;
+    image_url?: string;
+}
+
 function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUniversity, initialData }: ListingFormProps) {
     const isEdit = !!initialData;
     const [title, setTitle]             = useState(initialData?.title ?? '');
-    const [description, setDescription] = useState(initialData?.description ?? '');
+    const [description, setDescription] = useState(() => {
+        if (initialData?.description?.startsWith('FOOD_DATA:')) {
+            try {
+                const jsonStr = initialData.description.split('FOOD_DATA:')[1];
+                const data = JSON.parse(jsonStr);
+                return data.description || '';
+            } catch { return ''; }
+        }
+        return initialData?.description ?? '';
+    });
     const [price, setPrice]             = useState(initialData ? String(initialData.price) : '');
     const [category, setCategory]       = useState<string>(initialData?.category ?? 'Textbooks');
     const [condition, setCondition]     = useState<Condition>((initialData?.condition as Condition) ?? 'Good');
@@ -516,6 +623,16 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
     const [uploading, setUploading]     = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError]             = useState<string | null>(null);
+    const [foodOptions, setFoodOptions] = useState<FoodOption[]>(() => {
+        if (initialData?.description?.startsWith('FOOD_DATA:')) {
+            try {
+                const jsonStr = initialData.description.split('FOOD_DATA:')[1];
+                const data = JSON.parse(jsonStr);
+                return data.options || [];
+            } catch { return []; }
+        }
+        return [];
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -553,6 +670,11 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
         setUploading(true);
         setUploadProgress(0);
 
+        let finalDescription = description.trim();
+        if (category === 'Food' && foodOptions.length > 0) {
+            finalDescription = `FOOD_DATA:${JSON.stringify({ options: foodOptions, description: description.trim() })}`;
+        }
+
         try {
             let listingId = initialData?.id;
             let resultData: MarketplaceListing;
@@ -563,7 +685,7 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
                     .from('marketplace_listings')
                     .update({
                         title:        title.trim(),
-                        description:  description.trim() || null,
+                        description:  finalDescription || null,
                         price:        priceNum,
                         category,
                         condition,
@@ -585,7 +707,7 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
                     .insert({
                         seller_id:    currentUserId,
                         title:        title.trim(),
-                        description:  description.trim() || null,
+                        description:  finalDescription || null,
                         price:        priceNum,
                         category,
                         condition,
@@ -740,12 +862,114 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
                 <textarea
                     rows={3}
                     maxLength={500}
-                    placeholder="Add details about the item..."
+                    placeholder={category === 'Food' ? "e.g. Open for orders from 9am-6pm. Delivery available." : "Add details about the item..."}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
                 />
             </div>
+
+            {/* Food Options */}
+            {category === 'Food' && (
+                <div className="space-y-3 bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                            <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                            Menu Items
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setFoodOptions([...foodOptions, { name: '', price: 0 }])}
+                            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                        >
+                            <Plus className="w-3 h-3" /> Add Item
+                        </button>
+                    </div>
+                    
+                    {foodOptions.map((opt, idx) => (
+                        <div key={idx} className="flex gap-2 animate-in fade-in slide-in-from-top-1">
+                            <input
+                                type="text"
+                                placeholder="Item name (e.g. White Rice)"
+                                value={opt.name}
+                                onChange={(e) => {
+                                    const next = [...foodOptions];
+                                    next[idx].name = e.target.value;
+                                    setFoodOptions(next);
+                                }}
+                                className="flex-[2] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs focus:outline-emerald-500"
+                            />
+                            <div className="relative flex-1">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 text-[10px]">₦</span>
+                                <input
+                                    type="number"
+                                    placeholder="Price"
+                                    value={opt.price || ''}
+                                    onChange={(e) => {
+                                        const next = [...foodOptions];
+                                        next[idx].price = parseFloat(e.target.value) || 0;
+                                        setFoodOptions(next);
+                                    }}
+                                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg pl-5 pr-2 py-2 text-xs focus:outline-emerald-500"
+                                />
+                            </div>
+                            
+                            {/* Option Image Upload */}
+                            <div className="relative shrink-0">
+                                <input
+                                    type="file"
+                                    id={`opt-img-${idx}`}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        
+                                        // Simple preview
+                                        const next = [...foodOptions];
+                                        next[idx].image_url = URL.createObjectURL(file);
+                                        setFoodOptions(next);
+
+                                        // Upload to Cloudinary
+                                        try {
+                                            const url = await cloudinaryService.uploadImage(file);
+                                            if (url) {
+                                                const updated = [...foodOptions];
+                                                updated[idx].image_url = url;
+                                                setFoodOptions(updated);
+                                            }
+                                        } catch (err) {
+                                            console.error('Opt upload failed', err);
+                                        }
+                                    }}
+                                />
+                                <label
+                                    htmlFor={`opt-img-${idx}`}
+                                    className="w-8 h-8 flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-50 transition-colors overflow-hidden"
+                                >
+                                    {opt.image_url ? (
+                                        <img src={opt.image_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Camera className="w-3.5 h-3.5 text-zinc-400" />
+                                    )}
+                                </label>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setFoodOptions(foodOptions.filter((_, i) => i !== idx))}
+                                className="p-2 text-zinc-400 hover:text-red-500 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))}
+                    
+                    {foodOptions.length === 0 && (
+                        <p className="text-[10px] text-zinc-400 italic text-center py-2">Add individual items like Rice, Chicken, Eggs etc.</p>
+                    )}
+                </div>
+            )}
 
             {/* Price */}
             <div>
@@ -818,7 +1042,7 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl pl-10 pr-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
                     />
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">Buyers will use this to contact you on WhatsApp.</p>
+                <p className="text-xs text-zinc-400 mt-1">Buyers can message you directly on UniLink. This number is for optional WhatsApp contact.</p>
             </div>
 
             {/* Upload progress bar */}
@@ -855,8 +1079,9 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
-    const [listings, setListings]           = useState<MarketplaceListing[]>([]);
-    const [loading, setLoading]             = useState(true);
+    const store = useMarketplaceStore();
+    const [listings, setListings]           = useState<MarketplaceListing[]>(store.listings);
+    const [loading, setLoading]             = useState(store.listings.length === 0);
     const [searchQuery, setSearchQuery]     = useState('');
     const [activeCategory, setActiveCategory] = useState<Category>('All');
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -865,9 +1090,17 @@ export default function MarketplacePage() {
     const [userUniversity, setUserUniversity] = useState<string | null>(null);
     const [markingSold, setMarkingSold]     = useState<string | null>(null);
     const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
-    const [storeSellerId, setStoreSellerId] = useState<string | null>(null);
-    const [storeSellerName, setStoreSellerName] = useState<string>('');
+    const [viewMode, setViewMode]           = useState<'listings' | 'stores' | 'dashboard'>('listings');
+    const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+    const [stores, setStores]               = useState<Profile[]>([]);
+    const [loadingStores, setLoadingStores] = useState(false);
     const [fetchError, setFetchError]       = useState<string | null>(null);
+    const [showDashboard, setShowDashboard] = useState(false);
+    const [myProfile, setMyProfile]         = useState<Profile | null>(null);
+
+    const selectedStore = useMemo(() => {
+        return stores.find(s => s.id === selectedStoreId);
+    }, [stores, selectedStoreId]);
 
     // ── Load current user ─────────────────────────────────────────────────────
     useEffect(() => {
@@ -877,39 +1110,82 @@ export default function MarketplacePage() {
             if (uid) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('university')
+                    .select('id, university, store_name, store_banner_url, store_description, store_slug')
                     .eq('id', uid)
                     .single();
                 setUserUniversity(profile?.university ?? null);
+                setMyProfile(profile as Profile);
             }
         });
     }, []);
 
     // ── Fetch listings ────────────────────────────────────────────────────────
-    const fetchListings = useCallback(async () => {
-        setLoading(true);
+    const fetchListings = useCallback(async (isInitial = false) => {
+        // Skip fetch if cache is fresh and we're not in a store view
+        if (isInitial && !store.needsRefresh() && store.listings.length > 0) {
+            setLoading(false);
+            return;
+        }
+
+        if (isInitial && store.listings.length === 0) {
+            setLoading(true);
+        }
+        
         setFetchError(null);
         try {
             const { data, error } = await supabase
                 .from('marketplace_listings')
-                .select('*, profiles(name, avatar_url, username, university)')
+                .select('*, profiles(*)')
                 .eq('is_sold', false)
                 .order('created_at', { ascending: false })
                 .limit(120);
 
             if (error) throw error;
-            setListings((data ?? []) as MarketplaceListing[]);
+            const fetched = (data ?? []) as MarketplaceListing[];
+            setListings(fetched);
+            store.setListings(fetched);
         } catch (err: any) {
             console.error('[Marketplace] fetch error:', err);
-            setFetchError('Could not load listings. Please try again.');
+            // Only show full error state if we have no cached data
+            if (store.listings.length === 0) {
+                setFetchError('Could not load listings. Please try again.');
+            }
         } finally {
             setLoading(false);
+        }
+    }, [store]);
+
+    const fetchStores = useCallback(async () => {
+        setLoadingStores(true);
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .not('store_name', 'is', null)
+                .order('store_name');
+            if (error) throw error;
+            setStores(data || []);
+        } catch (err) {
+            console.error('Fetch stores error:', err);
+        } finally {
+            setLoadingStores(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchListings();
-    }, [fetchListings]);
+        fetchListings(true);
+        fetchStores();
+    }, [fetchListings, fetchStores]);
+
+    // ── Handle deep-linked listing ────────────────────────────────────────────
+    const [searchParams] = useSearchParams();
+    useEffect(() => {
+        const linkedId = searchParams.get('id');
+        if (linkedId && listings.length > 0) {
+            const linked = listings.find(l => l.id === linkedId);
+            if (linked) setSelectedListing(linked);
+        }
+    }, [searchParams, listings]);
 
     // ── Real-time subscription ────────────────────────────────────────────────
     useEffect(() => {
@@ -942,6 +1218,7 @@ export default function MarketplacePage() {
 
             // Optimistic: remove from list (since we only show unsold)
             setListings(prev => prev.filter(l => l.id !== id));
+            store.removeListing(id);
         } catch (err: any) {
             console.error('[Marketplace] mark sold error:', err);
             alert('Could not mark item as sold. Please try again.');
@@ -962,6 +1239,7 @@ export default function MarketplacePage() {
                 .eq('seller_id', currentUserId);
             if (error) throw error;
             setListings(prev => prev.filter(l => l.id !== id));
+            store.removeListing(id);
             setSelectedListing(null);
         } catch (err: any) {
             console.error('[Marketplace] delete error:', err);
@@ -973,8 +1251,10 @@ export default function MarketplacePage() {
     const handleListingComplete = (savedListing: MarketplaceListing, isEdit: boolean) => {
         if (isEdit) {
             setListings(prev => prev.map(l => l.id === savedListing.id ? savedListing : l));
+            store.updateListing(savedListing.id, savedListing);
         } else {
             setListings(prev => [savedListing, ...prev]);
+            store.addListing(savedListing);
         }
         setShowCreateModal(false);
         setEditingListing(null);
@@ -982,7 +1262,7 @@ export default function MarketplacePage() {
 
     // ── Filtered listings ─────────────────────────────────────────────────────
     const filteredListings = listings.filter(l => {
-        if (storeSellerId && l.seller_id !== storeSellerId) return false;
+        if (selectedStoreId && l.seller_id !== selectedStoreId) return false;
         
         const matchesCategory = activeCategory === 'All' || l.category === activeCategory;
         const q = searchQuery.toLowerCase();
@@ -997,202 +1277,226 @@ export default function MarketplacePage() {
     // ─────────────────────────────────────────────────────────────────────────
 
     return (
-        <div className="max-w-7xl mx-auto pb-28 px-3 sm:px-4">
-
-            {/* ── Header ── */}
-            <div className="sticky top-0 z-30 bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-xl pt-3 pb-3 -mx-3 sm:-mx-4 px-3 sm:px-4 border-b border-zinc-100 dark:border-zinc-800/60 mb-4">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 bg-emerald-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <ShoppingBag className="w-5 h-5 text-white" />
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-32">
+            {/* Navbar */}
+            <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 sm:px-6">
+                <div className="max-w-7xl mx-auto space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <ShoppingBag className="w-8 h-8 text-emerald-600" />
+                            <div>
+                                <h1 className="text-xl font-display font-bold text-zinc-900 dark:text-zinc-100">Marketplace</h1>
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{userUniversity || 'UniLink Nigeria'}</p>
+                            </div>
                         </div>
-                        <div className="min-w-0">
-                            <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
-                                Campus Market
-                            </h1>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
-                                Buy &amp; sell within your campus community
-                            </p>
+                        <div className="flex items-center gap-2">
+                            {currentUserId && (
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/10 transition-all flex items-center gap-2 text-sm"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Sell
+                                </button>
+                            )}
                         </div>
                     </div>
 
-                    {currentUserId ? (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-2xl transition-colors shadow-sm dark:shadow-none flex-shrink-0"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>List Item</span>
-                        </button>
-                    ) : (
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400 text-right hidden sm:block">
-                            Sign in to list items
+                    {/* View Modes Tabs */}
+                    <div className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl w-fit">
+                        {[
+                            { id: 'listings', label: 'All Items', icon: LayoutGrid },
+                            { id: 'stores', label: 'Stores', icon: Store },
+                            { id: 'dashboard', label: 'My Dashboard', icon: Trophy, auth: true },
+                        ].map(tab => (
+                            (!tab.auth || currentUserId) && (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => {
+                                        setViewMode(tab.id as any);
+                                        setSelectedStoreId(null);
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${viewMode === tab.id
+                                        ? 'bg-white dark:bg-zinc-700 text-emerald-600 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                        }`}
+                                >
+                                    <tab.icon className="w-3.5 h-3.5" />
+                                    {tab.label}
+                                </button>
+                            )
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+                
+                {/* Search & Categories (Only for Listings View) */}
+                {viewMode === 'listings' && !selectedStoreId && (
+                    <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-top-4">
+                        <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Search books, gadgets, food..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm"
+                            />
                         </div>
-                    )}
-                </div>
 
-                {/* Search bar */}
-                <div className="relative mt-3">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                    <input
-                        type="text"
-                        placeholder="Search listings..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/60 transition-all"
-                    />
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
+                            {CATEGORIES.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setActiveCategory(cat)}
+                                    className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-xs font-bold transition-all border ${activeCategory === cat
+                                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
+                                        : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300'
+                                        }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Store Header (When viewing a specific store) */}
+                {selectedStoreId && selectedStore && (
+                    <div className="mb-8 animate-in fade-in slide-in-from-top-4">
+                        <button 
+                            onClick={() => setSelectedStoreId(null)}
+                            className="flex items-center gap-2 text-zinc-500 hover:text-emerald-600 mb-4 font-bold text-sm transition-colors"
                         >
-                            <X className="w-4 h-4 text-zinc-400" />
+                            <ArrowLeft className="w-4 h-4" /> Back to all
                         </button>
-                    )}
-                </div>
-
-                {/* Category chips */}
-                <div className="flex gap-2 mt-2.5 overflow-x-auto no-scrollbar pb-0.5">
-                    {CATEGORIES.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
-                            className={`whitespace-nowrap px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-all border flex-shrink-0 ${
-                                activeCategory === cat
-                                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
-                                    : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                            }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Store Filter Banner */}
-                {storeSellerId && (
-                    <div className="mt-3 flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2">
-                        <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400 shrink-0">
-                                <Store className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-semibold uppercase tracking-wider leading-none mb-0.5">Browsing Store</p>
-                                <p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold truncate pr-2 leading-tight">
-                                    {storeSellerName}
-                                </p>
+                        <div className="relative h-48 sm:h-64 rounded-3xl overflow-hidden mb-12 shadow-xl group">
+                            {selectedStore.store_banner_url ? (
+                                <img src={selectedStore.store_banner_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600" />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            
+                            <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row items-end sm:items-center gap-6">
+                                <div className="w-24 h-24 rounded-3xl bg-white dark:bg-zinc-800 p-1.5 shadow-2xl relative overflow-hidden shrink-0 translate-y-12 sm:translate-y-0">
+                                    {selectedStore.avatar_url ? (
+                                        <img src={getOptimizedMediaUrl(selectedStore.avatar_url)} className="w-full h-full object-cover rounded-[18px]" />
+                                    ) : (
+                                        <div className="w-full h-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center rounded-[18px]">
+                                            <Store className="w-10 h-10 text-emerald-600" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 pb-2">
+                                    <h1 className="text-3xl font-display font-black text-white drop-shadow-md">
+                                        {selectedStore.store_name || selectedStore.name}
+                                    </h1>
+                                    <p className="text-emerald-100/90 text-sm font-medium line-clamp-1 max-w-xl">
+                                        {selectedStore.store_description || selectedStore.about || `Welcome to our campus store!`}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setStoreSellerId(null)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-emerald-950 hover:bg-zinc-50 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-lg shadow-sm w-fit shrink-0 transition-colors"
-                        >
-                            <X className="w-3.5 h-3.5" /> Clear
-                        </button>
+                    </div>
+                )}
+
+                {/* Grid Displays */}
+                {viewMode === 'listings' && (
+                    <>
+                        {loading ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {[...Array(10)].map((_, i) => <SkeletonCard key={i} />)}
+                            </div>
+                        ) : filteredListings.length === 0 ? (
+                            <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-100 dark:border-zinc-800">
+                                <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                    <Search className="w-10 h-10 text-zinc-300" />
+                                </div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">No items found</h3>
+                                <p className="text-zinc-500 max-w-xs mx-auto">Try a different search term or category.</p>
+                                <button 
+                                    onClick={() => { setSearchQuery(''); setActiveCategory('All'); setSelectedStoreId(null); }}
+                                    className="mt-6 text-emerald-600 font-bold hover:underline"
+                                >
+                                    Clear all filters
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {filteredListings.map(listing => (
+                                    <ListingCard
+                                        key={listing.id}
+                                        listing={listing}
+                                        currentUserId={currentUserId}
+                                        onDelete={handleDelete}
+                                        onClick={setSelectedListing}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {viewMode === 'stores' && (
+                    <>
+                        {loadingStores ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[...Array(6)].map((_, i) => (
+                                    <div key={i} className="h-64 bg-zinc-100 dark:bg-zinc-800 rounded-3xl animate-pulse" />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {stores.map(profile => (
+                                    <StoreCard 
+                                        key={profile.id} 
+                                        profile={profile} 
+                                        onClick={(id) => {
+                                            setSelectedStoreId(id);
+                                            setViewMode('listings');
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }} 
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {viewMode === 'dashboard' && currentUserId && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                        {myProfile && (
+                            <SellerStoreSettings 
+                                profile={myProfile} 
+                                onUpdate={setMyProfile} 
+                            />
+                        )}
+                        <SellerDashboard
+                            currentUserId={currentUserId}
+                            onEditListing={(l) => {
+                                setEditingListing(l);
+                                setShowCreateModal(true);
+                            }}
+                        />
                     </div>
                 )}
             </div>
 
-            {/* ── Result count ── */}
-            {!loading && !fetchError && (
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-                    {filteredListings.length === 0
-                        ? 'No listings found'
-                        : `${filteredListings.length} listing${filteredListings.length === 1 ? '' : 's'}`}
-                    {activeCategory !== 'All' && ` in ${activeCategory}`}
-                    {searchQuery && ` matching "${searchQuery}"`}
-                </p>
-            )}
-
-            {/* ── Error state ── */}
-            {fetchError && !loading && (
-                <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-                    <div className="w-14 h-14 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
-                        <AlertCircle className="w-7 h-7 text-red-500" />
-                    </div>
-                    <div>
-                        <p className="font-semibold text-zinc-700 dark:text-zinc-300">{fetchError}</p>
-                        <button
-                            onClick={fetchListings}
-                            className="mt-2 text-sm text-emerald-600 hover:underline"
-                        >
-                            Try again
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Loading skeletons ── */}
-            {loading && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    <SkeletonCard />
-                    <SkeletonCard />
-                    <SkeletonCard />
-                    <SkeletonCard />
-                    <SkeletonCard />
-                    <SkeletonCard />
-                </div>
-            )}
-
-            {/* ── Empty state ── */}
-            {!loading && !fetchError && filteredListings.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 gap-4 text-center px-6">
-                    <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/20 rounded-3xl flex items-center justify-center">
-                        <PackageOpen className="w-10 h-10 text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-lg">
-                            {searchQuery || activeCategory !== 'All'
-                                ? 'No listings match your search'
-                                : 'No listings yet'}
-                        </h3>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs">
-                            {searchQuery || activeCategory !== 'All'
-                                ? 'Try a different search term or category.'
-                                : 'Be the first to list something for sale on your campus!'}
-                        </p>
-                    </div>
-                    {currentUserId && !searchQuery && activeCategory === 'All' && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-2xl transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            List an Item
-                        </button>
-                    )}
-                    {!currentUserId && (
-                        <p className="text-xs text-zinc-400 italic">Sign in to list items for sale</p>
-                    )}
-                </div>
-            )}
-
-            {/* ── Listings grid ── */}
-            {!loading && !fetchError && filteredListings.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {filteredListings.map(listing => (
-                        <ListingCard
-                            key={listing.id}
-                            listing={listing}
-                            currentUserId={currentUserId}
-                            onDelete={handleDelete}
-                            onClick={setSelectedListing}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* ── Mobile FAB (when not authenticated, hidden) ── */}
+            {/* Mobile FAB */}
             {currentUserId && (
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="md:hidden fixed bottom-24 right-4 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl dark:shadow-none flex items-center justify-center z-40 transition-all active:scale-95"
-                    aria-label="List a new item"
+                    className="md:hidden fixed bottom-24 right-4 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl z-40 transition-all active:scale-95 flex items-center justify-center"
                 >
                     <Plus className="w-7 h-7" />
                 </button>
             )}
 
-            {/* ── Create/Edit listing modal ── */}
+            {/* Modals */}
             <Modal
                 isOpen={showCreateModal || !!editingListing}
                 onClose={() => { setShowCreateModal(false); setEditingListing(null); }}
@@ -1215,7 +1519,6 @@ export default function MarketplacePage() {
                 )}
             </Modal>
 
-            {/* ── Listing detail modal ── */}
             {selectedListing && !editingListing && (
                 <ListingDetail
                     listing={selectedListing}
@@ -1225,11 +1528,386 @@ export default function MarketplacePage() {
                     onDelete={handleDelete}
                     onEdit={() => setEditingListing(selectedListing)}
                     onVisitStore={(id, name) => {
-                        setStoreSellerId(id);
-                        setStoreSellerName(name);
+                        setSelectedStoreId(id);
+                        setViewMode('listings');
+                        setSelectedListing(null);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     markingSold={markingSold}
                 />
+            )}
+        </div>
+    );
+}
+
+function StoreCard({ profile, onClick }: { profile: Profile, onClick: (id: string) => void }) {
+    return (
+        <div 
+            onClick={() => onClick(profile.id)}
+            className="group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+        >
+            <div className="h-24 relative">
+                {profile.store_banner_url ? (
+                    <img src={profile.store_banner_url} className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-r from-emerald-500 to-teal-600 opacity-20" />
+                )}
+                <div className="absolute -bottom-6 left-6">
+                    <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-800 p-1 shadow-lg">
+                        {profile.avatar_url ? (
+                            <img src={getOptimizedMediaUrl(profile.avatar_url)} className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                            <div className="w-full h-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center rounded-xl">
+                                <Store className="w-8 h-8 text-emerald-600" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="pt-8 p-6">
+                <h3 className="font-display font-bold text-lg text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 transition-colors">
+                    {profile.store_name || profile.name}
+                </h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1 mb-4 min-h-[40px]">
+                    {profile.store_description || profile.about || 'No description provided.'}
+                </p>
+                <div className="flex items-center justify-between border-t border-zinc-50 dark:border-zinc-800 pt-4">
+                    <div className="flex items-center gap-1 text-emerald-600">
+                        <LayoutGrid className="w-4 h-4" />
+                        <span className="text-xs font-bold">Browse Collection</span>
+                    </div>
+                    {profile.university && (
+                        <div className="flex items-center gap-1 text-zinc-400">
+                            <MapPin className="w-3 h-3" />
+                            <span className="text-[10px]">{profile.university}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SellerStoreSettings({ profile, onUpdate }: { profile: Profile, onUpdate: (p: Profile) => void }) {
+    const [name, setName] = useState(profile.store_name || '');
+    const [desc, setDesc] = useState(profile.store_description || '');
+    const [bannerUrl, setBannerUrl] = useState(profile.store_banner_url || '');
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    store_name: name,
+                    store_description: desc,
+                    store_banner_url: bannerUrl
+                })
+                .eq('id', profile.id);
+
+            if (error) throw error;
+            onUpdate({ ...profile, store_name: name, store_description: desc, store_banner_url: bannerUrl });
+            alert('Store settings saved!');
+        } catch (err: any) {
+            console.error('Save store error:', err);
+            alert(`Failed to save settings: ${err.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const url = await cloudinaryService.uploadImage(file, { folder: 'ulink/stores' });
+            setBannerUrl(url);
+        } catch (err) {
+            console.error('Upload banner error:', err);
+            alert('Failed to upload banner.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 p-6 space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <Store className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-zinc-100">Store Settings</h2>
+                    <p className="text-sm text-zinc-500">Customize your store's public identity</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Store Name</label>
+                    <input 
+                        type="text" 
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="e.g. Amaka's Boutique"
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Store Description</label>
+                    <textarea 
+                        value={desc}
+                        onChange={e => setDesc(e.target.value)}
+                        placeholder="Tell buyers what you sell and why they should buy from you..."
+                        rows={3}
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Store Banner</label>
+                    <div className="relative group aspect-[3/1] rounded-2xl overflow-hidden border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-emerald-500 transition-colors">
+                        {bannerUrl ? (
+                            <img src={bannerUrl} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400">
+                                <Upload className="w-8 h-8 mb-2" />
+                                <span className="text-xs font-medium">Upload Banner (3:1 aspect)</span>
+                            </div>
+                        )}
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleBannerUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                        {uploading && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-sm">
+                                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <button 
+                    onClick={handleSave}
+                    disabled={loading || uploading}
+                    className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save Store Changes'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ─── Seller Dashboard ────────────────────────────────────────────────────────
+
+function SellerDashboard({ currentUserId, onEditListing }: { currentUserId: string, onEditListing: (l: MarketplaceListing) => void }) {
+    const [myListings, setMyListings] = useState<MarketplaceListing[]>([]);
+    const [inquiryCounts, setInquiryCounts] = useState<Record<string, number>>({});
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
+
+    const fetchMyListings = async () => {
+        setLoading(true);
+        try {
+            // 1. Fetch listings
+            const { data, error } = await supabase
+                .from('marketplace_listings')
+                .select('*, profiles(name, avatar_url, username, university)')
+                .eq('seller_id', currentUserId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setMyListings(data || []);
+
+            // 2. Fetch inquiry counts from messages
+            // We search for messages sent to this user containing "🛒 [Market]"
+            const { data: msgData } = await supabase
+                .from('messages')
+                .select('content')
+                .eq('recipient_id', currentUserId)
+                .filter('content', 'ilike', '%🛒 [Market]%');
+
+            if (msgData) {
+                const counts: Record<string, number> = {};
+                msgData.forEach(m => {
+                    // Extract listing title if possible, or just count general inquiries
+                    // For now, let's just count how many times each listing title appears
+                    data?.forEach(listing => {
+                        if (m.content.includes(listing.title)) {
+                            counts[listing.id] = (counts[listing.id] || 0) + 1;
+                        }
+                    });
+                });
+                setInquiryCounts(counts);
+            }
+        } catch (err) {
+            console.error('Dashboard fetch error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMyListings();
+    }, [currentUserId]);
+
+    const activeListings = myListings.filter(l => !l.is_sold);
+    const soldListings = myListings.filter(l => l.is_sold);
+    const stats = [
+        { label: 'Active Items', value: activeListings.length, icon: ShoppingBag, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+        { label: 'Items Sold', value: soldListings.length, icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+    ];
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {stats.map((s, i) => (
+                    <div key={i} className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl ${s.bg} flex items-center justify-center ${s.color}`}>
+                            <s.icon className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-1">{s.label}</p>
+                            <p className="text-xl font-black text-zinc-900 dark:text-zinc-100 leading-none">{s.value}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Tabs */}
+            <div className="bg-white dark:bg-zinc-900 p-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex w-full max-w-xs shadow-sm">
+                <button
+                    onClick={() => setActiveTab('active')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'active' ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-lg shadow-zinc-200 dark:shadow-none' : 'text-zinc-500 hover:text-zinc-700'}`}
+                >
+                    Active ({activeListings.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('sold')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'sold' ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-lg shadow-zinc-200 dark:shadow-none' : 'text-zinc-500 hover:text-zinc-700'}`}
+                >
+                    Sold ({soldListings.length})
+                </button>
+            </div>
+
+            {/* List */}
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {(activeTab === 'active' ? activeListings : soldListings).map((l) => (
+                        <div key={l.id} className="group bg-white dark:bg-zinc-900 p-4 rounded-3xl border border-zinc-100 dark:border-zinc-800 hover:border-emerald-500/30 transition-all flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                                {l.images?.[0] ? (
+                                    <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                        <ShoppingBag className="w-6 h-6" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded-lg uppercase tracking-wider">
+                                        {l.category}
+                                    </span>
+                                    <span className="text-[10px] font-black text-emerald-600">
+                                        ₦{formatPrice(l.price)}
+                                    </span>
+                                </div>
+                                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{l.title}</h3>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <p className="text-[10px] text-zinc-400">Listed {formatTimeAgo(l.created_at)}</p>
+                                    <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600">
+                                        <MessageCircle className="w-3 h-3" />
+                                        {inquiryCounts[l.id] || 0} Inquiries
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                {activeTab === 'active' ? (
+                                    <>
+                                        <button 
+                                            onClick={() => {
+                                                if (window.confirm('Mark this item as sold?')) {
+                                                    supabase
+                                                        .from('marketplace_listings')
+                                                        .update({ is_sold: true })
+                                                        .eq('id', l.id)
+                                                        .then(() => fetchMyListings());
+                                                }
+                                            }}
+                                            className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-colors shadow-sm"
+                                            title="Mark as Sold"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => onEditListing(l)}
+                                            className="p-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors shadow-sm"
+                                            title="Edit Listing"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                if (window.confirm('Delete this listing permanently?')) {
+                                                    supabase
+                                                        .from('marketplace_listings')
+                                                        .delete()
+                                                        .eq('id', l.id)
+                                                        .then(() => fetchMyListings());
+                                                }
+                                            }}
+                                            className="p-2.5 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 text-red-600 rounded-xl transition-colors shadow-sm"
+                                            title="Delete Listing"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                            <CheckCircle2 className="w-3.5 h-3.5" /> Sold
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                if (window.confirm('Relist this item? It will appear back in the market.')) {
+                                                    supabase
+                                                        .from('marketplace_listings')
+                                                        .update({ is_sold: false })
+                                                        .eq('id', l.id)
+                                                        .then(() => fetchMyListings());
+                                                }
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-600 dark:text-zinc-300 rounded-xl transition-colors shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                            title="Relist Item"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" /> Relist
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+
+                    {(activeTab === 'active' ? activeListings : soldListings).length === 0 && (
+                        <div className="text-center py-12 px-6">
+                            <p className="text-sm text-zinc-500 italic">No {activeTab} listings found.</p>
+                        </div>
+                    )}
+                </div>
             )}
         </div>
     );

@@ -346,6 +346,7 @@ export function useChat() {
         onlineUsers,
         unreadCounts,
         sendMessage,
-        deleteMessage
+        deleteMessage,
+        setConversations: storeSetConversations
     };
 }

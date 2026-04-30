@@ -51,7 +51,9 @@ export default function LeaderboardPage() {
 
     const fetchLeaderboard = async () => {
         try {
-            setLoading(true);
+            if (leaderboard.length === 0) {
+                setLoading(true);
+            }
 
             const { data: { user } } = await supabase.auth.getUser();
             const uid = user?.id || null;

@@ -63,21 +63,39 @@ const FEED_SOURCES = {
     ]
 };
 
+import { useNewsStore } from '../../stores/useNewsStore';
+
 export default function NewsPage() {
     const navigate = useNavigate();
+    const store = useNewsStore();
     const [activeTab, setActiveTab] = useState<'all' | 'africa' | 'podcasts'>('all');
-    const [news, setNews] = useState<NewsItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [news, setNews] = useState<NewsItem[]>(store.news[activeTab] || []);
+    const [loading, setLoading] = useState(!store.news[activeTab]);
     const [searchQuery, setSearchQuery] = useState('');
     const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } = useAudioStore();
 
     useEffect(() => {
         setSearchQuery('');
+        // Sync local state with store when tab changes
+        if (store.news[activeTab]) {
+            setNews(store.news[activeTab]);
+            if (!store.needsRefresh(activeTab)) {
+                setLoading(false);
+                return;
+            }
+        }
         fetchInitialNews();
     }, [activeTab]);
 
     const fetchInitialNews = async (query: string = '') => {
-        setLoading(true);
+        // Only show loading if we have nothing for this tab
+        if (!query && !store.news[activeTab]) {
+            setLoading(true);
+        } else if (query) {
+            // Loading for search is fine
+            setLoading(true);
+        }
+
         try {
             let feedsToFetch: any[] = [];
 
@@ -150,6 +168,9 @@ export default function NewsPage() {
                 .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
 
             setNews(flattened);
+            if (!query) {
+                store.setNews(activeTab, flattened);
+            }
         } catch (error) {
             console.error('Error fetching news:', error);
         } finally {
@@ -162,7 +183,7 @@ export default function NewsPage() {
         const timer = setTimeout(() => {
             if (searchQuery.length > 2) {
                 fetchInitialNews(searchQuery);
-            } else if (searchQuery.length === 0) {
+            } else if (searchQuery.length === 0 && news.length === 0) {
                 fetchInitialNews();
             }
         }, 800);

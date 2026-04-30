@@ -55,6 +55,12 @@ export interface Profile {
     points?: number; // User points for leaderboard
     referral_code?: string;
     referred_by?: string;
+
+    // Marketplace Store Branding
+    store_name?: string;
+    store_description?: string;
+    store_banner_url?: string;
+    store_slug?: string;
 }
 
 export interface Project {
@@ -220,4 +226,20 @@ export interface PodcastEpisode {
     created_at: string;
     updated_at: string;
     podcast?: Podcast;
+}
+
+export interface MarketplaceListing {
+    id: string;
+    seller_id: string;
+    title: string;
+    description: string | null;
+    price: number;
+    category: string;
+    condition: string;
+    images: string[];
+    is_sold: boolean;
+    contact_info: string | null;
+    university: string | null;
+    created_at: string;
+    profiles?: Profile;
 }

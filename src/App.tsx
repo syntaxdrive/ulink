@@ -31,7 +31,7 @@ import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
 import PodcastManagePage from './features/podcasts/PodcastManagePage';
 import StudyRoomsPage from './features/study/StudyRoomsPage';
 import StoryModePage from './features/story/StoryModePage';
-// import MarketplacePage from './features/marketplace/MarketplacePage';
+import MarketplacePage from './features/marketplace/MarketplacePage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
 import PWAInstallBanner from './components/PWAInstallBanner';
@@ -78,25 +78,24 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Auth] State Change:', event, session ? 'Session Active' : 'No Session');
       setSession(session);
+      setLoading(false); // Ensure loading is false once we have a definitive auth event
 
       // Clean URL after OAuth callback to remove sensitive tokens
-      if (session) {
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         const url = new URL(window.location.href);
-        let shouldClean = false;
+        const hasTokens = url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'));
+        const hasCode = url.searchParams.has('code');
 
-        if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'))) {
-          shouldClean = true;
-        }
-
-        if (url.searchParams.has('code') || url.searchParams.has('access_token')) {
-          shouldClean = true;
-        }
-
-        if (shouldClean) {
-          const cleanUrl = `${url.origin}${url.pathname}`;
-          window.history.replaceState(null, '', cleanUrl);
+        if (hasTokens || hasCode) {
+          // Small delay to ensure Supabase has finished processing the URL
+          setTimeout(() => {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState(null, '', cleanUrl);
+            console.log('[Auth] URL Cleaned');
+          }, 100);
         }
       }
     });
@@ -161,7 +160,7 @@ function App() {
             <Route path="talent" element={<TalentSearchPage />} />
             <Route path="learn" element={<CoursesPage />} />
             <Route path="study" element={<StudyRoomsPage />} />
-            <Route path="marketplace" element={<Navigate to="/app" replace />} />
+            <Route path="marketplace" element={<MarketplacePage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="story" element={<StoryModePage />} />
             <Route path="challenge" element={<CampusChallengePage />} />

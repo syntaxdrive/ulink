@@ -8,32 +8,73 @@ interface ChatSidebarProps {
     setActiveChat: (profile: Profile) => void;
     unreadCounts: Record<string, number>;
     onlineUsers: Set<string>;
+    activeTab: 'all' | 'market';
+    onTabChange: (tab: 'all' | 'market') => void;
 }
 
-export default function ChatSidebar({ conversations, activeChat, setActiveChat, unreadCounts, onlineUsers }: ChatSidebarProps) {
+export default function ChatSidebar({ 
+    conversations, 
+    activeChat, 
+    setActiveChat, 
+    unreadCounts, 
+    onlineUsers,
+    activeTab,
+    onTabChange 
+}: ChatSidebarProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredConversations = useMemo(() => {
+        let filtered = conversations;
+        
+        // Tab filtering
+        if (activeTab === 'market') {
+            filtered = conversations.filter(c => {
+                const isMarket = (c as any).last_message && (c as any).last_message.includes('🛒');
+                // Always show the currently active chat if it's the one we're deep-linking to
+                const isActiveMarket = activeChat?.id === c.id;
+                return isMarket || isActiveMarket;
+            });
+        } else {
+            filtered = conversations.filter(c => !((c as any).last_message && (c as any).last_message.includes('🛒')));
+        }
+
         const q = searchTerm.trim().toLowerCase();
-        if (!q) return conversations;
-        return conversations.filter((profile) => {
+        if (!q) return filtered;
+        return filtered.filter((profile) => {
             const haystack = [profile.name, profile.username, profile.headline, profile.university, profile.role]
                 .filter(Boolean)
                 .join(' ')
                 .toLowerCase();
             return haystack.includes(q);
         });
-    }, [conversations, searchTerm]);
+    }, [conversations, searchTerm, activeTab]);
 
     return (
         <div className={`w-full md:w-80 border-r border-stone-100 dark:border-zinc-800 flex flex-col h-full bg-white dark:bg-black ${activeChat ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b border-stone-100 dark:border-zinc-800">
                 <h2 className="font-bold text-lg mb-4 text-stone-900 dark:text-white">Messages</h2>
+                
+                {/* Tabs */}
+                <div className="flex gap-1 p-1 bg-stone-100 dark:bg-zinc-900 rounded-xl mb-4">
+                    <button
+                        onClick={() => onTabChange('all')}
+                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${activeTab === 'all' ? 'bg-white dark:bg-zinc-800 text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-zinc-500 hover:text-stone-700'}`}
+                    >
+                        Chats
+                    </button>
+                    <button
+                        onClick={() => onTabChange('market')}
+                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${activeTab === 'market' ? 'bg-white dark:bg-zinc-800 text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-zinc-500 hover:text-stone-700'}`}
+                    >
+                        Marketplace
+                    </button>
+                </div>
+
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-zinc-600" />
                     <input
                         type="text"
-                        placeholder="Search connections..."
+                        placeholder={activeTab === 'market' ? "Search market chats..." : "Search connections..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-stone-50 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-950 text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600"
