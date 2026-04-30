@@ -38,13 +38,16 @@ export const signInWithGoogle = async () => {
         }
     } else {
         // Standard web flow
-        // redirectTo must exactly match one of the URLs in your Supabase
-        // project: Authentication > URL Configuration > Redirect URLs
+        // We use window.location.origin to ensure we stay on the same domain (www or non-www)
+        // because PKCE verifiers are domain-specific.
         const origin = window.location.origin;
-        // Ensure we don't have double slashes if origin ends with /
-        const redirectTo = origin.endsWith('/') ? `${origin}app` : `${origin}/app`;
+        const redirectTo = `${origin}/app`;
         
-        console.log('[Auth] Starting Google sign-in, redirectTo:', redirectTo);
+        console.log('[Auth] Starting Google sign-in:', {
+            origin,
+            redirectTo,
+            userAgent: navigator.userAgent
+        });
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -58,12 +61,14 @@ export const signInWithGoogle = async () => {
         });
 
         if (error) {
-            console.error('[Auth] Google sign-in error:', error.message, error);
+            console.error('[Auth] Google sign-in error:', error.message);
             alert(`Sign-in failed: ${error.message}`);
             return;
         }
 
-        console.log('[Auth] OAuth initiated, data:', data);
+        if (data?.url) {
+            console.log('[Auth] Redirecting to:', data.url);
+        }
     }
 };
 

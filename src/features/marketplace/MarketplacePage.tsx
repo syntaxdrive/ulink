@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ShoppingBag,
     Search,
@@ -10,7 +10,6 @@ import {
     Upload,
     Tag,
     Loader2,
-    PackageOpen,
     AlertCircle,
     ChevronDown,
     Copy,
@@ -35,7 +34,7 @@ import { nativeShare } from '../../utils/shareUtils';
 import { getBaseUrl } from '../../config';
 import Modal from '../../components/ui/Modal';
 import { useMarketplaceStore } from '../../stores/useMarketplaceStore';
-import type { MarketplaceListing } from '../../types';
+import type { MarketplaceListing, Profile } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -932,10 +931,10 @@ function ListingForm({ onClose: _onClose, onComplete, currentUserId, userUnivers
 
                                         // Upload to Cloudinary
                                         try {
-                                            const url = await cloudinaryService.uploadImage(file);
-                                            if (url) {
+                                            const res = await cloudinaryService.uploadImage(file);
+                                            if (res?.secureUrl) {
                                                 const updated = [...foodOptions];
-                                                updated[idx].image_url = url;
+                                                updated[idx].image_url = res.secureUrl;
                                                 setFoodOptions(updated);
                                             }
                                         } catch (err) {
@@ -1095,7 +1094,6 @@ export default function MarketplacePage() {
     const [stores, setStores]               = useState<Profile[]>([]);
     const [loadingStores, setLoadingStores] = useState(false);
     const [fetchError, setFetchError]       = useState<string | null>(null);
-    const [showDashboard, setShowDashboard] = useState(false);
     const [myProfile, setMyProfile]         = useState<Profile | null>(null);
 
     const selectedStore = useMemo(() => {
@@ -1527,7 +1525,7 @@ export default function MarketplacePage() {
                     onMarkSold={handleMarkSold}
                     onDelete={handleDelete}
                     onEdit={() => setEditingListing(selectedListing)}
-                    onVisitStore={(id, name) => {
+                    onVisitStore={(id, _name) => {
                         setSelectedStoreId(id);
                         setViewMode('listings');
                         setSelectedListing(null);
@@ -1624,8 +1622,8 @@ function SellerStoreSettings({ profile, onUpdate }: { profile: Profile, onUpdate
 
         setUploading(true);
         try {
-            const url = await cloudinaryService.uploadImage(file, { folder: 'ulink/stores' });
-            setBannerUrl(url);
+            const res = await cloudinaryService.uploadImage(file, { folder: 'ulink/stores' });
+            setBannerUrl(res.secureUrl);
         } catch (err) {
             console.error('Upload banner error:', err);
             alert('Failed to upload banner.');
