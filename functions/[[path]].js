@@ -56,7 +56,7 @@ export default {
                                 // Extract public_id and build thumbnail URL
                                 const match = post.video_url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
                                 if (match) {
-                                    image = `https://res.cloudinary.com/rwtdjpw/video/upload/so_0,f_auto,q_auto,c_fill,w_640,h_360/${match[1]}.jpg`;
+                                    image = `https://res.cloudinary.com/dh5odmxyi/video/upload/so_0,f_auto,q_auto,c_fill,w_640,h_360/${match[1]}.jpg`;
                                 }
                             }
                             
@@ -119,6 +119,27 @@ export default {
                             } else {
                                 title = `${room.name} - UniLink Study Room`;
                                 description = room.description || `Join ${room.profiles?.name || 'our'} study room on UniLink to collaborate and learn.`;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (isMarketplaceItem) {
+                const parts = url.pathname.split('/');
+                const itemId = parts.pop() || parts.pop();
+                if (itemId && sbUrlHost && sbAnonKey) {
+                    const sbUrl = `${sbUrlHost}/rest/v1/marketplace_listings?id=eq.${itemId}&select=title,description,price,images,profiles(name)&limit=1`;
+                    const res = await fetch(sbUrl, {
+                        headers: { 'apikey': sbAnonKey, 'Authorization': `Bearer ${sbAnonKey}`, 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.length > 0) {
+                            const item = data[0];
+                            title = `${item.title} - ₦${new Intl.NumberFormat('en-NG').format(item.price)} on UniLink Marketplace`;
+                            description = item.description || `Buy ${item.title} on UniLink Nigeria. Trusted campus marketplace.`;
+                            if (item.images && item.images.length > 0) {
+                                image = item.images[0];
                             }
                         }
                     }
