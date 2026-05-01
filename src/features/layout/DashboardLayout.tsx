@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, BookOpen, RefreshCw, Plus, ShoppingBag } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus, ShoppingBag } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -400,7 +400,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         {icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
         {icon: GraduationCap, label: 'Courses', path: '/app/learn'},
-        {icon: BookOpen, label: 'Story Mode', path: '/app/story'},
+        // {icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         {icon: Library, label: 'Study Rooms', path: '/app/study'},
         { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),

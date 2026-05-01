@@ -30,7 +30,7 @@ import PodcastsPage from './features/podcasts/PodcastsPage';
 import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
 import PodcastManagePage from './features/podcasts/PodcastManagePage';
 import StudyRoomsPage from './features/study/StudyRoomsPage';
-import StoryModePage from './features/story/StoryModePage';
+// import StoryModePage from './features/story/StoryModePage';
 import MarketplacePage from './features/marketplace/MarketplacePage';
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 import UpdateNotification from './components/UpdateNotification';
@@ -162,7 +162,7 @@ function App() {
             <Route path="study" element={<StudyRoomsPage />} />
             <Route path="marketplace" element={<MarketplacePage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
-            <Route path="story" element={<StoryModePage />} />
+{/* <Route path="story" element={<StoryModePage />} /> */}
             <Route path="challenge" element={<CampusChallengePage />} />
             <Route path="news" element={<NewsPage />} />
             <Route path="podcasts" element={<PodcastsPage />} />

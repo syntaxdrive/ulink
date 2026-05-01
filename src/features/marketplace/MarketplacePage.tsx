@@ -1118,7 +1118,8 @@ export default function MarketplacePage() {
             return;
         }
 
-        if (isInitial && store.listings.length === 0) {
+        // Always show loading skeletons on initial fetch if we don't have many listings
+        if (isInitial && listings.length < 5) {
             setLoading(true);
         }
         
@@ -1279,7 +1280,7 @@ export default function MarketplacePage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {currentUserId && (
+                            {/* {currentUserId && (
                                 <button
                                     onClick={() => setShowCreateModal(true)}
                                     className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/10 transition-all flex items-center gap-2 text-sm"
@@ -1287,7 +1288,7 @@ export default function MarketplacePage() {
                                     <Plus className="w-4 h-4" />
                                     Sell
                                 </button>
-                            )}
+                            )} */}
                         </div>
                     </div>
 
@@ -1475,15 +1476,14 @@ export default function MarketplacePage() {
                 )}
             </div>
 
-            {/* Mobile FAB */}
-            {currentUserId && (
+            {/* {currentUserId && (
                 <button
                     onClick={() => setShowCreateModal(true)}
                     className="md:hidden fixed bottom-24 right-4 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-xl z-40 transition-all active:scale-95 flex items-center justify-center"
                 >
                     <Plus className="w-7 h-7" />
                 </button>
-            )}
+            )} */}
 
             {/* Modals */}
             <Modal
