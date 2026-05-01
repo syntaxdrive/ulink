@@ -58,9 +58,21 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
     const [notificationPermission, setNotificationPermission] = useState(() =>
         'Notification' in window ? Notification.permission : 'denied'
     );
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [toast, setToast] = useState<{ title: string; message: string; isVisible: boolean; onClick?: () => void }>({
         title: '', message: '', isVisible: false
     });
+
+    useEffect(() => {
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall({
         onInstallAvailable: () => {
@@ -452,6 +464,14 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] dark:bg-bg-dark text-slate-900 dark:text-white font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
+
+            {/* Offline Indicator Banner */}
+            {isOffline && (
+                <div className="fixed top-0 left-0 right-0 z-[100] bg-zinc-900 dark:bg-white text-white dark:text-black py-1 px-4 flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300 shadow-lg">
+                    <Globe className="w-3 h-3 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Offline Mode — Viewing Cached Data</span>
+                </div>
+            )}
 
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 

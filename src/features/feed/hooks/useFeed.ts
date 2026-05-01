@@ -207,43 +207,16 @@ export function useFeed(communityId?: string) {
         // Cursor-based pagination: each page fetches exactly POSTS_PER_PAGE new rows
         const cursor = isLoadMore ? feedCursor : null;
 
-        // Simple, safe query — no self-referential or potentially unregistered FK joins
+        // ── Database Fetch ──────────────────────────────────────────────────
         let query = supabase
             .from('posts')
             .select(`
                 *,
-                profiles:author_id (
-                    id,
-                    name,
-                    username,
-                    avatar_url,
-                    is_verified,
-                    headline,
-                    role,
-                    email,
-                    expected_graduation_year
-                ),
-                community:community_id (
-                    id,
-                    name,
-                    slug,
-                    icon_url
-                ),
+                profiles:author_id (id, name, username, avatar_url, is_verified, headline, role),
+                community:community_id (id, name, slug, icon_url),
                 original_post:original_post_id (
-                    id,
-                    content,
-                    image_url,
-                    image_urls,
-                    video_url,
-                    created_at,
-                    author_id,
-                    profiles:author_id (
-                        id,
-                        name,
-                        username,
-                        avatar_url,
-                        is_verified
-                    )
+                    id, content, image_url, image_urls, video_url, created_at, author_id,
+                    profiles:author_id (id, name, username, avatar_url, is_verified)
                 )
             `)
             .order('created_at', { ascending: false })
@@ -254,222 +227,83 @@ export function useFeed(communityId?: string) {
         if (communityId) {
             query = query.eq('community_id', communityId);
         } else {
-            // Main feed: exclude community-only posts unless explicitly shared to feed
             query = query.or('community_id.is.null,shared_to_feed.eq.true');
         }
 
         let { data, error } = await query;
 
         if (error) {
-            console.error('Error fetching posts:', JSON.stringify(error, null, 2));
-            // Fallback: minimal select without potentially missing FK joins or columns
-            const fallbackQuery = `
-                *, 
-                profiles: author_id (id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year), 
-                community: community_id(id, name, slug, icon_url),
-                original_post: original_post_id (
-                    id,
-                    content,
-                    image_url,
-                    image_urls,
-                    video_url,
-                    created_at,
-                    author_id,
-                    profiles:author_id (id, name, username, avatar_url, is_verified)
-                )
-            `;
-            const fallback = communityId
-                ? await supabase
-                    .from('posts')
-                    .select(fallbackQuery)
-                    .eq('community_id', communityId)
-                    .order('created_at', { ascending: false })
-                    .limit(POSTS_PER_PAGE)
-                    .lt('created_at', cursor || new Date().toISOString())
-                : await supabase
-                    .from('posts')
-                    .select(fallbackQuery)
-                    .or('community_id.is.null,shared_to_feed.eq.true')
-                    .order('created_at', { ascending: false })
-                    .limit(POSTS_PER_PAGE)
-                    .lt('created_at', cursor || new Date().toISOString());
-
-            if (fallback.error) {
-                console.error('Fallback fetch failed:', JSON.stringify(fallback.error, null, 2));
-                if (isInitial) setLoading(false);
-                return;
-            }
-            data = fallback.data;
-            error = null;
+            console.error('Error fetching posts:', error);
+            if (isInitial) setLoading(false);
+            return;
         }
 
-        console.log(`Fetched ${data?.length || 0} posts from database`);
-
-        if (!error && data) {
-            // VIP Users List
+        if (data) {
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
-            // Fetch counts separately for better performance
-            const postIds = data.map((p: any) => p.id);
+            // ── Minimal Aux Fetch (Only what's NOT cached in posts table) ──
+            // We only need to know if the CURRENT USER liked or voted.
+            // Global counts (likes_count, comments_count) are already in the 'data' from posts table!
+            
+            let userEngagementMap: Record<string, { userLiked: boolean; userVote: number | null }> = {};
+            
+            if (userId && data.length > 0) {
+                const postIds = data.map((p: any) => p.id);
+                
+                const [likesResult, votesResult] = await Promise.all([
+                    supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', userId),
+                    supabase.from('poll_votes').select('post_id, option_index').in('post_id', postIds).eq('user_id', userId)
+                ]);
 
-            // Fetch likes count and user's like status
-            const likesPromise = supabase
-                .from('likes')
-                .select('post_id, user_id')
-                .in('post_id', postIds);
-
-            // Fetch comments count
-            const commentsPromise = supabase
-                .from('comments')
-                .select('post_id')
-                .in('post_id', postIds);
-
-            // Fetch reposts count
-            const repostsPromise = supabase
-                .from('posts')
-                .select('original_post_id')
-                .in('original_post_id', postIds)
-                .eq('is_repost', true);
-
-            // Fetch poll votes
-            let pollVotesPromise: PromiseLike<{ data: any[] | null; error?: any }> = Promise.resolve({ data: null });
-            if (userId) {
-                pollVotesPromise = supabase
-                    .from('poll_votes')
-                    .select('post_id, option_index')
-                    .eq('user_id', userId)
-                    .in('post_id', postIds);
-            }
-
-            // Execute all queries in parallel
-            const [likesResult, commentsResult, repostsResult, pollVotesResult] = await Promise.all([
-                likesPromise,
-                commentsPromise,
-                repostsPromise,
-                pollVotesPromise
-            ]);
-
-            // Build count maps
-            const likesMap: Record<string, { count: number; userLiked: boolean }> = {};
-            const commentsMap: Record<string, number> = {};
-            const repostsMap: Record<string, { count: number; userReposted: boolean }> = {};
-            const pollVotesMap: Record<string, number> = {};
-
-            // Process likes
-            if (likesResult.data) {
-                likesResult.data.forEach((like: any) => {
-                    if (!likesMap[like.post_id]) {
-                        likesMap[like.post_id] = { count: 0, userLiked: false };
-                    }
-                    likesMap[like.post_id].count++;
-                    if (userId && like.user_id === userId) {
-                        likesMap[like.post_id].userLiked = true;
-                    }
-                });
-            }
-
-            // Process comments
-            if (commentsResult.data) {
-                commentsResult.data.forEach((comment: any) => {
-                    commentsMap[comment.post_id] = (commentsMap[comment.post_id] || 0) + 1;
-                });
-            }
-
-            // Process reposts
-            if (repostsResult.data) {
-                repostsResult.data.forEach((repost: any) => {
-                    if (!repostsMap[repost.original_post_id]) {
-                        repostsMap[repost.original_post_id] = { count: 0, userReposted: false };
-                    }
-                    repostsMap[repost.original_post_id].count++;
-                    if (userId && repost.author_id === userId) {
-                        repostsMap[repost.original_post_id].userReposted = true;
-                    }
-                });
-            }
-
-            // Process poll votes
-            if (pollVotesResult.data) {
-                pollVotesResult.data.forEach((v: any) => {
-                    pollVotesMap[v.post_id] = v.option_index;
-                });
+                if (likesResult.data) {
+                    likesResult.data.forEach((l: any) => {
+                        if (!userEngagementMap[l.post_id]) userEngagementMap[l.post_id] = { userLiked: false, userVote: null };
+                        userEngagementMap[l.post_id].userLiked = true;
+                    });
+                }
+                if (votesResult.data) {
+                    votesResult.data.forEach((v: any) => {
+                        if (!userEngagementMap[v.post_id]) userEngagementMap[v.post_id] = { userLiked: false, userVote: null };
+                        userEngagementMap[v.post_id].userVote = v.option_index;
+                    });
+                }
             }
 
             let formatted = data.map((post: any) => optimizePostMedia({
                 ...post,
-                likes_count: likesMap[post.id]?.count || 0,
-                comments_count: commentsMap[post.id] || 0,
-                reposts_count: repostsMap[post.id]?.count || 0,
-                user_has_liked: likesMap[post.id]?.userLiked || false,
-                user_has_reposted: repostsMap[post.id]?.userReposted || false,
-                user_vote: pollVotesMap[post.id] ?? null,
+                // Use the database-synced counts (High Performance)
+                likes_count: post.likes_count || 0,
+                comments_count: post.comments_count || 0,
+                reposts_count: post.reposts_count || 0,
+                // User-specific engagement
+                user_has_liked: userEngagementMap[post.id]?.userLiked || false,
+                user_vote: userEngagementMap[post.id]?.userVote ?? null,
                 is_vip: VIP_EMAILS.includes(post.profiles?.email)
             }));
 
-
-
-            // -------------------------------------------------------------
-            // SMART ENGAGEMENT ALGORITHM
-            // -------------------------------------------------------------
+            // ── Engagement Algorithm ──
             const now = Date.now();
-
             formatted.forEach((post: any) => {
                 const ageHours = (now - new Date(post.created_at).getTime()) / (1000 * 60 * 60);
-
-                // Base points start at 100 to ensure everything has a floor
                 let score = 100;
-
-                // Time Decay (Linear dropoff over 48 hours)
-                // Newer posts get up to 50 bonus points
-                if (ageHours < 48) {
-                    score += 50 * (1 - (ageHours / 48));
-                }
-
-                // VIP Status Override (Legacy system integration)
-                const isRecent = ageHours < 24;
-                if (post.is_vip && isRecent) {
-                    score += 200; // Fast track VIPs to the top if recent
-                }
-
-                // Creator Verification Weighting
-                if (post.profiles?.gold_verified) {
-                    score *= 1.15; // +15% boost for gold verified originators
-                }
-
-                // Media Weighting
-                const hasMedia = post.image_url || post.video_url || post.image_urls?.length > 0;
-                if (hasMedia) score += 15;
-
-                // Engagement Weighting
-                // 1 Like = 1 point, 1 Comment = 3 points, 1 Repost = 5 points
-                const engagementScore =
-                    (post.likes_count || 0) * 1 +
-                    (post.comments_count || 0) * 3 +
-                    (post.reposts_count || 0) * 5;
-
-                score += engagementScore;
-
+                if (ageHours < 48) score += 50 * (1 - (ageHours / 48));
+                if (post.is_vip && ageHours < 24) score += 200;
+                if (post.profiles?.gold_verified) score *= 1.15;
+                score += (post.likes_count * 1) + (post.comments_count * 3) + (post.reposts_count * 5);
                 post._algorithmic_score = score;
             });
 
-            // Sort finally by score descending
             formatted.sort((a: any, b: any) => b._algorithmic_score - a._algorithmic_score);
 
             if (isLoadMore) {
-                // Append-only: preserve existing sorted posts, add new batch at the end
                 setPosts([...useFeedStore.getState().posts, ...formatted], currentContext);
             } else {
-                // Replacement: Context-aware update
                 setPosts(formatted, currentContext);
             }
 
             setHasMore(formatted.length >= POSTS_PER_PAGE);
-
-            // Advance cursor to the oldest post in this batch so next load-more starts from there
             if (formatted.length > 0) {
-                const oldest = formatted.reduce((a: any, b: any) =>
-                    a.created_at < b.created_at ? a : b
-                );
+                const oldest = formatted.reduce((a: any, b: any) => a.created_at < b.created_at ? a : b);
                 setFeedCursor(oldest.created_at);
             }
         }

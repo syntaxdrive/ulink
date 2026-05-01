@@ -1,38 +1,39 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './features/landing/LandingPage';
-import AboutPage from './features/landing/AboutPage';
 import DashboardLayout from './features/layout/DashboardLayout';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from './lib/supabase';
 import { type Session } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
-import NetworkPage from './features/network/NetworkPage';
-import FeedPage from './features/feed/FeedPage';
-import PostPage from './features/feed/PostPage';
-import MessagesPage from './features/messages/MessagesPage';
-import JobsPage from './features/jobs/JobsPage';
-import TalentSearchPage from './features/jobs/TalentSearchPage';
-import ProfilePage from './features/preferences/ProfilePage';
-import NotificationsPage from './features/notifications/NotificationsPage';
-import UserProfilePage from './features/profile/UserProfilePage';
-import LegalPage from './features/legal/LegalPage';
-import SettingsPage from './features/settings/SettingsPage';
-import AdminPage from './features/admin/AdminPage';
-import NotFoundPage from './features/layout/NotFoundPage';
-import OnboardingPage from './features/auth/OnboardingPage';
-import CommunitiesPage from './features/communities/CommunitiesPage';
-import CommunityDetailsPage from './features/communities/CommunityDetailsPage';
-import CoursesPage from './features/learn/CoursesPage';
-import LeaderboardPage from './features/leaderboard/LeaderboardPage';
-import CampusChallengePage from './features/challenge/CampusChallengePage';
-import NewsPage from './features/news/NewsPage';
-import PodcastsPage from './features/podcasts/PodcastsPage';
-import PodcastChannelPage from './features/podcasts/PodcastChannelPage';
-import PodcastManagePage from './features/podcasts/PodcastManagePage';
-import StudyRoomsPage from './features/study/StudyRoomsPage';
-// import StoryModePage from './features/story/StoryModePage';
-import MarketplacePage from './features/marketplace/MarketplacePage';
+
+// Lazy load feature pages for bandwidth optimization
+const FeedPage = lazy(() => import('./features/feed/FeedPage'));
+const PostPage = lazy(() => import('./features/feed/PostPage'));
+const NetworkPage = lazy(() => import('./features/network/NetworkPage'));
+const MessagesPage = lazy(() => import('./features/messages/MessagesPage'));
+const JobsPage = lazy(() => import('./features/jobs/JobsPage'));
+const TalentSearchPage = lazy(() => import('./features/jobs/TalentSearchPage'));
+const ProfilePage = lazy(() => import('./features/preferences/ProfilePage'));
+const NotificationsPage = lazy(() => import('./features/notifications/NotificationsPage'));
+const UserProfilePage = lazy(() => import('./features/profile/UserProfilePage'));
+const SettingsPage = lazy(() => import('./features/settings/SettingsPage'));
+const AdminPage = lazy(() => import('./features/admin/AdminPage'));
+const OnboardingPage = lazy(() => import('./features/auth/OnboardingPage'));
+const CommunitiesPage = lazy(() => import('./features/communities/CommunitiesPage'));
+const CommunityDetailsPage = lazy(() => import('./features/communities/CommunityDetailsPage'));
+const CoursesPage = lazy(() => import('./features/learn/CoursesPage'));
+const LeaderboardPage = lazy(() => import('./features/leaderboard/LeaderboardPage'));
+const CampusChallengePage = lazy(() => import('./features/challenge/CampusChallengePage'));
+const NewsPage = lazy(() => import('./features/news/NewsPage'));
+const PodcastsPage = lazy(() => import('./features/podcasts/PodcastsPage'));
+const PodcastChannelPage = lazy(() => import('./features/podcasts/PodcastChannelPage'));
+const PodcastManagePage = lazy(() => import('./features/podcasts/PodcastManagePage'));
+const StudyRoomsPage = lazy(() => import('./features/study/StudyRoomsPage'));
+const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
 const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
+const LandingPage = lazy(() => import('./features/landing/LandingPage'));
+const AboutPage = lazy(() => import('./features/landing/AboutPage'));
+const LegalPage = lazy(() => import('./features/legal/LegalPage'));
+const NotFoundPage = lazy(() => import('./features/layout/NotFoundPage'));
 import UpdateNotification from './components/UpdateNotification';
 import PWAInstallBanner from './components/PWAInstallBanner';
 import { HelmetProvider } from 'react-helmet-async';
@@ -123,64 +124,66 @@ function App() {
           title="Home"
           description="Join the largest network of Nigerian university students. Collaborate, share resources, and grow your career."
         />
-        <Routes>
-          <Route path="/download" element={<Suspense fallback={null}><DownloadPage /></Suspense>} />
-          <Route
-            path="/"
-            element={
-              session
-                ? <Navigate to="/app" replace />
-                : (isNative ? <Navigate to="/app" replace /> : <LandingPage />)
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              session
-                ? <Navigate to="/app" replace />
-                : <LandingPage />
-            }
-          />
-          <Route path="/about" element={<AboutPage />} />
-          <Route
-            path="/onboarding"
-            element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/app"
-            element={<DashboardLayout session={session} />}
-          >
-            <Route index element={<FeedPage />} />
-            <Route path="post/:postId" element={<PostPage />} />
-            <Route path="communities" element={<CommunitiesPage />} />
-            <Route path="communities/:slug" element={<CommunityDetailsPage />} />
-            <Route path="network" element={<NetworkPage />} />
-            <Route path="messages" element={session ? <MessagesPage /> : <Navigate to="/app" replace />} />
-            <Route path="jobs" element={<JobsPage />} />
-            <Route path="talent" element={<TalentSearchPage />} />
-            <Route path="learn" element={<CoursesPage />} />
-            <Route path="study" element={<StudyRoomsPage />} />
-            <Route path="marketplace" element={<MarketplacePage />} />
-            <Route path="leaderboard" element={<LeaderboardPage />} />
-{/* <Route path="story" element={<StoryModePage />} /> */}
-            <Route path="challenge" element={<CampusChallengePage />} />
-            <Route path="news" element={<NewsPage />} />
-            <Route path="podcasts" element={<PodcastsPage />} />
-            <Route path="podcasts/manage" element={session ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
-            <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
-            <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
-            <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
-            <Route path="profile/:userId" element={<UserProfilePage />} />
-            <Route path="settings" element={session ? <SettingsPage /> : <Navigate to="/app" replace />} />
-            <Route path="admin" element={session ? <AdminPage /> : <Navigate to="/app" replace />} />
-            {/* Internal 404: Keeps sidebar */}
+        <Suspense fallback={
+          <div className="h-screen w-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-bg-dark">
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+          </div>
+        }>
+          <Routes>
+            <Route path="/download" element={<DownloadPage />} />
+            <Route
+              path="/"
+              element={
+                session
+                  ? <Navigate to="/app" replace />
+                  : (isNative ? <Navigate to="/app" replace /> : <LandingPage />)
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                session
+                  ? <Navigate to="/app" replace />
+                  : <LandingPage />
+              }
+            />
+            <Route path="/about" element={<AboutPage />} />
+            <Route
+              path="/onboarding"
+              element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
+            />
+            <Route
+              path="/app"
+              element={<DashboardLayout session={session} />}
+            >
+              <Route index element={<FeedPage />} />
+              <Route path="post/:postId" element={<PostPage />} />
+              <Route path="communities" element={<CommunitiesPage />} />
+              <Route path="communities/:slug" element={<CommunityDetailsPage />} />
+              <Route path="network" element={<NetworkPage />} />
+              <Route path="messages" element={session ? <MessagesPage /> : <Navigate to="/app" replace />} />
+              <Route path="jobs" element={<JobsPage />} />
+              <Route path="talent" element={<TalentSearchPage />} />
+              <Route path="learn" element={<CoursesPage />} />
+              <Route path="study" element={<StudyRoomsPage />} />
+              <Route path="marketplace" element={<MarketplacePage />} />
+              <Route path="leaderboard" element={<LeaderboardPage />} />
+              <Route path="challenge" element={<CampusChallengePage />} />
+              <Route path="news" element={<NewsPage />} />
+              <Route path="podcasts" element={<PodcastsPage />} />
+              <Route path="podcasts/manage" element={session ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
+              <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
+              <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
+              <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
+              <Route path="profile/:userId" element={<UserProfilePage />} />
+              <Route path="settings" element={session ? <SettingsPage /> : <Navigate to="/app" replace />} />
+              <Route path="admin" element={session ? <AdminPage /> : <Navigate to="/app" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+            <Route path="/legal/:type" element={<LegalPage />} />
             <Route path="*" element={<NotFoundPage />} />
-          </Route>
-          <Route path="/legal/:type" element={<LegalPage />} />
-
-          {/* Global 404: Full page */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </HelmetProvider>
   );

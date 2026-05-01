@@ -6,6 +6,7 @@ import { Loader2, Briefcase, Building2, Search, Plus, Globe, Trash2, Edit2, Chec
 import { shareToWhatsApp, nativeShare } from '../../utils/shareUtils';
 import Modal from '../../components/ui/Modal';
 import { useJobsStore } from '../../stores/useJobsStore';
+import { SEO } from '../../components/SEO/SEO';
 
 export default function JobsPage() {
     const [searchParams] = useSearchParams();
@@ -340,6 +341,10 @@ export default function JobsPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-32">
+            <SEO 
+                title="Jobs & Internships" 
+                description="Find internships, entry-level jobs, and scholarships tailored for Nigerian university students." 
+            />
             {/* Header / Search */}
             <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center sticky top-0 md:top-4 z-40 bg-zinc-50/80 dark:bg-zinc-950/80 backdrop-blur-xl py-2 md:py-0 px-1 -mx-1">
                 <div className="relative group flex-1 w-full md:max-w-md">

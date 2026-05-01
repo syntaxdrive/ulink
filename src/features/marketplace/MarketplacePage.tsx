@@ -35,6 +35,7 @@ import { getBaseUrl } from '../../config';
 import Modal from '../../components/ui/Modal';
 import { useMarketplaceStore } from '../../stores/useMarketplaceStore';
 import type { MarketplaceListing, Profile } from '../../types';
+import { SEO } from '../../components/SEO/SEO';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1268,6 +1269,10 @@ export default function MarketplacePage() {
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-32">
+            <SEO 
+                title="Marketplace" 
+                description="Buy and sell textbooks, electronics, and campus essentials. The trusted student marketplace for Nigerian universities." 
+            />
             {/* Navbar */}
             <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 sm:px-6">
                 <div className="max-w-7xl mx-auto space-y-4">

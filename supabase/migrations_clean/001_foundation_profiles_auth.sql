@@ -49,6 +49,13 @@ project JSONB DEFAULT '[]'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- Performance Indices
+CREATE INDEX IF NOT EXISTS profiles_username_idx ON public.profiles(username);
+CREATE INDEX IF NOT EXISTS profiles_email_idx ON public.profiles(email);
+CREATE INDEX IF NOT EXISTS profiles_university_idx ON public.profiles(university);
+CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS profiles_created_at_idx ON public.profiles(created_at DESC);
+
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -83,23 +90,45 @@ CREATE INDEX IF NOT EXISTS profiles_headline_trgm_idx ON public.profiles USING g
 -- 3. AUTH TRIGGER - Auto-create profile for new users
 --------------------------------------------------------------------------------
 
+-- Robust Auth Trigger with Conflict Resolution
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+    temp_username TEXT;
 BEGIN
-    INSERT INTO public.profiles (id, email, name, role, university, avatar_url)
+    -- 1. Create a unique temporary username (pre-onboarding safety)
+    temp_username := 'user_' || substr(md5(random()::text), 1, 8);
+
+    -- 2. Attempt the insert with conflict handling
+    INSERT INTO public.profiles (
+        id, 
+        email, 
+        name, 
+        role, 
+        university, 
+        avatar_url,
+        username
+    )
     VALUES (
         NEW.id,
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.email, 'New User'),
         COALESCE(NEW.raw_user_meta_data->>'role', 'student'),
         NEW.raw_user_meta_data->>'university',
-        NEW.raw_user_meta_data->>'avatar_url'
+        NEW.raw_user_meta_data->>'avatar_url',
+        temp_username
     )
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        updated_at = NOW();
+        
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    -- Safety fallback: ensure Auth record is ALWAYS created even if profile setup hits a glitch
     RETURN NEW;
 END;
 $$;

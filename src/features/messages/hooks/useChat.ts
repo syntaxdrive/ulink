@@ -163,13 +163,16 @@ export function useChat() {
     }, [userId, fetchConversations]);
 
     // Realtime fallback: periodic sync for unread counts + conversation ordering.
+    // Optimized: Polling reduced to once every 2 minutes as we have Realtime listeners.
     useEffect(() => {
         if (!userId) return;
 
         const timer = setInterval(() => {
-            void fetchConversations(userId);
-            void fetchUnreadCounts(userId);
-        }, 12000);
+            if (useChatStore.getState().needsRefresh()) {
+                void fetchConversations(userId, true);
+                void fetchUnreadCounts(userId);
+            }
+        }, 120000);
 
         return () => clearInterval(timer);
     }, [userId, fetchConversations, fetchUnreadCounts]);
@@ -180,16 +183,19 @@ export function useChat() {
 
         const fetchMessages = async () => {
             const chatId = activeChat.id;
+            const cache = useChatStore.getState().messages[chatId];
             
-            // Background sync messages
-            const { data } = await supabase
-                .from('messages')
-                .select('*')
-                .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
-                .order('created_at', { ascending: true })
-                .limit(100);
+            // Only fetch from network if cache is empty
+            if (!cache || cache.length === 0) {
+                const { data } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
+                    .order('created_at', { ascending: true })
+                    .limit(50);
 
-            if (data) storeSetMessages(chatId, data);
+                if (data) storeSetMessages(chatId, data);
+            }
             markAsRead(activeChat.id);
         };
         fetchMessages();
@@ -253,7 +259,7 @@ export function useChat() {
         };
     }, [activeChat, userId, markAsRead]);
 
-    // Realtime fallback for active conversation: keep chat state fresh even if channel events drop.
+    // Active Chat fallback: extremely infrequent sync (every 60s)
     useEffect(() => {
         if (!activeChat || !userId) return;
 
@@ -263,15 +269,13 @@ export function useChat() {
                 .select('*')
                 .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
                 .order('created_at', { ascending: true })
-                .limit(100);
+                .limit(50);
 
             if (data) {
                 const chatId = activeChat.id;
-                const tempMsgs = messages.filter(m => m.id.startsWith('temp-'));
-                const reconciled = [...data, ...tempMsgs.filter(t => !data.some(d => d.content === t.content && d.sender_id === t.sender_id && d.recipient_id === t.recipient_id))];
-                storeSetMessages(chatId, reconciled);
+                storeSetMessages(chatId, data);
             }
-        }, 4000);
+        }, 60000);
 
         return () => clearInterval(timer);
     }, [activeChat, userId]);

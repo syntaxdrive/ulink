@@ -4,6 +4,7 @@ import { Search, Plus, Users, Globe, Lock, Loader2, Compass } from 'lucide-react
 import { supabase } from '../../lib/supabase';
 import { useCommunitiesStore } from '../../stores/useCommunitiesStore';
 import CreateCommunityModal from './components/CreateCommunityModal';
+import { SEO } from '../../components/SEO/SEO';
 import type { Community } from '../../types';
 
 export default function CommunitiesPage({ embed = false }: { embed?: boolean }) {
@@ -74,6 +75,12 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
 
     return (
         <div className={`transition-colors duration-300 ${embed ? "" : "max-w-6xl mx-auto"}`}>
+            {!embed && (
+                <SEO 
+                    title="Communities" 
+                    description="Join campus tech groups, study circles, and student societies. Connect with your peers and build your network." 
+                />
+            )}
             {/* Header */}
             {!embed && (
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 px-4 md:px-0">

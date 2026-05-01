@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { type Profile, type Message } from '../types';
 
 interface ChatStore {
@@ -18,34 +19,52 @@ interface ChatStore {
     needsRefresh: () => boolean;
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
-    conversations: [],
-    messages: {},
-    activeChatId: null,
-    unreadCounts: {},
-    lastFetched: 0,
+export const useChatStore = create<ChatStore>()(
+    persist(
+        (set, get) => ({
+            conversations: [],
+            messages: {},
+            activeChatId: null,
+            unreadCounts: {},
+            lastFetched: 0,
 
-    setConversations: (convs) => set({ conversations: convs, lastFetched: Date.now() }),
-    setMessages: (chatId, msgs) => set((state) => ({
-        messages: { ...state.messages, [chatId]: msgs }
-    })),
-    addMessage: (chatId, msg) => set((state) => ({
-        messages: {
-            ...state.messages,
-            [chatId]: [...(state.messages[chatId] || []), msg]
+            setConversations: (convs) => set({ 
+                conversations: convs, 
+                lastFetched: Date.now() 
+            }),
+            setMessages: (chatId, msgs) => set((state) => ({
+                messages: { ...state.messages, [chatId]: msgs }
+            })),
+            addMessage: (chatId, msg) => set((state) => ({
+                messages: {
+                    ...state.messages,
+                    [chatId]: [...(state.messages[chatId] || []), msg]
+                }
+            })),
+            setActiveChatId: (id) => set({ activeChatId: id }),
+            setUnreadCount: (chatId, count) => set((state) => ({
+                unreadCounts: { ...state.unreadCounts, [chatId]: count }
+            })),
+            incrementUnread: (chatId) => set((state) => ({
+                unreadCounts: { ...state.unreadCounts, [chatId]: (state.unreadCounts[chatId] || 0) + 1 }
+            })),
+            clearUnread: (chatId) => set((state) => {
+                const newCounts = { ...state.unreadCounts };
+                delete newCounts[chatId];
+                return { unreadCounts: newCounts };
+            }),
+            needsRefresh: () => Date.now() - get().lastFetched > 1000 * 60 * 10,
+        }),
+        {
+            name: 'ulink-chat-storage',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({ 
+                conversations: state.conversations.slice(0, 20),
+                messages: Object.fromEntries(
+                    Object.entries(state.messages).map(([id, msgs]) => [id, msgs.slice(-20)])
+                ),
+                unreadCounts: state.unreadCounts
+            }),
         }
-    })),
-    setActiveChatId: (id) => set({ activeChatId: id }),
-    setUnreadCount: (chatId, count) => set((state) => ({
-        unreadCounts: { ...state.unreadCounts, [chatId]: count }
-    })),
-    incrementUnread: (chatId) => set((state) => ({
-        unreadCounts: { ...state.unreadCounts, [chatId]: (state.unreadCounts[chatId] || 0) + 1 }
-    })),
-    clearUnread: (chatId) => set((state) => {
-        const newCounts = { ...state.unreadCounts };
-        delete newCounts[chatId];
-        return { unreadCounts: newCounts };
-    }),
-    needsRefresh: () => Date.now() - get().lastFetched > 1000 * 60 * 5,
-}));
+    )
+);

@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS public.posts (
     poll_options TEXT[],
     poll_counts INTEGER[],
     
+    -- Counter cache for performance (optimized for high-traffic feeds)
+    likes_count INTEGER DEFAULT 0,
+    comments_count INTEGER DEFAULT 0,
+    reposts_count INTEGER DEFAULT 0,
+    
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     
@@ -225,6 +230,56 @@ CREATE TRIGGER on_poll_vote
     AFTER INSERT OR DELETE ON public.poll_votes
     FOR EACH ROW
     EXECUTE FUNCTION public.update_poll_counts();
+
+--------------------------------------------------------------------------------
+-- 6. ENGAGEMENT COUNTERS - Automate likes, comments, and reposts
+--------------------------------------------------------------------------------
+
+-- Function to handle likes count
+CREATE OR REPLACE FUNCTION public.handle_post_engagement_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    IF (TG_TABLE_NAME = 'likes') THEN
+        IF (TG_OP = 'INSERT') THEN
+            UPDATE public.posts SET likes_count = likes_count + 1 WHERE id = NEW.post_id;
+        ELSIF (TG_OP = 'DELETE') THEN
+            UPDATE public.posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.post_id;
+        END IF;
+    ELSIF (TG_TABLE_NAME = 'comments') THEN
+        IF (TG_OP = 'INSERT') THEN
+            UPDATE public.posts SET comments_count = comments_count + 1 WHERE id = NEW.post_id;
+        ELSIF (TG_OP = 'DELETE') THEN
+            UPDATE public.posts SET comments_count = GREATEST(0, comments_count - 1) WHERE id = OLD.post_id;
+        END IF;
+    ELSIF (TG_TABLE_NAME = 'posts' AND NEW.is_repost = true) THEN
+        IF (TG_OP = 'INSERT') THEN
+            UPDATE public.posts SET reposts_count = reposts_count + 1 WHERE id = NEW.original_post_id;
+        ELSIF (TG_OP = 'DELETE') THEN
+            UPDATE public.posts SET reposts_count = GREATEST(0, reposts_count - 1) WHERE id = OLD.original_post_id;
+        END IF;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+-- Apply triggers
+CREATE TRIGGER on_like_update
+    AFTER INSERT OR DELETE ON public.likes
+    FOR EACH ROW EXECUTE FUNCTION public.handle_post_engagement_update();
+
+CREATE TRIGGER on_comment_update
+    AFTER INSERT OR DELETE ON public.comments
+    FOR EACH ROW EXECUTE FUNCTION public.handle_post_engagement_update();
+
+-- Repost count trigger (fires when a new repost-post is created)
+CREATE TRIGGER on_repost_update
+    AFTER INSERT OR DELETE ON public.posts
+    FOR EACH ROW
+    WHEN (NEW.is_repost = true OR OLD.is_repost = true)
+    EXECUTE FUNCTION public.handle_post_engagement_update();
 
 --------------------------------------------------------------------------------
 -- MIGRATION COMPLETE
