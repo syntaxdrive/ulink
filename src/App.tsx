@@ -56,13 +56,25 @@ function App() {
     initializeNativeAuth();
   }, []);
 
-  // Initialize dark mode on mount
+  // Initialize dark mode and Project Cache Buster
   useEffect(() => {
+    // 1. Dark Mode
     const stored = localStorage.getItem('darkMode');
     const shouldBeDark = stored !== null ? stored === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.classList.toggle('dark', shouldBeDark);
     if (stored === null) {
       setDarkMode(shouldBeDark);
+    }
+
+    // 2. Project Cache Buster
+    // This ensures that when we switch Supabase projects, users don't get stuck with old profile data.
+    const currentProjectId = import.meta.env.VITE_SUPABASE_URL?.split('.')[0].split('//')[1];
+    const storedProjectId = localStorage.getItem('ulink_project_id');
+
+    if (currentProjectId && storedProjectId !== currentProjectId) {
+      console.log('[Auth] Project change detected. Clearing stale cache...');
+      localStorage.removeItem('ulink_profile_cache');
+      localStorage.setItem('ulink_project_id', currentProjectId);
     }
   }, [setDarkMode]);
 
