@@ -97,12 +97,6 @@ function formatPrice(price: number): string {
 }
 
 /** Strip leading 0 from Nigerian number for wa.me links */
-function buildWhatsAppUrl(contactInfo: string): string {
-    const cleaned = contactInfo.replace(/\D/g, '');
-    // If starts with 0, replace with country code 234
-    const national = cleaned.startsWith('0') ? '234' + cleaned.slice(1) : cleaned;
-    return `https://wa.me/${national}`;
-}
 
 function getInitials(name: string): string {
     return name
@@ -1093,7 +1087,6 @@ export default function MarketplacePage() {
     const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
     const [stores, setStores]               = useState<Profile[]>([]);
     const [loadingStores, setLoadingStores] = useState(false);
-    const [fetchError, setFetchError]       = useState<string | null>(null);
     const [myProfile, setMyProfile]         = useState<Profile | null>(null);
 
     const selectedStore = useMemo(() => {
@@ -1129,7 +1122,6 @@ export default function MarketplacePage() {
             setLoading(true);
         }
         
-        setFetchError(null);
         try {
             const { data, error } = await supabase
                 .from('marketplace_listings')
@@ -1146,7 +1138,6 @@ export default function MarketplacePage() {
             console.error('[Marketplace] fetch error:', err);
             // Only show full error state if we have no cached data
             if (store.listings.length === 0) {
-                setFetchError('Could not load listings. Please try again.');
             }
         } finally {
             setLoading(false);
