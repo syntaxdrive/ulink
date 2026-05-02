@@ -65,10 +65,29 @@ export function useFeed(communityId?: string) {
                     await fetchPosts(user.id);
                 }
             } else {
+                setCurrentUserId(null);
+                setCurrentUserProfile(null);
                 await fetchPosts();
             }
         };
         init();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+                setCurrentUserId(session.user.id);
+                supabase
+                    .from('profiles')
+                    .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points')
+                    .eq('id', session.user.id)
+                    .single()
+                    .then(({ data }) => {
+                        if (data) setCurrentUserProfile(data);
+                    });
+            } else if (event === 'SIGNED_OUT') {
+                setCurrentUserId(null);
+                setCurrentUserProfile(null);
+            }
+        });
 
         // Single realtime channel for posts, likes, comments — shared with LiveTicker via latestFeedEvent
         const channel = supabase
@@ -124,6 +143,7 @@ export function useFeed(communityId?: string) {
             .subscribe();
 
         return () => {
+            subscription.unsubscribe();
             if (channel) {
                 channel.unsubscribe();
                 supabase.removeChannel(channel);
