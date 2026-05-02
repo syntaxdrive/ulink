@@ -1130,10 +1130,10 @@ export default function MarketplacePage() {
         try {
             const { data, error } = await supabase
                 .from('marketplace_listings')
-                .select('*, profiles(*)')
+                .select('id,seller_id,title,description,price,category,condition,images,contact_info,university,is_sold,created_at,profiles:seller_id(id,name,username,avatar_url,university,store_name)')
                 .eq('is_sold', false)
                 .order('created_at', { ascending: false })
-                .limit(120);
+                .limit(60);
 
             if (error) throw error;
             const fetched = (data ?? []) as MarketplaceListing[];

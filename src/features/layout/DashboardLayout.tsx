@@ -213,7 +213,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             // Fetch User Profile
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id,name,username,email,avatar_url,role,university,is_admin,is_verified,points,headline,store_name')
                 .eq('id', user.id)
                 .single();
 
