@@ -149,7 +149,7 @@ async function uploadToCloudinary(
     formData.append('folder', folder);
 
     // For videos: request eager transformation at upload time (done async server-side)
-    if (resourceType === 'video') {
+    if (resourceType === 'video' && file.type.startsWith('video/')) {
         // Eager: Cloudinary auto-transcodes to optimal format/quality server-side
         // This means the ORIGINAL raw video is stored once, transformations are cached on CDN
         formData.append('eager', 'f_auto,q_auto:good,vc_auto,fl_lossy,w_1280,h_720,c_limit');
