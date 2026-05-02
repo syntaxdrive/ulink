@@ -1670,7 +1670,19 @@ function SellerStoreSettings({ profile, onUpdate }: { profile: Profile, onUpdate
                     <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Store Banner</label>
                     <div className="relative group aspect-[3/1] rounded-2xl overflow-hidden border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-emerald-500 transition-colors">
                         {bannerUrl ? (
-                            <img src={bannerUrl} className="w-full h-full object-cover" />
+                            <>
+                                <img src={bannerUrl} className="w-full h-full object-cover" />
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setBannerUrl('');
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full z-10 backdrop-blur-sm transition-colors"
+                                    title="Remove Banner"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </>
                         ) : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400">
                                 <Upload className="w-8 h-8 mb-2" />
