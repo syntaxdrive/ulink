@@ -329,6 +329,16 @@ export { buildVideoThumbnailUrl as getVideoThumbnail };
  */
 export function getOptimizedMediaUrl(url: string | null | undefined): string {
     if (!url) return '';
+    
+    // Safety guard: if the stored value is a JSON object (accidental stringify), extract the URL
+    if (url.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(url);
+            url = parsed.secureUrl || parsed.secure_url || parsed.url || '';
+            if (!url) return '';
+        } catch { return ''; }
+    }
+    
     if (!CLOUD_NAME) return url;
     
     // If it's a Supabase public Storage URL (but not a video)
