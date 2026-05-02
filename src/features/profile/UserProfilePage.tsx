@@ -8,6 +8,7 @@ import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 import { SEO } from '../../components/SEO/SEO';
 import { nativeShare } from '../../utils/shareUtils';
 import { getBaseUrl } from '../../config';
+import { getOptimizedMediaUrl } from '../../services/cloudinaryService';
 
 export default function UserProfilePage() {
     const { userId } = useParams();
@@ -427,7 +428,7 @@ export default function UserProfilePage() {
                                     className={`w-40 h-40 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white dark:border-zinc-900 shadow-xl overflow-hidden bg-white dark:bg-zinc-900 relative z-10 cursor-pointer group hover:ring-8 hover:ring-indigo-500/10 transition-all duration-300`}
                                 >
                                     <img
-                                        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`}
+                                        src={getOptimizedMediaUrl(profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`)}
                                         alt={profile.name}
                                         className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'} group-hover:scale-110 transition-transform duration-300`}
                                     />

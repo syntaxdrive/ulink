@@ -18,6 +18,7 @@ import { useUIStore } from '../../stores/useUIStore';
 import { useLocalNotifications } from '../../hooks/usePushNotifications';
 import GlobalAudioPlayer from '../../components/audio/GlobalAudioPlayer';
 import PostDrawer from '../feed/components/PostDrawer';
+import { getOptimizedMediaUrl } from '../../services/cloudinaryService';
 
 export interface DashboardLayoutProps {
     session: Session | null;
@@ -629,7 +630,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                                 <div className="flex items-center gap-3 mb-4 px-2">
                                     <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
                                         <img
-                                            src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`}
+                                            src={getOptimizedMediaUrl(userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&background=random`)}
                                             alt={userProfile?.name}
                                             className="w-full h-full object-cover"
                                         />
@@ -753,7 +754,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                             >
                                 <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-white shadow-sm flex-shrink-0">
                                     <img
-                                        src={userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&size=128&background=random`}
+                                        src={getOptimizedMediaUrl(userProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || 'User')}&size=128&background=random`)}
                                         alt={userProfile?.name}
                                         className="w-full h-full object-cover"
                                     />
