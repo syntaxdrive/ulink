@@ -146,7 +146,8 @@ async function uploadToCloudinary(
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', UPLOAD_PRESET);
-    formData.append('folder', folder);
+    // Unsigned presets typically enforce their own folder configurations.
+    // Overriding the folder here often causes a 400 Bad Request, so we omit it.
 
     // For videos: request eager transformation at upload time (done async server-side)
     if (resourceType === 'video' && file.type.startsWith('video/')) {
