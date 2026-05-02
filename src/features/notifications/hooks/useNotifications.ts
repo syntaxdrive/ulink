@@ -160,7 +160,7 @@ export function useNotifications() {
             // Fetch General Notifications
             const { data: notifData } = await supabase
                 .from('notifications')
-                .select('*')
+                .select('id,user_id,type,message,title,data,action_url,read,is_read,created_at,actor_id,reference_id')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
@@ -207,7 +207,15 @@ export function useNotifications() {
             .select(`
                 id,
                 created_at,
-                requester:profiles!requester_id (*)
+                requester:profiles!requester_id (
+                    id,
+                    name,
+                    role,
+                    university,
+                    avatar_url,
+                    username,
+                    headline
+                )
             `)
             .eq('id', connectionId)
             .single();

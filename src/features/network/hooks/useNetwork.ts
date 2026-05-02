@@ -24,7 +24,7 @@ export function useNetwork() {
         // Fetch my profile
         const { data: profile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
             .eq('id', user.id)
             .single();
         if (profile) setUserProfile(profile as any);
@@ -59,7 +59,7 @@ export function useNetwork() {
         if (connectedProfileIds.length > 0) {
             const { data } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
                 .in('id', connectedProfileIds);
             if (data) networkProfiles = data as any;
         }
@@ -69,10 +69,10 @@ export function useNetwork() {
         const excludeIds = new Set([user.id, ...Array.from(connectedIds), ...Array.from(pendingIds)]);
         const { data: allProfiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id,name,username,avatar_url,university,role,headline,is_verified,points,created_at')
             .neq('id', user.id)
             .order('created_at', { ascending: false })
-            .limit(500);
+            .limit(100);
 
         let filteredSuggestions: Profile[] = [];
         if (profilesError) {
@@ -127,10 +127,10 @@ export function useNetwork() {
                 const q = query.trim().toLowerCase();
                 const { data: fallback } = await supabase
                     .from('profiles')
-                    .select('*')
+                    .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
                     .or(`name.ilike.%${q}%,username.ilike.%${q}%,university.ilike.%${q}%,headline.ilike.%${q}%`)
                     .neq('id', user.id)
-                    .limit(50);
+                    .limit(30);
                 setSearchResults((fallback as any) || []);
             }
         } catch {

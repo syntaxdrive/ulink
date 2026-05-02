@@ -146,9 +146,9 @@ export default function JobsPage() {
         
         const { data, error } = await supabase
             .from('jobs')
-            .select('*')
+            .select('id,title,company,location,type,salary_range,description,requirements,creator_id,created_at,is_active,application_url,application_email,deadline')
             .order('created_at', { ascending: false })
-            .limit(100);
+            .limit(50);
 
         if (!error && data) {
             setJobs(data);

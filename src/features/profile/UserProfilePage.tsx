@@ -40,7 +40,7 @@ export default function UserProfilePage() {
 
         const { data } = await supabase
             .from('connections')
-            .select('*')
+            .select('id,requester_id,recipient_id,status')
             .or(`and(requester_id.eq.${user.id},recipient_id.eq.${targetId}),and(requester_id.eq.${targetId},recipient_id.eq.${user.id})`)
             .maybeSingle();
 
@@ -203,13 +203,14 @@ export default function UserProfilePage() {
         const { data } = await supabase
             .from('posts')
             .select(`
-                *,
-                profiles:author_id (*),
+                id,author_id,content,image_url,image_urls,video_url,created_at,likes_count,comments_count,is_repost,
+                profiles:author_id (id,name,username,avatar_url,is_verified,role),
                 likes (user_id),
                 comments (id)
             `)
             .eq('author_id', id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(20);
 
         if (data) {
             const formattedPosts = data.map((post: any) => ({
@@ -296,7 +297,7 @@ export default function UserProfilePage() {
             const fetchOrgJobs = async () => {
                 const { data } = await supabase
                     .from('jobs')
-                    .select('*')
+                    .select('id,title,company,location,type,salary_range,created_at,is_active,description')
                     .eq('creator_id', profile.id)
                     .order('created_at', { ascending: false });
                 if (data) setOrgJobs(data);

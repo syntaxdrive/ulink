@@ -50,7 +50,7 @@ export default function MessagesPage() {
             if (!target) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('*')
+                    .select('id,name,username,avatar_url,university,role,is_verified,headline')
                     .eq('id', initialChatId)
                     .single();
                 
