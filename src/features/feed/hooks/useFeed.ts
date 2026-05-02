@@ -237,7 +237,9 @@ export function useFeed(communityId?: string) {
                 original_post:original_post_id (
                     id, content, image_url, image_urls, video_url, created_at, author_id,
                     profiles:author_id (id, name, username, avatar_url, is_verified)
-                )
+                ),
+                actual_likes:likes(count),
+                actual_comments:comments(count)
             `)
             .order('created_at', { ascending: false })
             .limit(POSTS_PER_PAGE);
@@ -291,9 +293,9 @@ export function useFeed(communityId?: string) {
 
             let formatted = data.map((post: any) => optimizePostMedia({
                 ...post,
-                // Use the database-synced counts (High Performance)
-                likes_count: post.likes_count || 0,
-                comments_count: post.comments_count || 0,
+                // Source of truth: actual count from table (Fallback to cached column)
+                likes_count: post.actual_likes?.[0]?.count ?? post.likes_count ?? 0,
+                comments_count: post.actual_comments?.[0]?.count ?? post.comments_count ?? 0,
                 reposts_count: post.reposts_count || 0,
                 // User-specific engagement
                 user_has_liked: userEngagementMap[post.id]?.userLiked || false,
@@ -376,8 +378,10 @@ export function useFeed(communityId?: string) {
                         avatar_url,
                         is_verified
                     )
-                )
-                    `)
+                ),
+                actual_likes:likes(count),
+                actual_comments:comments(count)
+            `)
             .ilike('content', `%${query}%`)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -405,40 +409,24 @@ export function useFeed(communityId?: string) {
             const postIds = data.map((p: any) => p.id);
 
             // Parallel fetch aux data
-            const likesPromise = supabase.from('likes').select('post_id, user_id').in('post_id', postIds);
-            const commentsPromise = supabase.from('comments').select('post_id').in('post_id', postIds);
-            const repostsPromise = supabase.from('posts').select('original_post_id, author_id').in('original_post_id', postIds).eq('is_repost', true);
+            const [likesResult, repostsResult] = await Promise.all([
+                supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', user.id),
+                supabase.from('posts').select('original_post_id').in('original_post_id', postIds).eq('is_repost', true).eq('author_id', user.id)
+            ]);
 
-            const [likesResult, commentsResult, repostsResult] = await Promise.all([likesPromise, commentsPromise, repostsPromise]);
-
-            const likesMap: Record<string, any> = {};
-            const commentsMap: Record<string, number> = {};
-            const repostsMap: Record<string, { count: number; userReposted: boolean }> = {};
-
-            likesResult.data?.forEach((l: any) => {
-                if (!likesMap[l.post_id]) likesMap[l.post_id] = { count: 0, userLiked: false };
-                likesMap[l.post_id].count++;
-                if (user && l.user_id === user.id) likesMap[l.post_id].userLiked = true;
-            });
-
-            commentsResult.data?.forEach((c: any) => commentsMap[c.post_id] = (commentsMap[c.post_id] || 0) + 1);
-
-            repostsResult.data?.forEach((r: any) => {
-                if (!repostsMap[r.original_post_id]) repostsMap[r.original_post_id] = { count: 0, userReposted: false };
-                repostsMap[r.original_post_id].count++;
-                if (user && r.author_id === user.id) repostsMap[r.original_post_id].userReposted = true;
-            });
+            const userLikedSet = new Set(likesResult.data?.map(l => l.post_id));
+            const userRepostedSet = new Set(repostsResult.data?.map(r => r.original_post_id));
 
             const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
 
             const formatted = data
                 .map((post: any) => optimizePostMedia({
                     ...post,
-                    likes_count: likesMap[post.id]?.count || 0,
-                    comments_count: commentsMap[post.id] || 0,
-                    reposts_count: repostsMap[post.id]?.count || 0,
-                    user_has_liked: likesMap[post.id]?.userLiked || false,
-                    user_has_reposted: repostsMap[post.id]?.userReposted || false,
+                    likes_count: post.actual_likes?.[0]?.count ?? post.likes_count ?? 0,
+                    comments_count: post.actual_comments?.[0]?.count ?? post.comments_count ?? 0,
+                    reposts_count: post.reposts_count || 0,
+                    user_has_liked: userLikedSet.has(post.id),
+                    user_has_reposted: userRepostedSet.has(post.id),
                     is_vip: VIP_EMAILS.includes(post.profiles?.email)
                 }));
 
@@ -465,8 +453,8 @@ export function useFeed(communityId?: string) {
                     author_id,
                     profiles:author_id (id, name, username, avatar_url, is_verified)
                 ),
-                likes(user_id),
-                comments(id)
+                actual_likes:likes(count),
+                actual_comments:comments(count)
             `)
             .eq('id', postId)
             .single();
@@ -475,11 +463,15 @@ export function useFeed(communityId?: string) {
             // If viewing a specific community, verify this post belongs to it
             if (communityId && data.community_id !== communityId) return;
 
+            const { data: likeData } = user 
+                ? await supabase.from('likes').select('id').eq('post_id', data.id).eq('user_id', user.id).maybeSingle()
+                : { data: null };
+
             const newPost = optimizePostMedia({
                 ...data,
-                likes_count: data.likes ? data.likes.length : 0,
-                comments_count: data.comments ? data.comments.length : 0,
-                user_has_liked: user ? data.likes.some((like: any) => like.user_id === user.id) : false
+                likes_count: data.actual_likes?.[0]?.count ?? data.likes_count ?? 0,
+                comments_count: data.actual_comments?.[0]?.count ?? data.comments_count ?? 0,
+                user_has_liked: !!likeData
             });
 
             const exists = posts.some(p => p.id === newPost.id);
@@ -634,10 +626,18 @@ export function useFeed(communityId?: string) {
             likes_count: newLikeCount
         });
 
-        if (isLiked) {
-            await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
-        } else {
-            await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+        try {
+            if (isLiked) {
+                const { error } = await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+            // Rollback optimistic update
+            updatePost(post);
         }
     };
 

@@ -206,19 +206,26 @@ export default function UserProfilePage() {
             .select(`
                 id,author_id,content,image_url,image_urls,video_url,created_at,likes_count,comments_count,is_repost,
                 profiles:author_id (id,name,username,avatar_url,is_verified,role),
-                likes (user_id),
-                comments (id)
+                actual_likes:likes(count),
+                actual_comments:comments(count)
             `)
             .eq('author_id', id)
             .order('created_at', { ascending: false })
             .limit(20);
 
         if (data) {
+            const postIds = data.map((p: any) => p.id);
+            const { data: userLikes } = user 
+                ? await supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', user.id)
+                : { data: [] };
+            
+            const likedSet = new Set(userLikes?.map(l => l.post_id));
+
             const formattedPosts = data.map((post: any) => ({
                 ...post,
-                likes_count: post.likes ? post.likes.length : 0,
-                comments_count: post.comments ? post.comments.length : 0,
-                user_has_liked: user ? post.likes.some((like: any) => like.user_id === user.id) : false
+                likes_count: post.actual_likes?.[0]?.count ?? post.likes_count ?? 0,
+                comments_count: post.actual_comments?.[0]?.count ?? post.comments_count ?? 0,
+                user_has_liked: likedSet.has(post.id)
             }));
             setPosts(formattedPosts);
         }
@@ -333,11 +340,23 @@ export default function UserProfilePage() {
                 ? { ...p, user_has_liked: !isLiked, likes_count: newLikeCount }
                 : p
         ));
-
-        if (isLiked) {
-            await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
-        } else {
-            await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+        
+        try {
+            if (isLiked) {
+                const { error } = await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+            // Rollback
+            setPosts(prev => prev.map(p =>
+                p.id === post.id
+                    ? { ...p, user_has_liked: isLiked, likes_count: post.likes_count }
+                    : p
+            ));
         }
     };
 
