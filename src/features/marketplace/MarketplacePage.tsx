@@ -180,7 +180,12 @@ function ListingCard({ listing, currentUserId, onDelete, onClick }: ListingCardP
                 {/* Owner delete badge */}
                 {isOwner && !listing.is_sold && (
                     <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(listing.id); }}
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (confirm('Delete this listing? This cannot be undone.')) {
+                                onDelete(listing.id);
+                            }
+                        }}
                         className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-red-500/80 backdrop-blur-sm hover:bg-red-600 text-white rounded-lg transition-colors"
                         title="Delete listing"
                     >
@@ -1115,14 +1120,12 @@ export default function MarketplacePage() {
     const fetchListings = useCallback(async (isInitial = false) => {
         // Skip fetch if cache is fresh and we're not in a store view
         if (isInitial && !store.needsRefresh() && store.listings.length > 0) {
+            setListings(store.listings);
             setLoading(false);
             return;
         }
 
-        // Always show loading skeletons on initial fetch if we don't have many listings
-        if (isInitial && listings.length < 5) {
-            setLoading(true);
-        }
+        if (isInitial) setLoading(true);
         
         try {
             const { data, error } = await supabase
