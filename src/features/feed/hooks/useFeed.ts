@@ -409,10 +409,12 @@ export function useFeed(communityId?: string) {
             const postIds = data.map((p: any) => p.id);
 
             // Parallel fetch aux data
-            const [likesResult, repostsResult] = await Promise.all([
-                supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', user.id),
-                supabase.from('posts').select('original_post_id').in('original_post_id', postIds).eq('is_repost', true).eq('author_id', user.id)
-            ]);
+            const [likesResult, repostsResult] = user 
+                ? await Promise.all([
+                    supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', user.id),
+                    supabase.from('posts').select('original_post_id').in('original_post_id', postIds).eq('is_repost', true).eq('author_id', user.id)
+                ])
+                : [{ data: [] }, { data: [] }];
 
             const userLikedSet = new Set(likesResult.data?.map(l => l.post_id));
             const userRepostedSet = new Set(repostsResult.data?.map(r => r.original_post_id));
