@@ -9,6 +9,8 @@ import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 import { supabase } from '../../../lib/supabase';
 import { signInWithGoogle } from '../../../lib/auth-helpers';
+import { useSponsoredPosts } from '../../../hooks/useSponsoredPosts';
+import ShareToConnectionsModal from './ShareToConnectionsModal';
 import { nativeShare } from '../../../utils/shareUtils';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 import { getBaseUrl } from '../../../config';
@@ -74,6 +76,7 @@ export default function PostItem({
     const [showRepostModal, setShowRepostModal] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const [sharedToFeed, setSharedToFeed] = useState<boolean>(post.shared_to_feed || false);
+    const [showShareToConnections, setShowShareToConnections] = useState(false);
     const [sharingToFeed, setSharingToFeed] = useState(false);
     const [likeAnim, setLikeAnim] = useState(false);
     const [particles, setParticles] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -566,11 +569,18 @@ export default function PostItem({
                                         </button>
                                     )}
                                     <button
+                                        onClick={(e) => { e.stopPropagation(); setShowShareToConnections(true); onToggleMenu(post.id); }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
+                                    >
+                                        <MessageCircle className="w-4 h-4 text-blue-500" />
+                                        Share to Connection
+                                    </button>
+                                    <button
                                         onClick={(e) => { onToggleMenu(post.id); handleShare(e); }}
                                         className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Share2 className="w-4 h-4" />
-                                        Share Post
+                                        External Share
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
@@ -583,11 +593,18 @@ export default function PostItem({
                             ) : (
                                 <>
                                     <button
+                                        onClick={(e) => { e.stopPropagation(); setShowShareToConnections(true); onToggleMenu(post.id); }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
+                                    >
+                                        <MessageCircle className="w-4 h-4 text-blue-500" />
+                                        Share to Connection
+                                    </button>
+                                    <button
                                         onClick={(e) => { onToggleMenu(post.id); handleShare(e); }}
                                         className="w-full text-left px-4 py-2.5 text-sm text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 font-medium transition-colors flex items-center gap-2.5"
                                     >
                                         <Share2 className="w-4 h-4" />
-                                        Share Post
+                                        External Share
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); copyLink(); onToggleMenu(post.id); }}
@@ -1262,6 +1279,12 @@ export default function PostItem({
                     );
                 })()
             }
+            {showShareToConnections && (
+                <ShareToConnectionsModal
+                    post={post}
+                    onClose={() => setShowShareToConnections(false)}
+                />
+            )}
         </article>
     );
 }

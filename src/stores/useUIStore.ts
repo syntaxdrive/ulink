@@ -13,6 +13,8 @@ interface UIState {
     setPostDrawerOpen: (value: boolean, initialContent?: string, initialImages?: File[]) => void;
     initialPostContent: string | null;
     initialPostImages: File[] | null;
+    incomingShare: { content: string; images: File[] } | null;
+    setIncomingShare: (share: { content: string; images: File[] } | null) => void;
 }
 
 // Initialize dark mode from localStorage or system preference
@@ -63,4 +65,6 @@ export const useUIStore = create<UIState>((set) => ({
         initialPostContent: content || null,
         initialPostImages: images || null
     }),
+    incomingShare: null,
+    setIncomingShare: (share) => set({ incomingShare: share }),
 }));

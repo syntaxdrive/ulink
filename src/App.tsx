@@ -44,6 +44,7 @@ import { Capacitor } from '@capacitor/core';
 import { initializeNativeAuth } from './lib/auth-helpers';
 import DeepLinkHelper from './components/DeepLinkHelper';
 import ShareIntentHelper from './components/ShareIntentHelper';
+import ShareTargetChoiceModal from './components/ShareTargetChoiceModal';
 
 function App() {
 
@@ -131,6 +132,7 @@ function App() {
       <BrowserRouter>
         <DeepLinkHelper />
         <ShareIntentHelper />
+        <ShareTargetChoiceModal />
         <UpdateNotification />
         <PWAInstallBanner />
         {/* Default SEO Tags */}

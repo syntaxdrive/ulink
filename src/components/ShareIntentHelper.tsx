@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SendIntent } from 'capacitor-plugin-send-intent';
 import { Capacitor } from '@capacitor/core';
+import { useUIStore } from '../stores/useUIStore';
 
 /**
  * Handles incoming shared content (text, links, images) from other Android apps.
@@ -10,6 +11,7 @@ import { Capacitor } from '@capacitor/core';
  */
 export default function ShareIntentHelper() {
     const navigate = useNavigate();
+    const { setIncomingShare } = useUIStore();
 
     useEffect(() => {
         if (!Capacitor.isNativePlatform()) return;
@@ -35,9 +37,7 @@ export default function ShareIntentHelper() {
                     content = parts.join('\n\n');
                 }
 
-                // 2. Handle Images/Files (clanceyp/capacitor-plugin-send-intent pattern)
-                // The plugin might put the URI in data.url if it's a single file, 
-                // or in extras for more complex shares.
+                // 2. Handle Images/Files
                 const possibleUri = data.url || data.extras?.['android.intent.extra.STREAM'];
                 
                 if (possibleUri && typeof possibleUri === 'string' && (possibleUri.startsWith('content://') || possibleUri.startsWith('file://'))) {
@@ -51,15 +51,8 @@ export default function ShareIntentHelper() {
                 }
 
                 if (content || images.length > 0) {
-                    // Navigate to feed and pass share content via state
-                    navigate('/app', { 
-                        state: { 
-                            shareContent: content,
-                            shareImages: images,
-                            shareType: data.type || 'text'
-                        },
-                        replace: true 
-                    });
+                    // Set global share state instead of immediate navigation
+                    setIncomingShare({ content, images });
                 }
             } catch (e) {
                 console.error('[ShareIntent] Failed to handle intent:', e);
