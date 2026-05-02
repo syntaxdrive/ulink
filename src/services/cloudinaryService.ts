@@ -239,8 +239,8 @@ export class CloudinaryService {
 
         if (shouldCompress) {
             try {
-                // Downscale to 1600px max (sharp enough for most screens, saves ~80% bandwidth)
-                fileToUpload = await compressImage(file, 1600, 1600, 0.85);
+                const compressedBlob = await compressImage(file, 1600, 1600, 0.85);
+                fileToUpload = new File([compressedBlob], file.name, { type: 'image/jpeg' });
                 console.log(`[Cloudinary] Compressed ${file.name} from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
             } catch (err) {
                 console.warn('[Cloudinary] Image compression failed, uploading original:', err);
