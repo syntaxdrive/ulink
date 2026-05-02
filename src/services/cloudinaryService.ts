@@ -136,7 +136,7 @@ export function buildVideoThumbnailUrl(publicId: string, w = 640, h = 360): stri
 async function uploadToCloudinary(
     file: File,
     resourceType: 'image' | 'video' | 'raw',
-    folder: string,
+    _folder: string,
     onProgress?: UploadProgressCallback
 ): Promise<any> {
     if (!CLOUD_NAME || !UPLOAD_PRESET) {

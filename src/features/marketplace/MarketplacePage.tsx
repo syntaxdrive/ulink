@@ -1136,7 +1136,7 @@ export default function MarketplacePage() {
                 .limit(60);
 
             if (error) throw error;
-            const fetched = (data ?? []) as MarketplaceListing[];
+            const fetched = (data ?? []) as unknown as MarketplaceListing[];
             setListings(fetched);
             store.setListings(fetched);
         } catch (err: any) {
