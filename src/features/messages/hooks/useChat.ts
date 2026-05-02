@@ -213,6 +213,8 @@ export function useChat() {
                     ) {
                         setMessages((prev) => {
                             if (prev.some(m => m.id === newMsg.id)) return prev;
+
+                            let next: Message[];
                             const realFromMe = newMsg.sender_id === userId;
                             if (realFromMe) {
                                 const tempMatch = prev.find(m =>
@@ -222,15 +224,19 @@ export function useChat() {
                                     )
                                 );
                                 if (tempMatch) {
-                                    return prev.map(m => m.id === tempMatch.id ? newMsg : m);
+                                    next = prev.map(m => m.id === tempMatch.id ? newMsg : m);
+                                } else {
+                                    next = [...prev, newMsg];
                                 }
+                            } else {
+                                if (newMsg.sender_id === activeChat.id) {
+                                    markAsRead(activeChat.id);
+                                }
+                                next = [...prev, newMsg];
                             }
-                            if (newMsg.sender_id === activeChat.id) {
-                                markAsRead(activeChat.id);
-                            }
-                            const updated = prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg];
-                            storeSetMessages(activeChat.id, updated);
-                            return updated;
+
+                            storeSetMessages(activeChat.id, next);
+                            return next;
                         });
                     }
                 }
@@ -244,8 +250,11 @@ export function useChat() {
                         (updatedMsg.sender_id === activeChat.id && updatedMsg.recipient_id === userId) ||
                         (updatedMsg.sender_id === userId && updatedMsg.recipient_id === activeChat.id)
                     ) {
-                        const updated = messages.map(m => m.id === updatedMsg.id ? updatedMsg : m);
-                        storeSetMessages(activeChat.id, updated);
+                        setMessages((prev) => {
+                            const next = prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+                            storeSetMessages(activeChat.id, next);
+                            return next;
+                        });
                     }
                 }
             )
@@ -287,8 +296,6 @@ export function useChat() {
         if (replyTo) {
             let contentToQuote = replyTo.content;
 
-            // Prevent nested/triple quotes: If the message we're replying to is already a quote,
-            // extract only the actual message text (the part after the quote).
             if (contentToQuote.startsWith('> ') && contentToQuote.includes('\n\n')) {
                 const splitIndex = contentToQuote.indexOf('\n\n');
                 if (splitIndex !== -1) {
@@ -299,21 +306,27 @@ export function useChat() {
             finalContent = `> ${contentToQuote.substring(0, 50)}${contentToQuote.length > 50 ? '...' : ''}\n\n${content}`;
         }
 
+        const chatId = activeChat.id;
         const tempMsg: any = {
             id: 'temp-' + Date.now(),
             sender_id: userId,
-            recipient_id: activeChat.id,
+            recipient_id: chatId,
             content: finalContent || (audioUrl ? 'Voice Message' : ''),
             created_at: new Date().toISOString(),
             image_url: imageUrl,
             audio_url: audioUrl
         };
 
-        setMessages((prev) => [...prev, tempMsg]);
+        // Optimistic update in both local and store
+        setMessages((prev) => {
+            const next = [...prev, tempMsg];
+            storeSetMessages(chatId, next);
+            return next;
+        });
 
         const { data: inserted, error } = await supabase.from('messages').insert({
             sender_id: userId,
-            recipient_id: activeChat.id,
+            recipient_id: chatId,
             content: finalContent || (audioUrl ? 'Voice Message' : ''),
             image_url: imageUrl,
             audio_url: audioUrl
@@ -321,11 +334,19 @@ export function useChat() {
 
         if (error) {
             console.error('Error sending message:', error);
-            setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+            setMessages(prev => {
+                const next = prev.filter(m => m.id !== tempMsg.id);
+                storeSetMessages(chatId, next);
+                return next;
+            });
             throw error;
         } else {
             if (inserted) {
-                setMessages(prev => prev.map(m => m.id === tempMsg.id ? inserted as Message : m));
+                setMessages(prev => {
+                    const next = prev.map(m => m.id === tempMsg.id ? inserted as Message : m);
+                    storeSetMessages(chatId, next);
+                    return next;
+                });
             }
             fetchConversations(userId);
         }
