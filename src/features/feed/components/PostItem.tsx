@@ -9,7 +9,6 @@ import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 import { supabase } from '../../../lib/supabase';
 import { signInWithGoogle } from '../../../lib/auth-helpers';
-import { useSponsoredPosts } from '../../../hooks/useSponsoredPosts';
 import ShareToConnectionsModal from './ShareToConnectionsModal';
 import { nativeShare } from '../../../utils/shareUtils';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';

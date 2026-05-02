@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Send, X, Search, CheckCircle2, MessageCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useNetwork } from '../../network/hooks/useNetwork';
-import type { Post, Profile } from '../../../types';
+import type { Post } from '../../../types';
 
 interface ShareToConnectionsModalProps {
     post: Post;

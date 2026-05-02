@@ -64,9 +64,11 @@ export function useLocalNotifications() {
             await checkMissedNotifications();
 
             // 4.5. Listen to Live Realtime Events (Triggers instant drop-down notifications when app is open)
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: authData } = await supabase.auth.getUser();
+            const user = authData?.user;
+            
             if (user) {
-                const userId = user.id;
+                const userId = user!.id;
                 // Attach channel to a window variable or ref so we can clean it up later if needed
                 (window as any)._liveNotificationChannel = supabase.channel('live-local-notifications')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` }, async (payload) => {
@@ -117,9 +119,9 @@ export function useLocalNotifications() {
                     checkMissedNotifications();
                     
                     // Update last_seen in DB
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
-                        supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id).then();
+                    const { data: appStateAuth } = await supabase.auth.getUser();
+                    if (appStateAuth?.user) {
+                        supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', appStateAuth.user.id).then();
                     }
                 } else {
                     // User left. Schedule a sequence of re-engagement nudges
@@ -199,7 +201,8 @@ export function useLocalNotifications() {
 
     const checkMissedNotifications = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: authData } = await supabase.auth.getUser();
+            const user = authData?.user;
             if (!user) return;
 
             const since = lastCheckedRef.current;
