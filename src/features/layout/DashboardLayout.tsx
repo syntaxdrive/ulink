@@ -415,7 +415,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         {icon: GraduationCap, label: 'Courses', path: '/app/learn'},
         // {icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         {icon: Library, label: 'Study Rooms', path: '/app/study'},
-        { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
+        // { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
