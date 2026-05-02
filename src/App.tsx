@@ -43,6 +43,7 @@ import { useUIStore } from './stores/useUIStore';
 import { Capacitor } from '@capacitor/core';
 import { initializeNativeAuth } from './lib/auth-helpers';
 import DeepLinkHelper from './components/DeepLinkHelper';
+import ShareIntentHelper from './components/ShareIntentHelper';
 
 function App() {
 
@@ -129,6 +130,7 @@ function App() {
     <HelmetProvider>
       <BrowserRouter>
         <DeepLinkHelper />
+        <ShareIntentHelper />
         <UpdateNotification />
         <PWAInstallBanner />
         {/* Default SEO Tags */}

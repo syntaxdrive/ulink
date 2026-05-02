@@ -10,7 +10,9 @@ interface UIState {
     showSplash: boolean;
     setShowSplash: (value: boolean) => void;
     isPostDrawerOpen: boolean;
-    setPostDrawerOpen: (value: boolean) => void;
+    setPostDrawerOpen: (value: boolean, initialContent?: string, initialImages?: File[]) => void;
+    initialPostContent: string | null;
+    initialPostImages: File[] | null;
 }
 
 // Initialize dark mode from localStorage or system preference
@@ -54,5 +56,11 @@ export const useUIStore = create<UIState>((set) => ({
         set({ showSplash: value });
     },
     isPostDrawerOpen: false,
-    setPostDrawerOpen: (value) => set({ isPostDrawerOpen: value }),
+    initialPostContent: null,
+    initialPostImages: null,
+    setPostDrawerOpen: (value, content, images) => set({ 
+        isPostDrawerOpen: value,
+        initialPostContent: content || null,
+        initialPostImages: images || null
+    }),
 }));

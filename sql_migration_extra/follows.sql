@@ -1,0 +1,1535 @@
+-- Fully-Provisioned Migration for public.follows
+BEGIN;
+CREATE TABLE IF NOT EXISTS public.follows (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    follower_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    following_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    UNIQUE(follower_id, following_id)
+);
+
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('011a30b3-6b63-4e96-bf80-643b839ac8e3', 'b4a663dc-59a7-49ce-8022-707e339f05a4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('016b34f1-904b-4b26-b238-06dff76f0a94', '5e8caffd-5022-4ecd-826e-f5ac1a147122', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('03708c38-bc72-401d-ae16-2b44b3e99261', 'a93cfba5-ca81-49da-84ee-465d310b7833', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('0410105b-d5b5-4e53-ae87-d7fa04dc6fd8', '9988b701-3a3e-4942-aaf6-059c68e5aa26', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('04c7f47e-600e-4451-a4a1-fdd58f108a5a', 'ea0d5bfb-3cba-427c-badb-f3cdba97c70f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('06481ade-cec5-4489-8561-c12502d4fa43', 'ebf1e36e-d680-456d-bd80-e27a8d8143cf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('0722c319-6fa7-4067-bf2c-ea22e7cba9ab', '32f1614d-21de-48d8-83e4-ffc8c797f090', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('07683a37-0d01-43a8-93ac-172816e800d3', 'c99bdf1f-fec5-4d1a-a04d-5249c4e81746', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('07835ec8-6ed1-4bb1-8199-5e10710b068f', '6361e27b-a747-4bf8-8116-0d7a67fbf690', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('0e313e9e-6e00-4c88-86b5-be9a87cd92ba', '25b37200-c56c-42f6-8ef4-ede4a2769c3a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('0eb7f605-37b2-40b0-af83-b45e4dd9058d', '1d2be3ee-c1f3-4504-a1b3-8a22df7fb4e2', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('0f1f8745-34ca-4128-8a84-ce4323f2427f', '17e6a244-29dd-4a76-b202-f41cdcd6b3b1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('10d83ad3-2e3f-41a4-8530-578f41b72646', '0bc9081a-1ca6-4c01-b367-e9038122b9ae', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('10dce57c-6e34-44bf-a8af-5fdaad280e24', '84526547-9115-4948-a559-f3473ac56d0c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1144f7d8-c77d-404a-9e73-82413a8689fe', 'd364bb68-e2e4-4752-9ed6-88b53ead0c54', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1152ff88-e896-45c8-aa6f-07f8f2d654e9', 'c696ff19-7724-4478-a0cb-4014f3c0c7cf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('11ffcd81-3781-4683-80e7-6e807258786e', '26f5e6fe-7fd2-4257-99ea-533946b936fc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1333e25a-1bc4-4da6-a65a-7a1b3f05142b', '16d6b1bb-fc92-444c-8e14-08b4d0de70a7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('138993d5-ccc7-422e-884b-43dbf29c4f63', 'dd83d059-a99d-4569-a65d-60d763fa29b7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('13d47af2-418c-4ec3-bfdb-9e69d929736a', '4ecb4275-43b0-484a-b716-2484dfd02628', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1436490d-435b-4932-a7dd-44b4b77ac559', '85d303c0-0942-4d81-bf28-de13149beb7b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('160be63b-7f7e-45d6-bebd-3f9e55e2d4c5', '77a8ce0b-620d-4c24-b1e6-9e3cfcc6e174', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('16cf69f3-10f2-483b-b204-a0c992141077', '88e8804b-e217-4884-983d-70c7e78f5061', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('16df8dfd-1016-4fb9-80c1-b605b59159fa', '7dc18219-7f89-45ef-880f-59d95a9c3cac', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('16f38698-d00f-4537-b6b1-dd4359eb1345', 'f77dc384-0f4a-4d78-95ab-0da3f8670c22', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('17602468-c59b-42e1-9fad-84d06cae2856', '17964883-9348-4f57-ab1c-e51ce2531914', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('176e6991-45ea-4dce-9ec3-cd6e2e204d3c', '0dafb94a-ae6a-4985-945d-6b4bcdb721ae', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('17ae0f03-a5ee-48a8-b1fe-177d53dd0c26', '9f8c97ff-3404-48e6-97ad-04cef525d7b4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('180fa403-c7e0-4f08-a7fa-138bb008ab92', '84429e04-fbdc-4fc3-9c65-ce61e1687b68', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('187f3c07-437f-4da1-80be-41fdf772cad6', 'c53f28cf-182e-468d-8683-3b58b8e7aa59', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('18aa8107-bc5e-40f7-a335-4cdff2dbd167', 'bb72ff51-9748-407b-adff-dab092b2f6a4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('19279a41-c6f3-43bd-a759-ca9b31e6af04', 'a68689c1-dd51-4307-a0ba-730e7f589391', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1972bd92-f190-43af-963d-55ef56771530', '8798340d-7df4-4160-942a-5d222ea427b6', 'f4926ff6-b964-44bc-be06-f6d9cc91b705', '2026-04-06 16:18:32.980329+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1afce610-d41e-4aca-b77a-fc82d1267ca6', '9ae1db1c-04f8-4b56-8d95-2981e6d7aa04', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1bcc577b-da2e-4c0d-b03d-2805edb47484', 'c55f2cd0-6432-40cb-95f8-475f190e10db', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1cf39770-790f-4e2e-8aaa-de534923ac59', '6bd8fa28-01fe-463d-9d36-d452426c54fa', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1d6478ea-d6f5-406a-b4fa-763330352317', '53e21874-0b6c-4a5a-ac21-a692a6ac9ca5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1d839281-4f3b-4846-a754-832cc103907c', '0e3177f9-0f54-4fe5-9bc6-4cc3269aa863', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1df223f1-b02a-49b7-b16f-9fcc58e92696', 'b16bfcd2-3b0f-4220-92d4-da067dbb0ce7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1e2ae52a-617c-4a71-925e-c1ca9b60e029', 'ff960257-521e-47dd-bc20-b15b94f6f742', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1ebe17be-9a36-44e8-803b-647a1c20ecd6', '3245b46d-69d5-46a4-ae78-cbce987e9a0a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1f24315a-7dcf-467e-b396-ca7f62df938a', '24d05ced-a2f9-4dca-922d-d93cd8ad8fb0', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('1f24ca80-6cbe-4803-804d-9f20832b047c', '3479d8c9-8d5d-43db-a8c1-bbbfd2e70bac', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2129a10b-3c3f-453a-9500-c48e3a7e078e', 'aba7d285-ba5e-4ad3-9cad-741c4589183b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('23f963f9-bec1-4459-ae43-2b8781789c02', 'd8484a31-77d6-49c3-b433-98614c8a71a0', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('24d5f604-40c9-4cfa-9056-893f0982fc46', '51daafa4-b1ed-48a9-8fed-9bdbfcc7be33', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('258d6272-d483-4430-8ccd-5f93a60fe8a9', '239723ff-6fef-4a15-9a5d-265d979489b7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('25acffbe-9f6b-4f58-9e6c-14c23d3b35cc', '84c5e6f0-a125-4bb6-b322-ee72a2f7a2df', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('25e7010d-1c46-4221-a5cc-eac68c477b5c', 'bf80083b-1347-4c82-ac37-6568c17405c5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2797510a-5313-44ae-83dd-e29395070145', '6be8c692-0ffe-40d5-a202-7de574e99a68', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('27e57a50-3f62-46ce-9361-b189bc59e5dd', '11ee4c78-396c-45d1-bb70-56ddea408bdf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('28da358d-db6b-4c58-8a09-50093c32f99c', '33c75afb-3e5a-4171-83de-8f915691c513', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2973e282-a485-422f-babc-b42c4e81c7e9', '4e61d28e-76f7-418b-8a69-281a3652ee23', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2a25232c-7502-4b51-aeb6-622628f0d69f', '17832d0b-944d-4117-8703-422429b4f399', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2a9a2ddd-5595-4dc9-9179-c5e2878fc414', 'fdecde5f-d43b-4fd1-a9c0-cca8fbe07db7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2c0c4182-a97f-49d6-9707-ef135e6a946d', '86edb2e2-873b-4bc2-af88-11f7ff6635f2', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2c7202e0-e73f-45a3-a151-136296897273', 'c03b2ec9-3169-4060-9220-683a6e439bb4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2d7b6a4d-2970-4c7a-b55a-22f843727caf', 'b76e30c2-39b7-434a-bcd9-4d5b94309dbf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2db78445-b898-4bb3-b230-df1b64d28f35', '7fd09493-6d34-4673-8df5-7d744571cc7f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('2ebd57e4-dac1-4561-97cf-418f20d989e7', '0805c7fc-0ebb-497e-8bdd-a620a7a4e750', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('305c0427-f8b2-4869-9c39-eef779ec2227', 'bde86b98-c09b-4624-a32e-49345a64839f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('31de47be-f99c-4463-9907-b655bb882145', '819fdcfa-c350-4297-b6d0-134171ca15c8', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('31fd4a6c-cb6a-4c7b-ab4d-e63dd983a54f', '30c368fe-2afe-480b-92ef-072b06c5bfb8', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('36770413-7c44-4a62-9488-24b60a7a38f1', '7b3c5943-d07d-44f5-928c-329c4185983b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3688c7aa-f92e-4b1b-9ee4-3a1e48163c36', '067e9e48-6793-4299-9033-847755b59d70', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('38821abf-5c69-4e17-b4cd-4f54970563b5', '90b100ef-ff0a-43d4-959b-0413af879a5a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3a83d418-2d5f-449d-a1db-fd196cf04fcd', 'ceb9be04-6648-4050-bf51-6eef782af33a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3a87b4ac-3777-4662-a631-bb81c2ccbe47', '8855d858-5bee-41b4-a217-adb9869f542d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3c29be45-e31c-4d1b-b9ac-9a3ea3346267', '5c896f75-c830-42b3-b959-6c7f40879b17', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3c4b4e8f-61bf-4ca5-96a0-0a6b938ada78', '4f7826bf-9a4e-4367-bc94-ceb7b322a611', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('3f70bfb2-bbfa-4ee0-98d6-ab4538d9a17d', '056f944f-5d1b-445d-ad66-9b34b7d06322', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('402749b2-2862-4e3f-8400-3b332e87efcd', 'e619eaa4-5bcf-4a3e-bce5-ba966d18df45', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('40ced116-8071-447e-9c54-17afc49f9e0b', '2b3af27c-8395-4da3-8f28-ca3b0ee2b5be', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('414f21bd-e3e8-47d3-8728-42df7c253eb7', 'a9279bce-742e-4ca5-a993-a820b18830d7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('41fafb34-c69d-4cdf-894b-86a001df7d9d', 'a645c58b-de18-42b4-b78d-7b829692bf6d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('43d29e80-3c31-4234-8f4d-dfd820bca33e', 'a400eb8a-f7ed-4964-bdaa-4bad8d9718b6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('45e976b6-32f7-44a2-ac83-3b7a3bf9a20e', '4be8e443-dc05-4790-b12d-adc4d2a6fa9d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('46682b54-ce2b-4589-88ae-b99bb446810b', '6ab23bef-8514-4ee7-a30a-8ece900bba05', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('47923dab-3cbc-49f4-8d25-708e0986a46f', 'aef21606-7d01-449c-bbfc-d7dd298cc371', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('47a7cb6b-e3e2-4895-bf99-b7e97ecc648d', 'ccbb49f8-195c-453f-96f7-a498f9e409f1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('4952ec86-d2da-4163-816f-2a1524af8e9d', '87710b73-e226-4c18-bbfd-30b0e94a3bae', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('496acb77-7fcc-4e17-9005-a440ffa09f18', '453fa778-b1c7-4bab-b408-7e92fc28e009', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('4ad52799-b5fd-47b2-9b06-26ac3c8dd42c', 'c0d7e813-8597-4a7a-a0bd-c5ed846bd875', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('4c475675-06ff-4e09-b054-9133308c7df4', '363ab36c-1544-45c7-8fa1-6298c8ad85c6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('4e8c4809-1137-429d-a882-a8eae90b852e', 'ffdc5d9c-1a4d-4ae5-9c17-e08d7251846b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('51a887ca-b90c-49f7-b86e-53172c397f80', '5daaf15a-da7a-443d-904f-9a34a45e91e5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('5367b91e-4269-4e41-bada-522a66ef3edb', '50ba3654-422a-44c8-90c2-bfff52dd815c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('53b8e1da-4f8b-4e69-bead-d837679db1cc', '3cc72679-da7c-48a8-a731-e373d6277e34', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('560a5921-5743-4490-a65b-6fe2d0788f72', 'a5fe7e2c-d146-4756-800f-99d55266b2eb', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('562e0ebc-3ead-4593-85cf-7491936ac1fb', '3a35ef2a-b0c2-43d3-a2d8-44d334ed9c27', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('589c6c20-7f4f-4ce0-8cec-feb9800d4b32', '3aaa2a20-4c4c-482a-9e6b-50fe581897cf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('5a9c93a0-fdbb-466c-8291-26a68ac12cde', '03c99aa5-ed1f-4390-99ef-1e4234300e75', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('5e807193-e44d-4cd1-b00b-edd6d716ec84', '5b2275df-fb04-490b-ac8d-a5cba8607275', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('5f96ad93-315d-4b7e-8a04-eb3e2ca68ee4', 'b676ab3c-a175-4767-9cf8-c658efdd074d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6046c35c-1842-4ae3-8b3c-eaa43b3c4c4a', 'bdd55426-5305-40de-88e1-0ce5302214dc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('63823133-8768-4a39-ae6d-41c1707c65ab', 'f3a3a0ad-8885-47e9-bebf-b82aa759f2a1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('641081c1-b50d-4403-a1b6-698933c4f2dd', '313d0787-3a7a-49bd-9ebf-de3f5dab1fdf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('645556aa-67de-4795-8d72-3e789ad65d66', 'bbc1380b-1360-4e62-88d6-c3800aef9a79', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6790aaf1-5a3e-46e5-a29e-62e8058ef907', 'da9725eb-45ca-4e63-8023-1b656e74361c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('68461687-8943-4d5e-8004-3da1e772e328', 'e12579c2-4737-42f3-8cbe-93dc14601452', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('68633151-9762-4b93-a8e5-03bc592b0532', '7fae4254-530d-4f50-a377-be5ecdf7b54d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('693b9c52-0472-4c6b-b528-3d918d3c7850', '5b2275df-fb04-490b-ac8d-a5cba8607275', 'a9279bce-742e-4ca5-a993-a820b18830d7', '2026-03-07 15:21:34.424892+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('698f7844-6056-4fe7-b6bc-48244bbaa33c', '83502776-18b4-4ffc-af75-3267760316a6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('69b4d12c-e826-43e9-8956-b86ee0880b6b', '859887b9-3441-4c7f-94fd-991f7006d605', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('69ef0f0f-4729-4ac8-a183-2398d9064981', 'e89d2960-f719-4c9a-b210-f6408253207f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6a3466a7-45e9-4b48-98a9-ccc48848524c', 'ada16da7-a4e9-4628-8dd7-f8fc52a116ac', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6b013ba0-a6e7-4d06-9f40-10b8dc38c979', '03c766f0-01cb-4569-aace-bb480dded7fd', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-03-14 09:56:01.467328+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6bdd6c44-b16c-44e1-a33f-3624db9b8da3', '3bd69460-04a6-4445-bd49-eb809395aed1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6e6f5083-b274-41cf-bfbc-356873cc7fcb', '970b30f6-583f-4cad-8f7e-ebe5175bdb0e', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6ec1cab3-3d76-4bc9-8f1d-2f0e3f3990a6', 'c64e6cd0-244d-4e6b-b01e-837f0afe254a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6f65ac78-a3f5-41f8-9209-88b0ab7c9cd5', 'bb0d3c8f-9e67-4797-b20e-5f403080603d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('6fcda13b-41ad-4527-aa85-2113d453c69f', 'cbdf616e-d0ee-417c-a6c0-ae6f471c487c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('73479a2c-316c-47b6-b966-08d1b43764ed', 'e16707da-3f96-4cf3-a1ca-5696ac25d4ab', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('758ba480-ffd3-4e48-b5de-55e6db497f67', 'f67b78c5-2aa8-44c3-9ffb-6c689160dd9e', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('75aae4b0-6254-418d-83e0-0f456e79b9fd', '121a4f57-2fa4-4e45-aa3d-30904fd4b91d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('75d7f1c0-16ff-4fd2-a230-3015726027bc', 'b1ecd046-8040-4299-a98f-040422e15b78', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('76c1e9d3-832c-4fe9-af99-f5e784c9f6d9', 'e6311d64-8576-4653-b93a-c99ba55d3a75', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('774c6bc3-25f1-4a53-be64-885ec3cc926c', '76ef1ed5-355a-41b5-8854-4ec4c20ad5f9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('78a24039-301f-4780-b034-2f7c6fba16e4', '6538fe71-851a-4ebd-a05d-bb0a550e8208', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('791afd5f-bdfc-4e1e-b2cc-c771785e7129', 'ef9a5041-bff0-4588-9868-fd34ec58c6aa', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7a313961-6d6e-472c-8803-5a2cab2d1580', '5b2275df-fb04-490b-ac8d-a5cba8607275', 'a55be48a-38f3-4334-9eff-c6594c27be6a', '2026-03-07 15:26:27.3032+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7a419332-4a2b-4919-a317-fa2f36d17930', 'a9279bce-742e-4ca5-a993-a820b18830d7', '5b2275df-fb04-490b-ac8d-a5cba8607275', '2026-03-07 15:25:48.328707+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7a9932d2-70a9-4ee2-960c-5d3b127d88f8', 'aead7890-394b-484d-b818-df3158038b8b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7aee2312-d82c-4735-800a-9a2e633dcbbd', '8303097b-c913-4110-89f0-bf4315466327', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7af3cf36-b5f2-4570-9c7d-08105788983b', '6529d9fe-733d-496d-8c90-d226e751e9c1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7b4879c3-a7ff-47cd-81c0-7317d605cdf4', 'b897e998-4058-4516-b467-68f38eb2b3d1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7de6d6ec-430c-4188-a9c8-e4209737a19b', '9ef59e65-b448-4e41-b0c5-cbca525d8277', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7edd1aa8-8e93-4285-ae5a-96c534325a47', '2beaf604-2cac-4600-a7a8-5777402071c7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7fdad323-c6b0-473e-933d-56bd411c4ae3', '8e1d27c4-f95e-4daa-81c2-c759368d7da5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('7ff95954-ad3f-484e-8f29-886b2b49cf5f', '34237e35-cfff-4234-8d4f-8c5ecd52976c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('808d780b-5811-4b89-9bfe-c1ac8418cb57', 'c2c732ef-0bec-4e6a-b5c8-77855c55539f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('80d6ff8f-6524-4aa3-a3ff-cd1241d693a3', '27d1ad60-6d73-439d-b4b2-4a1827371c24', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8154cca4-f910-4f25-909f-a1fb6c78828e', '8798340d-7df4-4160-942a-5d222ea427b6', 'a016d26c-04f6-4c93-ab7c-28a031139de6', '2026-02-25 18:14:31.634549+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8254b9dd-7aca-46f4-9e87-16721ba9e16c', '21ade790-1423-484e-ace4-3a2cbcb032a4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('83513a00-c4af-4403-aa0c-a39c1ec3f771', '36bfde0b-6708-4d28-83db-4e7583ddf402', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('83999c58-0be7-4ac2-b160-7896aa893dd9', '1d6620c2-9dd2-4e99-b5e2-f58255b92486', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('83b37a26-0827-4349-aa0f-416460b4217c', '3ac6154a-3b36-4975-9cc3-aa81032e1ac4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('85476c19-d945-4363-b786-21a97c9c1834', 'a656c738-f2b9-4493-81d6-d0414cf4634a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('860707dc-7652-4d03-b9ee-a2a319c08892', '1b6028af-3509-46b4-9100-e30063e4a637', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('88e2272b-4aa6-4173-bc59-7fec29b3e168', 'fa29637a-a747-468b-ad51-111789aa32d7', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('89d2a02b-1564-43c3-9757-f2a8a8b40772', '2f5f9545-ee9c-41f6-9699-4b5ea8bc0d06', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('89f708eb-11fa-4911-950b-33b7549f1090', '51ebdf29-93de-41ff-b4ac-f0637b8d2635', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8a19958b-a4e7-4150-a563-2ffe7ae2c51f', 'da89cfec-79da-4a65-8989-86dcd9bb828c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8a39bc60-998c-41dd-b9a5-f0d1a2108b20', '80d1a337-afae-4421-b4d5-017b8c5c277d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8a5a632d-ecbd-4458-9e26-a22db4900f4b', 'e6b4d085-54fe-470a-8e26-4bf4bb5da32c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8c02a495-17bb-44d9-8b15-884f05d08ef4', '96d25037-a90c-44c4-901a-a911b47bdc25', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8c794c4d-eaf6-49eb-8695-f92854d218a7', '6fa2063a-3cfe-44fe-b5ec-efe0e0b5caac', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8f86cfbb-d440-475c-bccc-d9de05937ef0', '839042fd-c42a-47cf-84c8-b0ea72e446bc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('8f95f4c1-d6d9-441a-8b7d-50cf2a4914b2', '489f1033-9fdf-4cb6-969d-a3f35ae1a2c8', '0805c7fc-0ebb-497e-8bdd-a620a7a4e750', '2026-03-18 17:32:40.425403+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9080e558-60f4-4430-adb4-f78a4d2e77ad', '0d2191b3-01ae-4e61-8264-a4bc6f189858', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9215162c-19e6-49c0-b09e-a46b9c19f4f3', 'b3f87c94-b18f-459a-a1c7-079ce4c0c78e', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('950117dc-56f0-4bcb-a8a3-5ccbf80d497c', '9f3f9a5c-968f-4049-aa61-552dd5966922', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9628a986-0e1e-45c3-ac54-d0e3c24f7f62', 'ee09fe2f-eef3-4042-9d0d-c7be02aa2bd5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('97a386cc-0600-4989-90d6-0dc54fea9205', 'ed620056-c5d6-4ed6-8540-c50c159d64fe', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('98a44400-7be6-4e89-8e2a-a0d5f1327ea2', '40a90976-e512-488c-8c44-f1be10cc23a9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('98ecde71-ca6e-4f1a-8f12-29582fe58f6e', '2d78ce20-3c4f-49a8-9a32-fb12a9fa21c6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('994f8636-d2b2-4381-888a-5db4c2ffba67', '071ce974-f0db-40e5-a200-0da90d19f620', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('99691635-3a13-450a-92e9-d8ca6b188b8b', '02770d5c-c756-441f-9ab6-fd1346f4f399', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9a9415ee-11f8-4797-9404-d26b7b0e2b26', '3debf670-e473-43ec-a6d3-c640a5989ac9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9abf0c97-4e36-4874-ad23-005577477272', 'aa79a01d-8d67-41f4-ac51-a2e3ab97aff9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9b91feda-ff6d-4ff7-83e9-ad376c9e1f0e', '5fb35559-3727-41d8-aa11-77189d405467', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9cb99676-7ebb-4e78-b219-a57bfe071f36', 'c9d67cca-fe18-4cb4-97d9-6ec2cf0dcb7e', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9e73f0c5-13f0-42ab-8c64-aeb98744bd1c', '1eee80b5-0fbb-4468-ad42-5e38942b8c3d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('9ed04013-c1e9-4e23-b5bb-096ffe77b918', '82da2032-6d31-425a-a328-c17a013995a5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a3c7345b-e473-4c0a-aac9-4292904bd7a1', '440acc35-4fa7-4368-aebd-94cc272b3916', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a5331ed9-0533-4b85-937f-2344342edfd2', '63af1fb2-a6d9-4e05-a109-72a6bbb0db4a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a5bec247-5bcc-4b09-a27c-c50e57f33b2d', '489f1033-9fdf-4cb6-969d-a3f35ae1a2c8', '5551f4be-68fe-4bbb-b267-f95211d71f1d', '2026-04-03 16:52:51.108001+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a7e17e98-31a5-403e-a648-bc2cd194d044', '1eee80b5-0fbb-4468-ad42-5e38942b8c3d', 'a016d26c-04f6-4c93-ab7c-28a031139de6', '2026-03-13 10:16:28.911022+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a81939b9-6789-4305-84bf-e5b423dd6840', '23578d06-87fe-4e9e-8ebe-7fb30c568714', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-03-24 13:31:17.97324+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a8fa3eec-5b2d-4773-86c6-a3e64f393d1e', 'c04bcc9b-4df1-4f63-b9cc-ac20bf3eb38f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('a96efe91-9793-4707-b9bc-7cc7f2797624', '04b8b975-9e5d-402e-8c15-b1cfbc692955', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('aa43931e-1f56-45c9-8908-de6ac1918b6d', 'dfa38af7-12ab-4bd3-8a9e-87e71287c3b6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ab75eb0a-307f-4559-9317-21a8bc81e73d', 'e6ea1ee5-4ccb-4dd5-a0c6-4e0f629a3b66', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ad1bb328-5bd3-4d96-8f9a-7d4ede248694', '24da4c08-ddc1-43cf-a5f1-c08c83dcc6d9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('adfe2185-9984-44d4-bc6d-7a7a549447e1', 'fc9d4ad0-dc79-4a3f-a2bb-a857ff706c46', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b403f792-8ede-40d4-ab8f-c2efd8eb009e', 'a4e90129-0310-4f86-a776-4aa592f23e89', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b4786920-2597-4574-80b1-7a286a4062a1', '5170c6a3-d6a8-4433-a950-ed119ad248bc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b4cc2d17-dbe5-46c2-a259-34e54b2d8acb', '39f77901-3d9d-4be3-b780-a696cf90261f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b5ba62e4-eb94-4dc4-936f-1a1d9c5ffb1a', 'e43bb3b8-53c8-4748-87d6-b84c84c7e88c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b85affd8-c138-4c3d-8aec-c1aa03d37ef0', 'd9144849-e3d0-4d9d-995f-e13ec3f2ee5f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('b8f4e852-1e98-43b6-a65a-ee044e456feb', '9ad622f5-12de-4d65-a570-c9c3a547f36c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ba025047-d9e3-4866-b27e-98417c9a51fc', 'd5f4070e-2aa3-47d8-8310-ce0e3579a2ed', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('bbeb120d-5c62-4642-b4f0-bf4f3d0350af', 'bbeaa920-b0a8-403f-8954-03751f843d47', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('bd28fc17-1e78-434b-bc7a-49784db7dd6e', '894623e6-ecee-4159-b5a8-a2bf37380b99', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('be171e24-cbe0-481f-b658-3ea7abf5a21d', 'd1c82f20-96a0-46c6-b68f-dc3f6c161b0d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('bedcd61b-09b8-4433-b6d3-5ee05e0a951f', 'edc229c9-10e5-4721-8733-e8b74103ddcc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('bf0a3412-8077-4d4a-b088-b72483ad91be', '2a18d81d-5a5b-47ee-b877-b351cc0c9e1b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c01bd67e-74bb-49c8-8209-c3ab106cd1da', '5551f4be-68fe-4bbb-b267-f95211d71f1d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c2860cdc-29eb-429c-9377-806e8c3a5975', 'ece3b844-bd7e-49d3-9a2f-628f099a66b9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c33e8ec5-4e4e-4d7d-9fca-037d4b0b3416', 'a079517d-3850-46ea-ad95-00d41d3e4f81', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c44f44a5-1121-4085-bac6-13e83dfef560', '17d1a1b9-05d7-4b05-bdd1-e4d09dd40b8e', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c48db77e-eed1-4527-98b3-ea376d9e3289', 'd48e3524-c04c-46ac-8cac-4eb33d09696a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c5c4f3c4-6f12-4d4f-a3f6-77f809ef0a23', '1fdb1e97-1e7b-4cc0-a321-52a884882c14', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c5ed4338-0a80-45b8-90b2-e8121f5e191c', 'ac00a6cc-7f36-44d1-824f-4259e6bd0c6f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c615316d-f15f-4f47-bad7-a1571c2cfe99', 'ad96a972-5b3e-4b5d-b291-19876fba23bf', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('c7d5e058-4512-47fc-890b-c13edfce56a5', '24915d8e-82a1-4fb8-b1be-2fbe03d99794', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cad52dc3-f2c2-4256-a3be-c02608529e3e', '2af2a93d-fcd7-4f62-8447-2f37948715ba', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cb2f1023-3871-40d6-aca5-f6a79ebd43ee', '9628ab6c-bcb7-4d5c-800c-f13e41844fcc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cb50b221-927c-4592-a8b7-e9b00f54ba06', 'a1a49f59-c0a4-4d5d-a092-eab8310ff5bb', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cbc7270f-60d2-406d-8bd6-668ae86331e6', '502bd82f-319b-4e45-a370-b9b402fb2e8b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cbebdfe3-ad61-482c-b48c-d0b44782914e', 'd99d2063-2a63-4e8e-8b88-da3397efc4c3', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cdad0b91-1f89-44ee-bc6f-5601bcd666ca', '7f5f6c28-4860-4bbd-8fd5-d96c80b134aa', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('cf0a2e3f-8447-4497-953c-530af640d397', '2fd397a6-c090-4664-bac5-832d803c6c56', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d2299ecd-63a8-4bb3-b99d-1860a5b33396', '8830cfc3-363b-4b21-ad54-596bb64fe2d4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d3a5806b-5d74-429f-9296-89903564a1ed', 'aff161ee-9e6d-4053-8d20-5c875787ca62', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d3fd93e0-b806-42bc-8b4a-93c987d5f57f', '8816b218-a543-4bd2-be20-d9817f69993d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d4c3d6b8-a98e-4cb3-805f-02567fe2c3df', '8798340d-7df4-4160-942a-5d222ea427b6', '27d1ad60-6d73-439d-b4b2-4a1827371c24', '2026-02-18 08:27:30.994158+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d4d8b480-ca6e-4928-bb3f-03d812aa9f33', 'f0440981-1974-4b21-867b-b808c7f4c704', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d6479bd5-3a39-4087-9b0f-c7b0f1ebfeee', '913c0902-b3e3-463f-83bf-042383a5a0ab', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d6d7c2f2-a8ca-4a36-9202-e18ab8766939', '84385d55-0eeb-45c4-bd90-6626a94836b9', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d722a595-caee-43aa-96c4-cc3e7ab295ef', '67ff6216-0593-41f7-b8dd-5f32fbebdc53', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d8822d18-37b6-43f0-96c2-78aed851bf5c', '12804787-3749-4c69-bd0b-a0cb29a201c5', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d88eec61-093f-46b0-a231-b6e6098d56ca', 'a55be48a-38f3-4334-9eff-c6594c27be6a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('d90c8d77-8b29-4915-b951-bb291b32af88', '93b891f2-10b5-407d-bbeb-65cc76784985', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('da93f1a4-b7af-4b44-82f0-4ba4a41879a8', '2248fc95-8840-4f5c-9824-327bfbc65c70', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dbb3987c-b9cd-4c76-bba8-5b8361fbd137', 'a016d26c-04f6-4c93-ab7c-28a031139de6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-02-21 01:11:01.84748+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dc40bc6a-f6f6-4427-96b9-cb9a920077ab', 'f93f8c25-80c5-4316-8083-abb99f5501f2', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dd5dc4ef-24ca-456f-841a-bcd29850af7c', '1c223def-e8c9-4689-90d8-c4d217303b2f', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dfa67c1f-9371-4f1c-8cc4-21993a330f0d', '45ce957a-1b45-4f30-8300-759add328d46', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dfae95c1-17e8-49b5-b85a-87f8c25081a1', 'b564969a-bbf5-47cd-bb2e-404854045f70', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('dffea4bb-ed81-412d-a871-233199c58e4f', 'a3882000-bccf-4a83-9cd3-4c5122879f94', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e237b2f9-aa07-4ce9-9ebb-48418fe6a99e', 'c9e1da3c-42f3-40d0-a980-b9281cd89dfc', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e297a45f-01ca-451c-a639-f612f05d45a1', '60d302c9-50b8-4ab4-a5db-152c481566b2', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e3328838-1445-444e-944b-4571a1bcb69e', '1f21b83e-834b-459b-972b-1339c430f394', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e37786ff-7e98-4b5e-b8ef-442b5d73b418', '96f082e2-148e-4677-95f8-0f6ef5e88012', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e37d24c8-50d3-4093-93ca-1aabeb63e1e8', 'f4926ff6-b964-44bc-be06-f6d9cc91b705', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e39e5d61-af36-43ca-9fa6-300193fd805a', 'f041fd37-280d-4e78-935b-b27193a493ad', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e53e7e71-bd2e-49ea-85ed-f4ce7028c553', '8138f3c9-3fbc-4c13-94c8-cbc2b77b1350', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e5a5d8f7-c21a-41a6-b458-0809df3932aa', '2bfa7be2-faa2-493d-ac48-2321c0a2c4be', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e94d5c87-b424-4adb-ba29-9d9dfeaca53a', '3dd8711c-963a-4093-b478-f62bce8f070a', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('e95c7692-1b6f-4447-8a5b-ac768b6ff391', '49165160-e2ef-4196-803c-bb3ff446d933', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ea4119db-cf2c-4894-854e-c2d9b3b92a92', 'd1052957-4249-4871-9d03-fb33ac19a806', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('eb3f8ea0-7a47-4f5c-8e9f-9a218af75007', '962b3343-7806-4e09-bfe2-1f18d1e666ee', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('eb573107-b0f0-4a37-9403-97869e4b6cef', '006493ae-dc23-47d5-bea3-ebd1afabb6ec', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('eb8bf60f-fb19-405d-9dba-2098188cdb6e', '489f1033-9fdf-4cb6-969d-a3f35ae1a2c8', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ec94eaae-9543-4b67-bc5b-8ae369346573', 'eca7b629-32d7-4d1d-ae94-3383c21f742c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ecb7b4fd-c9bc-4608-9f82-9478c105e019', 'a77ef7e3-ce30-4154-a9bf-bea99e0e0b58', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('ee8c6939-ce0d-4fb2-8e56-db30e8e62fe4', '2a9748d3-0e5a-4b3a-a937-9164432d4564', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f0ea6f5b-522e-4202-9a72-f9b077be35d0', '9b077789-2fae-4979-82ae-7537804d9f1d', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f3660bec-da37-40e7-9b87-2d339d536c01', '9d176351-142b-4355-9828-340fc2250b97', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f42bf0d4-e61f-435e-8dec-49c7ac884724', '8c0357d6-6976-4cf0-8aef-69ff657392d1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f4bbfa91-74bf-4eb4-bb51-50640319dbec', '97894499-5520-42dd-bff1-4742a1d337e0', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f4f07f0d-19e4-4916-873e-699080a64c2a', '8cf3f6b0-abac-4a90-99fe-931f786ab703', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f5665ec1-6f02-4479-8259-e1146718b16a', 'd21ac845-bec4-420e-b284-6aad2ae0a314', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f5ae862c-cf12-43bf-b1d7-c6bf50b3750e', '8acc22d1-ab3d-422f-b74e-6614205e75f6', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f814e8c5-d961-4f8f-ac95-e69324c1f976', '4a6f5aab-b92f-4221-8fc2-e7bd64ce9604', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('f81c69b2-514e-4796-8a5b-5904fbf7de7b', '330bb039-5f2d-4f2a-a6db-de03b8960316', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fa4270ca-26da-4360-9bb7-344d7729fd97', '5ed30e97-6676-4ce8-85f7-2bbb754d5350', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fa65b5a8-a12c-4248-9dc0-fc5041219855', '45f5f915-3489-4a65-ae1c-d244a47e28d4', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fd0f4606-0d12-4773-bdf6-2b74c1e180bf', 'ce9d51e2-b69f-4bb9-88bb-2d3c6a85696c', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fd2bf998-223d-4d57-ad6f-de345f976824', '217f054a-0234-42c0-85a5-804844487ba8', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fd64cd26-2b40-4379-889e-0aef4f0de3bd', '9ce864d1-2a10-429b-b57d-a3220620dae2', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('fdf97f61-443d-483d-881e-7699f5e8fef6', 'a5824f99-6027-474f-931a-397c379f9be1', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+DO $$ 
+BEGIN
+    INSERT INTO public.follows (id, follower_id, following_id, created_at) VALUES ('feaba70c-a95f-42ce-a6b5-daa7c9fdf990', 'fa884ab4-d398-4405-a7f3-985b4484e69b', '8798340d-7df4-4160-942a-5d222ea427b6', '2026-04-03 10:17:12.780882+00') ON CONFLICT DO NOTHING;
+EXCEPTION WHEN foreign_key_violation THEN
+    NULL;
+END $$;
+COMMIT;

@@ -6,7 +6,7 @@ import { useFeed } from '../hooks/useFeed';
 import { supabase } from '../../../lib/supabase';
 
 export default function PostDrawer() {
-    const { isPostDrawerOpen, setPostDrawerOpen } = useUIStore();
+    const { isPostDrawerOpen, setPostDrawerOpen, initialPostContent, initialPostImages } = useUIStore();
     const { createPost } = useFeed();
     const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -62,6 +62,8 @@ export default function PostDrawer() {
                             setPostDrawerOpen(false);
                         }} 
                         user={userProfile}
+                        initialContent={initialPostContent || undefined}
+                        initialImages={initialPostImages || undefined}
                     />
                 </div>
             </div>

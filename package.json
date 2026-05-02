@@ -38,6 +38,7 @@
     "@tldraw/tldraw": "^4.3.1",
     "@types/three": "^0.182.0",
     "canvas-confetti": "^1.9.4",
+    "capacitor-plugin-send-intent": "^0.0.2",
     "capacitor-voice-recorder": "^7.0.6",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

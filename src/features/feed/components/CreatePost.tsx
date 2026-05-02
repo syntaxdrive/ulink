@@ -9,12 +9,13 @@ interface CreatePostProps {
     user?: any;
     onPostCreated?: (post: any) => void;
     initialContent?: string;
+    initialImages?: File[];
 }
 
-export default function CreatePost({ onCreate, communityId, user, initialContent }: CreatePostProps) {
+export default function CreatePost({ onCreate, communityId, user, initialContent, initialImages }: CreatePostProps) {
     const MAX_CHARS = 1000;
     const [content, setContent] = useState(initialContent || '');
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imageFiles, setImageFiles] = useState<File[]>(initialImages || []);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [previews, setPreviews] = useState<string[]>([]);
     const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -31,10 +32,20 @@ export default function CreatePost({ onCreate, communityId, user, initialContent
     // When pre-filled from a share action, scroll into view and focus
     useEffect(() => {
         if (initialContent) {
+            setContent(initialContent);
             textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             textareaRef.current?.focus();
         }
     }, [initialContent]);
+
+    // Handle initial images from share intent
+    useEffect(() => {
+        if (initialImages && initialImages.length > 0) {
+            setImageFiles(initialImages);
+            const newPreviews = initialImages.map(file => URL.createObjectURL(file));
+            setPreviews(newPreviews);
+        }
+    }, [initialImages]);
 
     const handleImageClick = () => fileInputRef.current?.click();
 

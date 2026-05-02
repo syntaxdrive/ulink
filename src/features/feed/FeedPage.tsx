@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, UserRound, Globe, Zap, Trophy, Users, Flame, TrendingUp, Sparkles, Mic2 } from 'lucide-react';
-import { useNavigate, NavLink } from 'react-router-dom';
+import { useNavigate, NavLink, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAudioStore } from '../../stores/useAudioStore';
 import CreatePost from './components/CreatePost';
@@ -286,10 +286,15 @@ export default function FeedPage() {
     const [peopleResults, setPeopleResults] = useState<any[]>([]);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [shareContent, setShareContent] = useState<string | null>(null);
+    const [shareImages, setShareImages] = useState<File[]>([]);
 
-    // PWA Share Target — intercept ?title, ?text, ?url injected by Android when
-    // the user shares a link/page directly to UniLink from another app.
+    const location = useLocation();
+
+    const { setPostDrawerOpen } = useUIStore();
+
+    // PWA Share Target & Native Intent — intercept ?title, ?text, ?url or location state
     useEffect(() => {
+        // 1. Check for URL parameters (PWA style)
         const params = new URLSearchParams(window.location.search);
         const title = params.get('title') || '';
         const text = params.get('text') || '';
@@ -300,11 +305,36 @@ export default function FeedPage() {
             if (title) parts.push(title);
             if (text && text !== title && text !== url) parts.push(text);
             if (url) parts.push(url);
-            setShareContent(parts.join('\n\n'));
-            // Remove params from the URL so they don't persist or re-trigger
+            const content = parts.join('\n\n');
+            setShareContent(content);
+            
+            // Open mobile drawer if on mobile
+            if (window.innerWidth < 768) {
+                setPostDrawerOpen(true, content);
+            }
+
+            // Remove params from the URL
             window.history.replaceState(null, '', window.location.pathname);
+            return;
         }
-    }, []);
+
+        // 2. Check for location state (Native Intent style)
+        if (location.state?.shareContent || location.state?.shareImages) {
+            const content = location.state.shareContent;
+            const images = location.state.shareImages;
+
+            if (content) setShareContent(content);
+            if (images) setShareImages(images);
+
+            // Open mobile drawer if on mobile
+            if (window.innerWidth < 768) {
+                setPostDrawerOpen(true, content, images);
+            }
+
+            // Clear state so it doesn't re-trigger on navigation
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate, setPostDrawerOpen]);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -490,7 +520,12 @@ export default function FeedPage() {
                     {/* Create Post - Hidden on Mobile, Drawer takes over */}
                     {currentUserId && (
                         <div className="mb-1 hidden md:block">
-                            <CreatePost onCreate={createPost} user={currentUserProfile} initialContent={shareContent ?? undefined} />
+                            <CreatePost 
+                                onCreate={createPost} 
+                                user={currentUserProfile} 
+                                initialContent={shareContent ?? undefined} 
+                                initialImages={shareImages}
+                            />
                         </div>
                     )}
 
