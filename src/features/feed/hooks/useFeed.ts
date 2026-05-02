@@ -55,7 +55,7 @@ export function useFeed(communityId?: string) {
                 setCurrentUserId(user.id);
                 const { data } = await supabase
                     .from('profiles')
-                    .select('id, name, username, avatar_url, role, is_admin, is_verified, gold_verified, university, headline, points, bio, year_of_study, expected_graduation_year, company_name, website')
+                    .select('id, name, username, avatar_url, role, is_admin, is_verified, university, headline, points, about, website')
                     .eq('id', user.id)
                     .single();
                 if (data) {
