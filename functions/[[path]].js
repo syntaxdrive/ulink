@@ -58,7 +58,11 @@ export default {
                             metadata.image = post.image_url || (post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : metadata.image);
                             
                             if (post.video_url) {
-                                metadata.video = post.video_url;
+                                let vUrl = post.video_url;
+                                if (vUrl.includes('res.cloudinary.com') && !vUrl.match(/\.[a-zA-Z0-9]+$/)) {
+                                    vUrl += '.mp4';
+                                }
+                                metadata.video = vUrl;
                                 metadata.twitterCard = "player";
                                 
                                 // Video thumbnail logic
@@ -212,6 +216,8 @@ export default {
                 html = injectMeta(html, "og:video", metadata.video);
                 html = injectMeta(html, "og:video:secure_url", metadata.video);
                 html = injectMeta(html, "og:video:type", "video/mp4");
+                html = injectMeta(html, "og:video:width", "1280");
+                html = injectMeta(html, "og:video:height", "720");
                 html = injectMeta(html, "twitter:player", metadata.video, "name");
                 html = injectMeta(html, "twitter:player:width", "1280", "name");
                 html = injectMeta(html, "twitter:player:height", "720", "name");
