@@ -26,37 +26,6 @@ export default defineConfig({
     })
   ],
   build: {
-    // Manual chunk splitting for better caching
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Core React — always needed, cached long-term
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
-            return 'react-vendor';
-          }
-          // Supabase client — needed on first auth check
-          if (id.includes('node_modules/@supabase')) {
-            return 'supabase';
-          }
-          // UI utilities — small, always needed
-          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/zustand')) {
-            return 'ui-vendor';
-          }
-          // Three.js — HEAVY (1MB), only used on specific pages — lazy chunk
-          if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) {
-            return 'three-vendor';
-          }
-          // PDF.js — HEAVY (600KB), only used in Courses — lazy chunk
-          if (id.includes('node_modules/pdfjs-dist')) {
-            return 'pdfjs-vendor';
-          }
-          // Other large vendor libs
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
-        },
-      },
-    },
     // Minification and optimization
     minify: 'terser',
     terserOptions: {
