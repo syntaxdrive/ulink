@@ -71,6 +71,31 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
         });
     }, [msg.id, msg.audio_url]);
 
+    const renderContent = (text: string) => {
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const parts = text.split(urlRegex);
+
+        return parts.map((part, i) => {
+            if (part.match(urlRegex)) {
+                return (
+                    <a
+                        key={i}
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`font-semibold hover:underline break-all ${
+                            isMe ? 'text-white underline decoration-white/40' : 'text-emerald-600 dark:text-emerald-500'
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {part}
+                    </a>
+                );
+            }
+            return part;
+        });
+    };
+
     return (
         <div
             className={`relative flex items-end gap-2 group ${isMe ? 'justify-end' : 'justify-start'} px-2`}
@@ -144,7 +169,7 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                             )}
                         </div>
                     ) : (
-                        displayContent
+                        renderContent(displayContent)
                     )}
                 </div>
 
