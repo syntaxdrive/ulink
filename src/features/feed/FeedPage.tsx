@@ -15,6 +15,7 @@ import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
 import ProfileCompletionBanner from './components/ProfileCompletionBanner';
 import NewsSlider from './components/NewsSlider';
+import { useUIStore } from '../../stores/useUIStore';
 
 
 

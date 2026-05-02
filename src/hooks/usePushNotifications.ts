@@ -66,9 +66,10 @@ export function useLocalNotifications() {
             // 4.5. Listen to Live Realtime Events (Triggers instant drop-down notifications when app is open)
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
+                const userId = user.id;
                 // Attach channel to a window variable or ref so we can clean it up later if needed
                 (window as any)._liveNotificationChannel = supabase.channel('live-local-notifications')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, async (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` }, async (payload) => {
                         const newMsg = payload.new as any;
                         if (window.location.pathname.includes(newMsg.sender_id)) return;
                         
@@ -80,7 +81,7 @@ export function useLocalNotifications() {
                             extra: { type: 'message', chat_id: newMsg.sender_id },
                         });
                     })
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, async (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, async (payload) => {
                         const newNotif = payload.new as any;
                         await scheduleNotification({
                             id: Math.floor(Math.random() * 100000),
@@ -93,7 +94,7 @@ export function useLocalNotifications() {
                             },
                         });
                     })
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` }, async (payload) => {
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections', filter: `recipient_id=eq.${userId}` }, async (payload) => {
                         const newConn = payload.new as any;
                         const { data: sender } = await supabase.from('profiles').select('name').eq('id', newConn.requester_id).single();
                         await scheduleNotification({

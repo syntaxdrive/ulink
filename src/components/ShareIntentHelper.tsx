@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SendIntent } from 'capacitor-plugin-send-intent';
 import { Capacitor } from '@capacitor/core';
-import { Filesystem } from '@capacitor/filesystem';
 
 /**
  * Handles incoming shared content (text, links, images) from other Android apps.
@@ -68,19 +67,24 @@ export default function ShareIntentHelper() {
         };
 
         // Check for intent that started the app
-        SendIntent.checkSendIntentReceived().then((result) => {
+        (SendIntent as any).checkSendIntentReceived().then((result: any) => {
             if (result) handleIntent(result);
-        }).catch(err => {
+        }).catch((err: any) => {
             console.error('[ShareIntent] Error checking intent:', err);
         });
 
         // Listen for intents while the app is running
-        const listener = SendIntent.addListener('appSendIntentReceived', (data: any) => {
-            handleIntent(data);
-        });
+        let listener: any;
+        const setupListener = async () => {
+            listener = await (SendIntent as any).addListener('appSendIntentReceived', (data: any) => {
+                handleIntent(data);
+            });
+        };
+        
+        setupListener();
 
         return () => {
-            listener.remove();
+            if (listener) listener.remove();
         };
     }, [navigate]);
 
