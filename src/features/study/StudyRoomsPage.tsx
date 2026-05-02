@@ -731,7 +731,15 @@ export default function StudyRoomsPage() {
     };
 
     const playVoiceNote = (vn: VoiceNote) => {
-        if (playingVoiceId === vn.id || draggingVnId) return;
+        if (playingVoiceId === vn.id) {
+            if (currentAudioRef.current) {
+                currentAudioRef.current.pause();
+                currentAudioRef.current.currentTime = 0;
+            }
+            setPlayingVoiceId(null);
+            return;
+        }
+        if (draggingVnId) return;
 
         const extractUploadsPath = (rawUrl: string): string | null => {
             try {
@@ -755,9 +763,17 @@ export default function StudyRoomsPage() {
         };
 
         const resolvePlayableUrl = async () => {
+            let finalUrl = vn.audio_url;
+            
+            // If it's a Cloudinary URL, ensure it is universally playable (iOS Safari doesn't support .webm)
+            if (finalUrl.includes('res.cloudinary.com')) {
+                finalUrl = finalUrl.replace(/\.(webm|aac|m4a|ogg|mp3)$/i, '.mp4');
+                return finalUrl;
+            }
+
             try {
-                const direct = await fetch(vn.audio_url, { method: 'HEAD' });
-                if (direct.ok) return vn.audio_url;
+                const direct = await fetch(finalUrl, { method: 'HEAD' });
+                if (direct.ok) return finalUrl;
             } catch {
                 // Try signed URL fallback below
             }
