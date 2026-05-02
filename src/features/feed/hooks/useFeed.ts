@@ -55,7 +55,7 @@ export function useFeed(communityId?: string) {
                 setCurrentUserId(user.id);
                 const { data } = await supabase
                     .from('profiles')
-                    .select('id, name, username, avatar_url, role, is_admin, is_verified, university, headline, points, about, website')
+                    .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points')
                     .eq('id', user.id)
                     .single();
                 if (data) {
@@ -433,7 +433,7 @@ export function useFeed(communityId?: string) {
             .from('posts')
             .select(`
                 *,
-                profiles: author_id(id, name, username, avatar_url, is_verified, gold_verified, headline, role, email, expected_graduation_year),
+                profiles: author_id(id, name, username, avatar_url, is_verified, headline, role, email, expected_graduation_year),
                 community: community_id(id, name, slug, icon_url),
                 original_post: original_post_id (
                     id,
