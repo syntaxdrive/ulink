@@ -1675,9 +1675,10 @@ function SellerStoreSettings({ profile, onUpdate }: { profile: Profile, onUpdate
                                 <button
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         setBannerUrl('');
                                     }}
-                                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full z-10 backdrop-blur-sm transition-colors"
+                                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-full z-20 backdrop-blur-sm transition-colors"
                                     title="Remove Banner"
                                 >
                                     <X className="w-4 h-4" />
