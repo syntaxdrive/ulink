@@ -24,13 +24,13 @@ async function uploadFileForRoom(file: File, userId?: string | null): Promise<st
     if (cloudinaryService.isConfigured()) {
         try {
             const isImage = file.type.startsWith('image/');
-            const isVideo = file.type.startsWith('video/');
+            const isVideoOrAudio = file.type.startsWith('video/') || file.type.startsWith('audio/');
             
             if (isImage) {
                 const res = await cloudinaryService.uploadImage(file, { folder: 'ulink/study-rooms/docs' });
                 return res.secureUrl;
-            } else if (isVideo) {
-                const res = await cloudinaryService.uploadVideo(file, { folder: 'ulink/study-rooms/videos' });
+            } else if (isVideoOrAudio) {
+                const res = await cloudinaryService.uploadVideo(file, { folder: 'ulink/study-rooms/audio' });
                 return res.secureUrl;
             } else {
                 const res = await cloudinaryService.uploadDocument(file, { folder: 'ulink/study-rooms/docs' });
