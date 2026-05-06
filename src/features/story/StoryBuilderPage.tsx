@@ -223,7 +223,8 @@ export default function StoryBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
+    <>
+      <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
       {/* Top Header */}
       <header className="h-16 md:h-20 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 md:px-6 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2 md:gap-4 flex-1">
@@ -563,7 +564,8 @@ export default function StoryBuilderPage() {
           </div>
         </div>
       </div>
+    )}
     </div>
+    </>
   );
 }
-
