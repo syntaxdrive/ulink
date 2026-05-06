@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Post } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
+import { useAuthModalStore } from '../../../stores/useAuthModalStore';
 import { notifyMentionedUsers } from '../../../utils/mentions';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
@@ -488,7 +489,10 @@ export function useFeed(communityId?: string) {
     const createPost = async (content: string, imageFiles: File[], videoFile: File | null, targetCommunityId?: string, pollOptions?: string[]) => {
         if (!content.trim() && imageFiles.length === 0 && !videoFile) return;
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            useAuthModalStore.getState().openAuthModal('Sign in to create a post');
+            return;
+        }
 
         const imageUrls: string[] = [];
         let videoUrl: string | null = null;
@@ -617,7 +621,10 @@ export function useFeed(communityId?: string) {
 
     const toggleLike = async (post: Post) => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            useAuthModalStore.getState().openAuthModal('Sign in to like this post');
+            return;
+        }
 
         const isLiked = post.user_has_liked;
         const newLikeCount = isLiked ? (post.likes_count || 0) - 1 : (post.likes_count || 0) + 1;
@@ -645,7 +652,10 @@ export function useFeed(communityId?: string) {
 
     const toggleRepost = async (post: Post, comment?: string) => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            useAuthModalStore.getState().openAuthModal('Sign in to repost');
+            return;
+        }
 
         // Determine the target post (always the original content)
         // If the post is itself a repost, we want to repost the ORIGINAL post, not the repost.
@@ -787,7 +797,10 @@ export function useFeed(communityId?: string) {
     const postComment = async (postId: string, content: string | null, stickerUrl?: string, type: 'text' | 'sticker' | 'image' = 'text', parentId?: string) => {
         if (!content?.trim() && !stickerUrl) return;
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            useAuthModalStore.getState().openAuthModal('Sign in to comment');
+            return;
+        }
 
         const tempId = `temp - ${Date.now()} `;
         const optimisticComment: any = {
@@ -851,7 +864,10 @@ export function useFeed(communityId?: string) {
 
     const reportPost = async (postId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            useAuthModalStore.getState().openAuthModal('Sign in to report a post');
+            return;
+        }
 
         try {
             const { error } = await supabase.from('reports').insert({
@@ -872,7 +888,12 @@ export function useFeed(communityId?: string) {
 
     const votePoll = async (postId: string, optionIndex: number) => {
         const post = posts.find(p => p.id === postId);
-        if (!post || !post.poll_options || !post.poll_counts || !currentUserId) return;
+        if (!post || !post.poll_options || !post.poll_counts) return;
+        
+        if (!currentUserId) {
+            useAuthModalStore.getState().openAuthModal('Sign in to vote');
+            return;
+        }
 
         // Optimistic Update
         const newCounts = [...post.poll_counts];

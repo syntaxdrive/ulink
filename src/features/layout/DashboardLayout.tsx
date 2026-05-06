@@ -10,6 +10,7 @@ import NotificationToast from '../../components/ui/NotificationToast';
 import UsernameSetupModal from '../auth/components/UsernameSetupModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import InstallGuideModal from '../../components/InstallGuideModal';
+import AuthModal from '../../components/auth/AuthModal';
 
 import { useNotifications } from '../notifications/hooks/useNotifications';
 import { useNotificationStore } from '../../stores/useNotificationStore';
@@ -473,6 +474,8 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                     <span className="text-[10px] font-black uppercase tracking-widest">Offline Mode — Viewing Cached Data</span>
                 </div>
             )}
+
+            <AuthModal />
 
             <div className="fixed inset-0 bg-grid-slate-200/50 bg-[length:30px_30px] opacity-40 pointer-events-none z-0"></div>
 

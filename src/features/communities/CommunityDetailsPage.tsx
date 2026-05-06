@@ -10,6 +10,7 @@ import CreatePost from '../feed/components/CreatePost';
 import { useFeed } from '../feed/hooks/useFeed';
 import EditCommunityModal from './components/EditCommunityModal';
 import { getBaseUrl } from '../../config';
+import { useAuthModalStore } from '../../stores/useAuthModalStore';
 
 export default function CommunityDetailsPage() {
     const { slug } = useParams<{ slug: string }>();
@@ -189,7 +190,11 @@ export default function CommunityDetailsPage() {
     };
 
     const handleJoin = async () => {
-        if (!currentUserId || !community) return;
+        if (!community) return;
+        if (!currentUserId) {
+            useAuthModalStore.getState().openAuthModal('Sign in to join this community');
+            return;
+        }
         try {
             if (isMember) {
                 // Leave logic

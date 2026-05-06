@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, UserPlus, Check, Search, BadgeCheck, School } from 'lucide-react';
 import { useNetwork } from './hooks/useNetwork';
+import { useAuthModalStore } from '../../stores/useAuthModalStore';
 
 export default function NetworkPage() {
     const { suggestions, myNetwork, loading, connections, sentRequests, connecting, connect, searchUsers, searchResults, searching, userProfile } = useNetwork();
@@ -159,7 +160,7 @@ export default function NetworkPage() {
                             <button
                                 onClick={() => {
                                     if (!userProfile) {
-                                        alert('Please sign in to send connection requests.');
+                                        useAuthModalStore.getState().openAuthModal('Sign in to connect with students');
                                         return;
                                     }
                                     connect(profile.id);

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, Users, Globe, Lock, Loader2, Compass } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCommunitiesStore } from '../../stores/useCommunitiesStore';
+import { useAuthModalStore } from '../../stores/useAuthModalStore';
 import CreateCommunityModal from './components/CreateCommunityModal';
 import { SEO } from '../../components/SEO/SEO';
 import type { Community } from '../../types';
@@ -13,6 +14,15 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
     const [loading, setLoading] = useState(store.communities.length === 0);
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    const handleCreateClick = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            useAuthModalStore.getState().openAuthModal('Sign in to create a community');
+            return;
+        }
+        setIsCreateModalOpen(true);
+    };
 
     const fetchCommunities = async (query: string = '', isInitial = false) => {
         // Only show loading if we don't have data
@@ -93,7 +103,7 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
                         <p className="text-stone-500 dark:text-zinc-400 font-medium">Discover and join groups based on your interests and campus.</p>
                     </div>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={handleCreateClick}
                         className="px-6 py-3.5 bg-stone-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-xl shadow-stone-200 dark:shadow-none hover:scale-105 active:scale-95 group"
                     >
                         <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
@@ -105,7 +115,7 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
             {embed && (
                 <div className="flex justify-end mb-6">
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={handleCreateClick}
                         className="px-5 py-2.5 bg-stone-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg hover:bg-emerald-600 hover:text-white font-sans"
                     >
                         <Plus className="w-4 h-4" />
@@ -192,7 +202,7 @@ export default function CommunitiesPage({ embed = false }: { embed?: boolean }) 
                             We couldn't find any communities matching your search. Try adjusting your keywords or start an entirely new movement!
                         </p>
                         <button
-                            onClick={() => { setSearchQuery(''); setIsCreateModalOpen(true); }}
+                            onClick={() => { setSearchQuery(''); handleCreateClick(); }}
                             className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-xl dark:shadow-none active:scale-95 uppercase tracking-widest"
                         >
                             CREATE THE FIRST ONE

@@ -14,6 +14,7 @@ import { nativeShare } from '../../../utils/shareUtils';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 import { getBaseUrl } from '../../../config';
 import { checkClientRateLimit } from '../../../utils/rateLimit';
+import { useAuthModalStore } from '../../../stores/useAuthModalStore';
 
 function formatTimeAgo(dateString: string) {
     const date = new Date(dateString);
@@ -96,9 +97,7 @@ export default function PostItem({
 
     const ensureAuth = () => {
         if (!currentUserId) {
-            if (confirm('Please sign in to interact with posts.')) {
-                signInWithGoogle();
-            }
+            useAuthModalStore.getState().openAuthModal('Sign in to interact with posts');
             return false;
         }
         return true;

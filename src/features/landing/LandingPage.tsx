@@ -137,8 +137,17 @@ export default function LandingPage() {
                                         </svg>
                                         <span className="relative z-10">Continue with Google</span>
                                     </button>
-                                    <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500 text-center lg:text-left">
-                                        By continuing, you agree to our{' '}
+                                    
+                                    <Link
+                                        to="/app"
+                                        className="h-14 px-8 rounded-full bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 font-bold text-lg hover:bg-slate-50 dark:hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center shadow-sm w-full sm:w-auto"
+                                    >
+                                        Explore App
+                                    </Link>
+                                </div>
+
+                                <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500 text-center lg:text-left animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+                                    By continuing, you agree to our{' '}
                                         <Link to="/legal/terms" className="text-emerald-600 hover:text-emerald-700 font-semibold underline decoration-emerald-200">
                                             Terms of Service
                                         </Link>{' '}
