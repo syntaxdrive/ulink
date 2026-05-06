@@ -170,56 +170,45 @@ export default function StoryBuilderPage() {
   };
 
   const generateAIStory = async () => {
-    const topic = prompt("What should the story be about? (e.g. 'A mystery during exams')");
+    const topic = prompt("What should the story be about? (e.g. 'A mystery during exams' or 'A romance in the cafeteria')");
     if (!topic) return;
 
     setIsGenerating(true);
-    // This would call your AI service. For now, we'll simulate a structured response.
-    setTimeout(() => {
-      const mockScenes: Scene[] = [
-        {
-          id: 'start',
-          name: 'The Beginning',
-          text: `You are at the University library, deep into ${topic}. Suddenly, you find a mysterious note inside your textbook.`,
-          coverPrompt: `university library mystery note ${topic}`,
-          artStyle: 'Digital Art',
-          choices: [
-            { text: 'Read the note', nextNodeId: 'read_note' },
-            { text: 'Ignore it and keep studying', nextNodeId: 'study' }
-          ]
-        },
-        {
-          id: 'read_note',
-          name: 'The Secret',
-          text: 'The note contains a map of the hidden tunnels beneath the Faculty of Science. It mentions a secret treasure.',
-          coverPrompt: 'secret map glowing paper',
-          artStyle: 'Digital Art',
-          choices: [
-            { text: 'Investigate the tunnels', nextNodeId: 'tunnels' }
-          ]
-        },
-        {
-          id: 'study',
-          name: 'Focus',
-          text: 'You decide to focus. Hours pass, and you feel ready for the exam. But the mystery still lingers in your mind.',
-          coverPrompt: 'exhausted student studying lamp',
-          artStyle: 'Digital Art',
-          choices: []
-        },
-        {
-          id: 'tunnels',
-          name: 'The Descent',
-          text: 'You find the entrance. It is dark and smells of damp earth. You step inside...',
-          coverPrompt: 'dark underground tunnel university',
-          artStyle: 'Digital Art',
-          choices: []
-        }
-      ];
-      setScenes(mockScenes);
-      setTitle(`Mystery of ${topic}`);
+    try {
+      const systemPrompt = `You are a choice-based story generator for university students. 
+      Topic: ${topic}. 
+      Return ONLY a JSON array of 4-6 scenes. No other text.
+      Each scene must follow this exact structure: 
+      { 
+        "id": "unique_id", 
+        "name": "Scene Title", 
+        "text": "Detailed story text", 
+        "coverPrompt": "image prompt for this scene",
+        "artStyle": "Digital Art",
+        "choices": [ { "text": "Choice text", "nextNodeId": "target_id" } ] 
+      }
+      The first scene id MUST be "start". Ensure all nextNodeIds link to existing scene ids in the array.`;
+
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?json=true&seed=${Math.floor(Math.random() * 1000)}`);
+      if (!response.ok) throw new Error('AI service unavailable');
+      
+      const content = await response.text();
+      // Pollinations sometimes wraps in markdown or adds prefix, so we extract JSON
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('Invalid AI response format');
+      
+      const aiScenes = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(aiScenes) || aiScenes.length === 0) throw new Error('Empty story generated');
+
+      setScenes(aiScenes);
+      setTitle(`${topic.charAt(0).toUpperCase() + topic.slice(1)}`);
       setActiveSceneId('start');
+    } catch (err) {
+      console.error(err);
+      alert('UAI is a bit busy right now. Please try again or write your own mystery!');
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   return (
