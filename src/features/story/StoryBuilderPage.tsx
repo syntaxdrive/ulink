@@ -180,9 +180,9 @@ export default function StoryBuilderPage() {
 
     setIsGenerating(true);
     try {
-      const systemPrompt = `JSON Story. Topic: ${topic}. Format: [ { "id": "start", "name": "..", "text": "..", "coverPrompt": "..", "choices": [ { "text": "..", "nextNodeId": ".." } ] } ]. Output ONLY JSON array of 4 scenes.`;
+      const prompt = `Generate a JSON story about ${topic}. Format: [{"id":"start","name":"..","text":"..","choices":[{"text":"..","nextNodeId":".."}]}]`;
 
-      const response = await fetch(`https://text.pollinations.ai/?prompt=${encodeURIComponent(systemPrompt)}&model=openai&json=true&seed=${Date.now()}`);
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&json=true&seed=${Date.now()}`);
       if (!response.ok) throw new Error('AI service unavailable');
       
       const content = await response.text();
