@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Save, Play, Trash2, ArrowRight, Sparkles, 
   Image as ImageIcon, Type, Layout, ChevronLeft,
-  Loader2, Check
+  Loader2, Check, X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
