@@ -149,12 +149,9 @@ function App() {
             <Route path="/download" element={<DownloadPage />} />
             <Route
               path="/"
-              element={
-                session
-                  ? <Navigate to="/app" replace />
-                  : (isNative ? <Navigate to="/app" replace /> : <LandingPage />)
-              }
+              element={<Navigate to="/app" replace />}
             />
+            <Route path="/welcome" element={<LandingPage />} />
             <Route
               path="/signup"
               element={
