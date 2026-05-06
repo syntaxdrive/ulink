@@ -26,7 +26,7 @@ export function StoryImage({ prompt, artStyle, coverUrl }: StoryImageProps) {
       setLoading(true);
       setError(false);
 
-      // 1. Try local asset first (Instant and 100% reliable)
+      // 1. Try local asset first
       const localUrl = `/stories/images/${prompt}.png`;
       const img = new Image();
       img.src = localUrl;
@@ -40,10 +40,12 @@ export function StoryImage({ prompt, artStyle, coverUrl }: StoryImageProps) {
 
       img.onerror = () => {
         // 2. If no local asset exists, generate with AI (Stable bridge URL)
-        // Using STORY_PROMPTS for rich context or defaulting to a basic prompt
         const stylePrefix = artStyle ? `${artStyle} style, ` : 'darkest dungeon style grimdark 2d comic art, ';
         const hfPrompt = STORY_PROMPTS[prompt] || `${stylePrefix} ${prompt.replace(/_/g, ' ')}`;
-        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(hfPrompt)}?width=800&height=400&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
+        
+        // Use a stable seed based on the prompt string to avoid re-generating different images on every render
+        const stableSeed = prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000;
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(hfPrompt)}?width=800&height=400&nologo=true&seed=${stableSeed}`;
         
         const aiImg = new Image();
         aiImg.src = pollinationsUrl;
