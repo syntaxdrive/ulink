@@ -32,6 +32,7 @@ export default function StoryBuilderPage() {
   const [genre, setGenre] = useState('Drama');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [scenes, setScenes] = useState<Scene[]>([
     {
@@ -190,49 +191,71 @@ export default function StoryBuilderPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
       {/* Top Header */}
-      <header className="h-20 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-6 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/app/story')} className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+      <header className="h-16 md:h-20 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 md:px-6 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-2 md:gap-4 flex-1">
+          <button onClick={() => navigate('/app/story')} className="p-1.5 md:p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <input 
               type="text" 
               placeholder="Untilted Story"
-              className="text-xl font-bold bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white p-0 w-64"
+              className="text-lg md:text-xl font-bold bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white p-0 w-full md:w-64 truncate"
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Story Builder</p>
+            <p className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest hidden sm:block">Story Builder</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button 
             onClick={generateAIStory}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 p-2 md:px-4 md:py-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-xs md:text-sm hover:bg-indigo-100 transition-all disabled:opacity-50"
+            title="AI Generate"
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {isGenerating ? 'UAI is writing...' : 'AI Generate'}
+            <span className="hidden md:inline">{isGenerating ? 'UAI is writing...' : 'AI Generate'}</span>
           </button>
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 md:px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs md:text-sm shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save & Publish
+            <span className="hidden sm:inline">Save & Publish</span>
+            <span className="sm:hidden">Save</span>
+          </button>
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="md:hidden p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl text-slate-600 dark:text-slate-400"
+          >
+            <Layout className="w-5 h-5" />
           </button>
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Sidebar Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="md:hidden fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Sidebar - Scene List */}
-        <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col">
-          <div className="p-4 border-b border-slate-100 dark:border-zinc-800">
+        <aside className={`fixed md:relative inset-y-0 left-0 w-72 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col z-[70] transform transition-transform duration-300 md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Story Scenes</h3>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-4">
             <button 
-              onClick={addScene}
+              onClick={() => { addScene(); setIsMobileMenuOpen(false); }}
               className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl text-slate-400 hover:text-emerald-600 hover:border-emerald-600 dark:hover:text-emerald-400 dark:hover:border-emerald-400 transition-all flex items-center justify-center gap-2 font-bold text-sm"
             >
               <Plus className="w-4 h-4" /> Add New Scene
@@ -242,7 +265,7 @@ export default function StoryBuilderPage() {
             {scenes.map((scene, idx) => (
               <button
                 key={scene.id}
-                onClick={() => setActiveSceneId(scene.id)}
+                onClick={() => { setActiveSceneId(scene.id); setIsMobileMenuOpen(false); }}
                 className={`w-full text-left p-4 rounded-2xl transition-all group relative ${activeSceneId === scene.id ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
               >
                 <div className="flex justify-between items-start">
@@ -265,29 +288,29 @@ export default function StoryBuilderPage() {
         </aside>
 
         {/* Main Editor Area */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8">
-          <div className="max-w-4xl mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-4 md:p-8">
+          <div className="max-w-4xl mx-auto space-y-4 md:space-y-8 pb-20">
             {/* Scene Basic Info */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6">
+            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 rounded-xl">
                   <Layout className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold">Scene Content</h3>
+                <h3 className="text-base md:text-lg font-bold">Scene Content</h3>
               </div>
               
               <div className="space-y-4">
                 <input 
                   type="text" 
                   placeholder="Scene Name (e.g., The Confrontation)"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg"
+                  className="w-full px-4 py-2.5 md:py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-base md:text-lg"
                   value={activeScene.name}
                   onChange={e => updateActiveScene({ name: e.target.value })}
                 />
                 <textarea 
                   rows={6}
                   placeholder="What happens in this scene? Describe the setting and action..."
-                  className="w-full px-6 py-5 rounded-2xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-serif text-lg leading-relaxed resize-none"
+                  className="w-full px-4 md:px-6 py-4 md:py-5 rounded-2xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-serif text-base md:text-lg leading-relaxed resize-none"
                   value={activeScene.text}
                   onChange={e => updateActiveScene({ text: e.target.value })}
                 />
@@ -295,20 +318,20 @@ export default function StoryBuilderPage() {
             </section>
 
             {/* Visuals */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-amber-100 dark:bg-amber-950/30 text-amber-600 rounded-xl">
                     <ImageIcon className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-bold">Visual Theme</h3>
+                  <h3 className="text-base md:text-lg font-bold">Visual Theme</h3>
                 </div>
                 
                 <div className="space-y-4">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Art Style</label>
                     <select 
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
                       value={activeScene.artStyle}
                       onChange={e => updateActiveScene({ artStyle: e.target.value })}
                     >
@@ -320,7 +343,7 @@ export default function StoryBuilderPage() {
                     <input 
                       type="text" 
                       placeholder="e.g. dramatic laboratory lighting"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
                       value={activeScene.coverPrompt}
                       onChange={e => updateActiveScene({ coverPrompt: e.target.value })}
                     />
@@ -328,18 +351,18 @@ export default function StoryBuilderPage() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6 flex flex-col">
+              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6 flex flex-col">
                  <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-blue-100 dark:bg-blue-950/30 text-blue-600 rounded-xl">
                       <Play className="w-5 h-5" />
                     </div>
-                    <h3 className="text-lg font-bold">Story Settings</h3>
+                    <h3 className="text-base md:text-lg font-bold">Story Settings</h3>
                   </div>
                   <div className="space-y-4 flex-1">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Genre</label>
                       <select 
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
                         value={genre}
                         onChange={e => setGenre(e.target.value)}
                       >
@@ -354,7 +377,7 @@ export default function StoryBuilderPage() {
                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Story Description</label>
                        <textarea 
                          rows={2}
-                         className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+                         className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none text-sm"
                          value={description}
                          onChange={e => setDescription(e.target.value)}
                        />
@@ -364,17 +387,17 @@ export default function StoryBuilderPage() {
             </section>
 
             {/* Choices */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6 mb-20">
-              <div className="flex items-center justify-between mb-2">
+            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6 mb-20">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-xl">
                     <ArrowRight className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-bold">Player Choices</h3>
+                  <h3 className="text-base md:text-lg font-bold">Player Choices</h3>
                 </div>
                 <button 
                   onClick={addChoice}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all active:scale-95"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all active:scale-95"
                 >
                   <Plus className="w-4 h-4" /> Add Choice
                 </button>
@@ -382,27 +405,27 @@ export default function StoryBuilderPage() {
 
               <div className="space-y-3">
                 {activeScene.choices.length === 0 && (
-                  <div className="py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center text-slate-400 italic">
+                  <div className="py-8 md:py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center text-slate-400 italic text-sm text-center px-4">
                     <p>No choices added. This scene will be the end of the story.</p>
                   </div>
                 )}
                 {activeScene.choices.map((choice, idx) => (
-                  <div key={idx} className="flex flex-col md:flex-row items-center gap-3 p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl animate-in slide-in-from-left duration-300">
+                  <div key={idx} className="flex flex-col lg:flex-row items-center gap-3 p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl animate-in slide-in-from-left duration-300">
                     <div className="flex-1 w-full">
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Decision Label</label>
                       <input 
                         type="text" 
                         placeholder="e.g., Open the door"
-                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all font-bold"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-sm"
                         value={choice.text}
                         onChange={e => updateChoice(idx, { text: e.target.value })}
                       />
                     </div>
-                    <ArrowRight className="w-5 h-5 text-slate-300 hidden md:block mt-4" />
+                    <ArrowRight className="w-5 h-5 text-slate-300 hidden lg:block mt-4" />
                     <div className="flex-1 w-full">
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Leads To...</label>
                       <select 
-                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
                         value={choice.nextNodeId}
                         onChange={e => updateChoice(idx, { nextNodeId: e.target.value })}
                       >
@@ -412,9 +435,10 @@ export default function StoryBuilderPage() {
                     </div>
                     <button 
                       onClick={() => removeChoice(idx)}
-                      className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors mt-4"
+                      className="w-full lg:w-auto p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors mt-0 lg:mt-4 flex items-center justify-center"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="lg:hidden ml-2 font-bold text-xs uppercase tracking-widest">Delete Choice</span>
                     </button>
                   </div>
                 ))}
