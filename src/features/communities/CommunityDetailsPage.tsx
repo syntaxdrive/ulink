@@ -11,6 +11,7 @@ import { useFeed } from '../feed/hooks/useFeed';
 import EditCommunityModal from './components/EditCommunityModal';
 import { getBaseUrl } from '../../config';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
+import { SEO } from '../../components/SEO/SEO';
 
 export default function CommunityDetailsPage() {
     const { slug } = useParams<{ slug: string }>();
@@ -292,6 +293,12 @@ export default function CommunityDetailsPage() {
 
     return (
         <div className="max-w-5xl mx-auto">
+            <SEO 
+                title={community.name}
+                description={community.description || `Join the ${community.name} community on UniLink Nigeria.`}
+                ogImage={community.cover_image_url || community.icon_url || `${getBaseUrl()}/og-preview.png`}
+                canonicalUrl={`${getBaseUrl()}/app/communities/${community.slug}`}
+            />
             {/* Banner & Header */}
             <div className="bg-white rounded-[2.5rem] overflow-hidden border border-stone-100 shadow-xl shadow-stone-200/40 mb-8">
                 <div className="h-48 bg-gradient-to-br from-stone-700 to-stone-900 relative">

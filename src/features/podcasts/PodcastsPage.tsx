@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { fetchPodcasts, fetchEpisodes, incrementEpisodePlay } from './hooks/usePodcasts';
 import type { Podcast } from '../../types';
 import { useAudioStore } from '../../stores/useAudioStore';
+import { SEO } from '../../components/SEO/SEO';
+import { getBaseUrl } from '../../config';
 
 const CATEGORIES = [
     'All', 'Technology', 'Business', 'Education', 'Entertainment',
@@ -264,6 +266,11 @@ export default function PodcastsPage() {
 
     return (
         <div className="min-h-screen pb-32">
+            <SEO 
+                title={category === 'All' ? 'Campus Podcasts' : `${category} Podcasts`}
+                description="Listen to student-led podcasts and campus discussions across Nigeria on UniLink."
+                ogImage={`${getBaseUrl()}/og-preview.png`}
+            />
 
             {/* ── Page header ── */}
             <div className="flex items-center justify-between mb-6">

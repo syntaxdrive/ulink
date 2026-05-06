@@ -1,14 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
 import { 
-  BookOpen, Battery, Award,
+  Battery, Award,
   ChevronRight, Volume2, VolumeX, Plus, X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StoryImage } from './components/StoryImage';
+import { getBaseUrl } from '../../config';
 import { supabase } from '../../lib/supabase';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
+import { SEO } from '../../components/SEO/SEO';
 
 interface StoryInfo {
   id: string;
@@ -25,6 +27,8 @@ interface StoryInfo {
   coverUrl?: string;
   genre: string;
   creator_id?: string;
+  nodes?: any;
+  story_type?: string;
 }
 
 // Story configurations
@@ -129,7 +133,6 @@ interface DialogueLine {
 
 export default function StoryModePage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [appState, setAppState] = useState<StoryState>('select');
   const [savedStories, setSavedStories] = useState<Record<string, boolean>>({});
@@ -180,7 +183,6 @@ export default function StoryModePage() {
   const storyRef = useRef<InstanceType<typeof Story> | null>(null);
   const activeStoryId = useRef<string>('');
   const activeStory = useRef<StoryInfo | null>(null);
-  const [currentSimpleNodeId, setCurrentSimpleNodeId] = useState<string | null>(null);
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [choices, setChoices] = useState<{text: string, index: number | string}[]>([]);
   const [currentSceneImg, setCurrentSceneImg] = useState<string | null>(null);
@@ -201,12 +203,12 @@ export default function StoryModePage() {
   useEffect(() => {
     if (appState === 'select') {
       const saves: Record<string, boolean> = {};
-      STORIES.forEach(st => {
+      allStories.forEach(st => {
         if (localStorage.getItem(`unilink_story_${st.id}`)) saves[st.id] = true;
       });
       setSavedStories(saves);
     }
-  }, [appState]);
+  }, [appState, allStories]);
 
   const triggerConfetti = () => {
     confetti({
@@ -224,9 +226,10 @@ export default function StoryModePage() {
     activeStory.current = storyInfo;
     
     try {
-      if (storyInfo.story_type === 'simple' || storyInfo.nodes) {
+      const s = storyInfo as any;
+      if (s.story_type === 'simple' || s.nodes) {
         // Handle Simple Node-based story
-        const nodes = storyInfo.nodes;
+        const nodes = s.nodes;
         const startNode = Object.keys(nodes)[0];
         setDialogueLines([]);
         playSimpleNode(startNode, nodes);
@@ -308,10 +311,9 @@ export default function StoryModePage() {
 
     newLines.push({ speaker, text, isPlayer: speaker === 'You' });
     setDialogueLines(newLines);
-    setCurrentSimpleNodeId(nodeId);
 
     if (node.choices && node.choices.length > 0) {
-      setChoices(node.choices.map((c: any, i: number) => ({ text: c.text, index: c.nextNodeId })));
+      setChoices(node.choices.map((c: any) => ({ text: c.text, index: c.nextNodeId })));
     } else {
       setChoices([]);
       setTimeout(() => setAppState('ended'), 2000);
@@ -456,9 +458,10 @@ export default function StoryModePage() {
   const handleChoice = (idx: number | string) => {
     if (typeof idx === 'string') {
       // Handle Simple choice
-      if (activeStory.current?.nodes) {
+      const s = activeStory.current as any;
+      if (s?.nodes) {
         const chosenText = choices.find(c => c.index === idx)?.text || '';
-        playSimpleNode(idx, activeStory.current.nodes, chosenText);
+        playSimpleNode(idx, s.nodes, chosenText);
       }
       return;
     }
@@ -494,6 +497,11 @@ export default function StoryModePage() {
   if (appState === 'select') {
     return (
       <div className="max-w-4xl mx-auto px-6 py-12 md:py-20">
+        <SEO 
+          title="The Reading Room"
+          description="Immersive, choice-driven stories. Every decision permanently alters the narrative."
+          ogImage={`${getBaseUrl()}/og-preview.png`}
+        />
         <div className="flex flex-col sm:flex-row items-center justify-between mb-16 gap-4">
           <div className="text-left">
             <h1 className="text-3xl md:text-5xl font-serif text-slate-900 dark:text-white tracking-tight">
@@ -851,8 +859,17 @@ The lecture is boring. You fall asleep.
     );
   }
 
+  const activeStoryInfo = activeStory.current;
+
   return (
     <div className="relative min-h-screen font-serif bg-stone-50 dark:bg-zinc-950">
+      <SEO 
+        title={activeStoryInfo ? activeStoryInfo.title : 'Story Mode'}
+        description={activeStoryInfo ? activeStoryInfo.description : 'Create and play choice-based stories in the UniLink campus metaverse.'}
+        ogImage={activeStoryInfo?.coverUrl || `${getBaseUrl()}/og-preview.png`}
+        ogType="article"
+      />
+
       {/* Immersive Background Illustration (More subtle now) */}
       {currentSceneImg && (
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">

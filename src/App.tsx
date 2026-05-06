@@ -42,7 +42,6 @@ import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
 import { useUIStore } from './stores/useUIStore';
 
-import { Capacitor } from '@capacitor/core';
 import { initializeNativeAuth } from './lib/auth-helpers';
 import DeepLinkHelper from './components/DeepLinkHelper';
 import ShareIntentHelper from './components/ShareIntentHelper';
@@ -53,7 +52,6 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { setDarkMode } = useUIStore();
-  const isNative = Capacitor.isNativePlatform();
 
   // Handle native deep links for auth
   useEffect(() => {

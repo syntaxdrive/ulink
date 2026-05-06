@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Save, Play, Trash2, ArrowRight,
-  Image as ImageIcon, Type, Layout, ChevronLeft,
-  Loader2, Check, X, HelpCircle, Info, Book, MousePointer2, Zap
+  Image as ImageIcon, Layout, ChevronLeft,
+  Loader2, Check, X, HelpCircle, MousePointer2, Zap
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
