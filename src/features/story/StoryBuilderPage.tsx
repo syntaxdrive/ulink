@@ -563,6 +563,7 @@ export default function StoryBuilderPage() {
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
