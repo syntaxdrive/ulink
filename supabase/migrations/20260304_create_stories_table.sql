@@ -37,3 +37,4 @@ CREATE POLICY "Creators can delete their own stories"
 
 -- Add to search if needed (optional)
 ALTER TABLE public.stories ADD COLUMN art_style TEXT DEFAULT 'Digital Art'; ALTER TABLE public.stories ADD COLUMN cover_url TEXT;
+ALTER TABLE public.stories ADD COLUMN story_type TEXT DEFAULT 'ink'; ALTER TABLE public.stories ADD COLUMN nodes JSONB;

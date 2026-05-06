@@ -141,6 +141,8 @@ export default function StoryModePage() {
     genre: 'Drama',
     artStyle: 'Digital Art',
     coverUrl: '',
+    story_type: 'simple', // 'simple' or 'ink'
+    script_text: '',
     ink_json: '',
     coverPrompt: ''
   });
@@ -174,8 +176,10 @@ export default function StoryModePage() {
   // Game state
   const storyRef = useRef<InstanceType<typeof Story> | null>(null);
   const activeStoryId = useRef<string>('');
+  const [activeStory, setActiveStory] = useRef<StoryInfo | null>(null);
+  const [currentSimpleNodeId, setCurrentSimpleNodeId] = useState<string | null>(null);
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
-  const [choices, setChoices] = useState<{text: string, index: number}[]>([]);
+  const [choices, setChoices] = useState<{text: string, index: number | string}[]>([]);
   const [currentSceneImg, setCurrentSceneImg] = useState<string | null>(null);
   const [currentCharacter, setCurrentCharacter] = useState<{name: string, expression?: string} | null>(null);
   
@@ -213,8 +217,20 @@ export default function StoryModePage() {
   // 1. Select Story
   const selectStory = async (storyInfo: StoryInfo, resume: boolean = false) => {
     setAppState('loading');
+    activeStoryId.current = storyInfo.id;
+    activeStory.current = storyInfo;
     
     try {
+      if (storyInfo.story_type === 'simple' || storyInfo.nodes) {
+        // Handle Simple Node-based story
+        const nodes = storyInfo.nodes;
+        const startNode = Object.keys(nodes)[0];
+        setDialogueLines([]);
+        playSimpleNode(startNode, nodes);
+        setAppState('playing');
+        return;
+      }
+
       let json: string;
       if (storyInfo.ink_json) {
         json = typeof storyInfo.ink_json === 'string' ? storyInfo.ink_json : JSON.stringify(storyInfo.ink_json);
@@ -225,7 +241,6 @@ export default function StoryModePage() {
       }
 
       storyRef.current = new Story(json);
-      activeStoryId.current = storyInfo.id;
       
       const saveKey = `unilink_story_${storyInfo.id}`;
       if (resume) {
@@ -241,14 +256,10 @@ export default function StoryModePage() {
           }
           setAppState('playing');
           
-          // Auto-scroll logic applied after state paint
+          // Auto-scroll
           setTimeout(() => {
             const mainEl = document.querySelector('main.main-scroll');
-            if (mainEl) {
-              mainEl.scrollTo({ top: mainEl.scrollHeight, behavior: 'instant' });
-            } else {
-              window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
-            }
+            (mainEl || window).scrollTo({ top: 99999, behavior: 'instant' });
           }, 50);
           return;
         }
@@ -262,7 +273,6 @@ export default function StoryModePage() {
       setCurrentSceneImg(storyInfo.coverPrompt);
       setCurrentCharacter(null);
       
-      // Start
       setAppState('playing');
       pullInkLines();
     } catch (err) {
@@ -270,6 +280,46 @@ export default function StoryModePage() {
       showToast('Error loading story', 'error');
       setAppState('select');
     }
+  };
+
+  const playSimpleNode = (nodeId: string, nodes: any, chosenText?: string) => {
+    const node = nodes[nodeId];
+    if (!node) {
+      setAppState('ended');
+      return;
+    }
+
+    const newLines: DialogueLine[] = [...dialogueLines];
+    if (chosenText) {
+      newLines.push({ speaker: 'Decision', text: chosenText, isPlayer: true });
+    }
+
+    // Parse speaker/text
+    let speaker = '';
+    let text = node.text;
+    const match = text.match(/^([^:]+):\s*(.*)$/);
+    if (match) {
+      speaker = match[1];
+      text = match[2];
+    }
+
+    newLines.push({ speaker, text, isPlayer: speaker === 'You' });
+    setDialogueLines(newLines);
+    setCurrentSimpleNodeId(nodeId);
+
+    if (node.choices && node.choices.length > 0) {
+      setChoices(node.choices.map((c: any, i: number) => ({ text: c.text, index: c.nextNodeId })));
+    } else {
+      setChoices([]);
+      setTimeout(() => setAppState('ended'), 2000);
+    }
+
+    if (soundEnabled) novel_audio.play('page');
+    
+    setTimeout(() => {
+      const mainEl = document.querySelector('main.main-scroll');
+      (mainEl || window).scrollTo({ top: 99999, behavior: 'smooth' });
+    }, 50);
   };
 
   // Sync Global Variables
@@ -400,7 +450,16 @@ export default function StoryModePage() {
     }, 50);
   }, [dialogueLines, showToast, syncVariables, soundEnabled]);
 
-  const handleChoice = (idx: number) => {
+  const handleChoice = (idx: number | string) => {
+    if (typeof idx === 'string') {
+      // Handle Simple choice
+      if (activeStory.current?.nodes) {
+        const chosenText = choices.find(c => c.index === idx)?.text || '';
+        playSimpleNode(idx, activeStory.current.nodes, chosenText);
+      }
+      return;
+    }
+
     if (!storyRef.current) return;
     
     const chosenText = choices.find(c => c.index === idx)?.text || '';
@@ -645,17 +704,60 @@ export default function StoryModePage() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Ink JSON Content</label>
-                    <a href="https://github.com/inkle/ink" target="_blank" rel="noreferrer" className="text-[10px] text-emerald-600 hover:underline">Learn how to write in Ink</a>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Story Structure</label>
+                    <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
+                      <button 
+                        onClick={() => setNewStory({...newStory, story_type: 'simple'})}
+                        className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${newStory.story_type === 'simple' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-slate-400'}`}
+                      >
+                        Simple Script
+                      </button>
+                      <button 
+                        onClick={() => setNewStory({...newStory, story_type: 'ink'})}
+                        className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all ${newStory.story_type === 'ink' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-slate-400'}`}
+                      >
+                        Classic (Ink JS)
+                      </button>
+                    </div>
                   </div>
-                  <textarea 
-                    rows={8}
-                    placeholder="Paste your compiled Ink JSON here..."
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-mono text-sm"
-                    value={newStory.ink_json}
-                    onChange={e => setNewStory({...newStory, ink_json: e.target.value})}
-                  />
-                  <p className="text-[10px] text-slate-400 italic">Use Inky to write your story, then 'Export for Web' or 'Export as JSON' and paste the content here.</p>
+                  
+                  {newStory.story_type === 'simple' ? (
+                    <div className="space-y-4">
+                      <textarea 
+                        rows={10}
+                        placeholder={`[Start]
+Welcome to the campus. What will you do?
+> Go to class -> class_node
+> Go to Buka -> buka_node
+
+[class_node]
+The lecture is boring. You fall asleep.
+...`}
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-mono text-sm"
+                        value={newStory.script_text}
+                        onChange={e => setNewStory({...newStory, script_text: e.target.value})}
+                      />
+                      <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-2">How to write:</h4>
+                        <ul className="text-[11px] text-emerald-600 dark:text-emerald-500 space-y-1 font-medium">
+                          <li>• Use <code className="font-bold">[node_name]</code> to start a new scene.</li>
+                          <li>• Write your story text on the following lines.</li>
+                          <li>• Use <code className="font-bold">{`> Choice Text -> target_node`}</code> for decisions.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <textarea 
+                        rows={8}
+                        placeholder="Paste your compiled Ink JSON here..."
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-mono text-sm"
+                        value={newStory.ink_json}
+                        onChange={e => setNewStory({...newStory, ink_json: e.target.value})}
+                      />
+                      <p className="text-[10px] text-slate-400 italic">Use Inky to write your story, then 'Export as JSON' and paste the content here.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -668,7 +770,7 @@ export default function StoryModePage() {
                 </button>
                 <button 
                   onClick={async () => {
-                    if (!newStory.title || !newStory.ink_json) {
+                    if (!newStory.title || (newStory.story_type === 'simple' && !newStory.script_text) || (newStory.story_type === 'ink' && !newStory.ink_json)) {
                       showToast('Please fill in title and content', 'error');
                       return;
                     }
@@ -676,12 +778,38 @@ export default function StoryModePage() {
                       const { data: { user } } = await supabase.auth.getUser();
                       if (!user) return;
 
-                      let parsedJson;
-                      try {
-                        parsedJson = JSON.parse(newStory.ink_json);
-                      } catch {
-                        showToast('Invalid JSON format', 'error');
-                        return;
+                      let finalContent: any;
+                      if (newStory.story_type === 'simple') {
+                        // Parse simple script to nodes
+                        const nodes: any = {};
+                        const sections = newStory.script_text.split(/\[(.*?)\]/);
+                        for (let i = 1; i < sections.length; i += 2) {
+                          const id = sections[i].trim();
+                          const content = sections[i+1].trim();
+                          const lines = content.split('\n');
+                          const textLines: string[] = [];
+                          const choices: any[] = [];
+                          
+                          lines.forEach(line => {
+                            if (line.trim().startsWith('>')) {
+                              const [choicePart, targetPart] = line.trim().substring(1).split('->');
+                              if (choicePart && targetPart) {
+                                choices.push({ text: choicePart.trim(), nextNodeId: targetPart.trim() });
+                              }
+                            } else if (line.trim()) {
+                              textLines.push(line.trim());
+                            }
+                          });
+                          nodes[id] = { text: textLines.join(' '), choices };
+                        }
+                        finalContent = { nodes };
+                      } else {
+                        try {
+                          finalContent = { ink_json: JSON.parse(newStory.ink_json) };
+                        } catch {
+                          showToast('Invalid JSON format', 'error');
+                          return;
+                        }
                       }
 
                       const { error } = await supabase.from('stories').insert({
@@ -692,7 +820,9 @@ export default function StoryModePage() {
                         art_style: newStory.artStyle,
                         cover_url: newStory.coverUrl,
                         cover_prompt: newStory.coverPrompt,
-                        ink_json: parsedJson,
+                        story_type: newStory.story_type,
+                        nodes: finalContent.nodes || null,
+                        ink_json: finalContent.ink_json || null,
                         is_published: true
                       });
 
