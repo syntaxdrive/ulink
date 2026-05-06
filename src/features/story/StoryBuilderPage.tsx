@@ -180,33 +180,34 @@ export default function StoryBuilderPage() {
 
     setIsGenerating(true);
     try {
-      const systemPrompt = `You are a choice-based story generator for university students. 
+      const systemPrompt = `[STRICT JSON ONLY] Story for university students. 
       Topic: ${topic}. 
-      Return ONLY a JSON array of 4-6 scenes. No other text.
-      Each scene must follow this exact structure: 
-      { 
-        "id": "unique_id", 
-        "name": "Scene Title", 
-        "text": "Detailed story text", 
-        "coverPrompt": "image prompt for this scene",
-        "artStyle": "Digital Art",
-        "choices": [ { "text": "Choice text", "nextNodeId": "target_id" } ] 
-      }
-      The first scene id MUST be "start". Ensure all nextNodeIds link to existing scene ids in the array.`;
+      Format: [ { "id": "start", "name": "..", "text": "..", "coverPrompt": "..", "choices": [ { "text": "..", "nextNodeId": ".." } ] } ] 
+      Output ONLY the array of 4-6 scenes.`;
 
-      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?json=true&seed=${Math.floor(Math.random() * 1000)}`);
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?model=openai&json=true&seed=${Date.now()}`);
       if (!response.ok) throw new Error('AI service unavailable');
       
       const content = await response.text();
-      // Pollinations sometimes wraps in markdown or adds prefix, so we extract JSON
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('Invalid AI response format');
+      // Improved JSON extraction: find the first '[' and last ']'
+      const startIdx = content.indexOf('[');
+      const endIdx = content.lastIndexOf(']');
       
-      const aiScenes = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(aiScenes) || aiScenes.length === 0) throw new Error('Empty story generated');
+      if (startIdx === -1 || endIdx === -1) throw new Error('Invalid AI response format');
+      
+      const jsonStr = content.substring(startIdx, endIdx + 1);
+      const aiScenes = JSON.parse(jsonStr);
+      
+      if (!Array.isArray(aiScenes)) throw new Error('Empty story generated');
 
-      setScenes(aiScenes);
-      setTitle(`${topic.charAt(0).toUpperCase() + topic.slice(1)}`);
+      // Ensure art style is present
+      const processedScenes = aiScenes.map(s => ({
+        ...s,
+        artStyle: s.artStyle || 'Digital Art'
+      }));
+
+      setScenes(processedScenes);
+      setTitle(`${topic.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`);
       setActiveSceneId('start');
     } catch (err) {
       console.error(err);
