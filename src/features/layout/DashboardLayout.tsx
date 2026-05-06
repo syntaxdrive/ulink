@@ -434,35 +434,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
     );
 
-    // PWA standalone mode — unauthenticated users get a native-feel sign-in screen
-    // instead of the public feed view to keep the full native app experience.
-    const isStandalone =
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true;
 
-    if (isGuest && isStandalone) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50/20 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 flex flex-col items-center justify-center p-8 text-center safe-inset">
-                <div className="w-full max-w-xs">
-                    <img src="/icon-512.png" alt="UniLink" className="w-24 h-24 rounded-3xl shadow-2xl mx-auto mb-6" />
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">UniLink Nigeria</h1>
-                    <p className="text-slate-500 dark:text-zinc-400 mb-10 leading-relaxed text-sm">
-                        The #1 network for Nigerian university students. Connect, grow, and thrive.
-                    </p>
-                    <button
-                        onClick={signInWithGoogle}
-                        className="flex items-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-base rounded-2xl shadow-xl transition-all w-full justify-center mb-4"
-                    >
-                        <Globe className="w-5 h-5" />
-                        Continue with Google
-                    </button>
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-600 leading-relaxed">
-                        By continuing, you agree to UniLink's Terms of Service and Privacy Policy.
-                    </p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] dark:bg-bg-dark text-slate-900 dark:text-white font-sans selection:bg-indigo-500/10 selection:text-indigo-600 overflow-hidden relative transition-colors duration-300">
