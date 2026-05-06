@@ -27,25 +27,46 @@ const ART_STYLES = [
 
 export default function StoryBuilderPage() {
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [genre, setGenre] = useState('Drama');
+  const [title, setTitle] = useState(() => {
+    const saved = localStorage.getItem('ulink_story_draft');
+    if (saved) return JSON.parse(saved).title || '';
+    return '';
+  });
+  const [description, setDescription] = useState(() => {
+    const saved = localStorage.getItem('ulink_story_draft');
+    if (saved) return JSON.parse(saved).description || '';
+    return '';
+  });
+  const [genre, setGenre] = useState(() => {
+    const saved = localStorage.getItem('ulink_story_draft');
+    if (saved) return JSON.parse(saved).genre || 'Drama';
+    return 'Drama';
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  const [scenes, setScenes] = useState<Scene[]>([
-    {
-      id: 'start',
-      name: 'Start',
-      text: 'You wake up in your hostel room. The sun is shining.',
-      coverPrompt: 'university hostel room morning sun',
-      artStyle: 'Digital Art',
-      choices: []
+  const [scenes, setScenes] = useState<Scene[]>(() => {
+    const saved = localStorage.getItem('ulink_story_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.scenes) && parsed.scenes.length > 0) return parsed.scenes;
+      } catch {}
     }
-  ]);
+    return [
+      {
+        id: 'start',
+        name: 'Start',
+        text: 'You wake up in your hostel room. The sun is shining.',
+        coverPrompt: 'university hostel room morning sun',
+        artStyle: 'Digital Art',
+        choices: []
+      }
+    ];
+  });
 
   const [activeSceneId, setActiveSceneId] = useState('start');
   const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
@@ -57,24 +78,8 @@ export default function StoryBuilderPage() {
     setLastSaved(new Date());
   }, [title, description, genre, scenes]);
 
-  // 2. Load Draft & Tutorial check
+  // 2. Tutorial check
   useEffect(() => {
-    const savedDraft = localStorage.getItem('ulink_story_draft');
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        // Only load if it's not the default empty state
-        if (parsed.title || parsed.scenes.length > 1 || parsed.scenes[0].text !== 'You wake up in your hostel room. The sun is shining.') {
-          setTitle(parsed.title || '');
-          setDescription(parsed.description || '');
-          setGenre(parsed.genre || 'Drama');
-          setScenes(parsed.scenes || []);
-        }
-      } catch (e) {
-        console.error('Failed to load draft', e);
-      }
-    }
-
     const hasSeenTutorial = localStorage.getItem('ulink_story_tutorial_seen');
     if (!hasSeenTutorial) {
       setShowTutorial(true);
