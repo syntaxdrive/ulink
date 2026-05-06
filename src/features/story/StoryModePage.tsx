@@ -1,3 +1,11 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { Story } from 'inkjs';
+import { 
+  BookOpen, Battery, Award,
+  ChevronRight, Volume2, VolumeX, Plus, X
+} from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { StoryImage } from './components/StoryImage';
 import { supabase } from '../../lib/supabase';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
 
