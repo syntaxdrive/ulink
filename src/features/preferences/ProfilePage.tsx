@@ -4,7 +4,7 @@ import { type Profile, type Project, type Certificate } from '../../types';
 import {
     Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin,
     Globe, MapPin, Briefcase, BadgeCheck, Upload, Share, Instagram, Twitter,
-    Facebook, Youtube, MessageCircle, FileText, Download, Eye, AtSign
+    Facebook, Youtube, MessageCircle, FileText, Download, Eye, AtSign, Play, ChevronRight
 } from 'lucide-react';
 import ImageCropper from '../../components/ImageCropper';
 import ProfileCompletion from '../../components/ProfileCompletion';
