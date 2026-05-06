@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
 import { 
   Battery, Award,
-  ChevronRight, Volume2, VolumeX, Plus, X
+  ChevronRight, Volume2, VolumeX, Plus, X, BarChart2, Trash2, Calendar, TrendingUp, Users as UsersIcon, Clock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StoryImage } from './components/StoryImage';
@@ -29,6 +29,12 @@ interface StoryInfo {
   creator_id?: string;
   nodes?: any;
   story_type?: string;
+  plays_count?: number;
+  profiles?: {
+    name: string;
+    username: string;
+    avatar_url: string;
+  };
 }
 
 // Story configurations
@@ -157,7 +163,7 @@ export default function StoryModePage() {
     setLoadingStories(true);
     const { data, error } = await supabase
       .from('stories')
-      .select('*')
+      .select('*, profiles(name, username, avatar_url)')
       .eq('is_published', true)
       .order('created_at', { ascending: false });
 
@@ -175,9 +181,26 @@ export default function StoryModePage() {
     setLoadingStories(false);
   };
 
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
     fetchStories();
   }, []);
+
+  const deleteStory = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this story? This cannot be undone.")) return;
+    
+    const { error } = await supabase.from('stories').delete().eq('id', id);
+    if (error) {
+      showToast('Failed to delete story', 'error');
+    } else {
+      showToast('Story deleted', 'success');
+      fetchStories();
+    }
+  };
+
+  const [showAnalytics, setShowAnalytics] = useState<string | null>(null);
   
   // Game state
   const storyRef = useRef<InstanceType<typeof Story> | null>(null);
@@ -221,6 +244,13 @@ export default function StoryModePage() {
 
   // 1. Select Story
   const selectStory = async (storyInfo: StoryInfo, resume: boolean = false) => {
+    // Record play for analytics
+    if (!resume) {
+      supabase.rpc('record_story_play', { s_id: storyInfo.id }).then(({ error }) => {
+        if (error) console.error('Failed to record play:', error);
+      });
+    }
+
     setAppState('loading');
     activeStoryId.current = storyInfo.id;
     activeStory.current = storyInfo;
@@ -576,12 +606,31 @@ export default function StoryModePage() {
                           </span>
                         )}
                       </div>
-                      <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 group-hover:text-emerald-600 transition-colors mb-3">
+                      <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 group-hover:text-emerald-600 transition-colors mb-1">
                         {story.title}
                       </h3>
-                      <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed font-serif line-clamp-3">
+                      {story.profiles && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <img 
+                            src={story.profiles.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${story.profiles.username}`}
+                            className="w-4 h-4 rounded-full"
+                            alt=""
+                          />
+                          <span className="text-[10px] font-medium text-stone-500 font-sans">
+                            by <span className="text-stone-900 dark:text-stone-200 font-bold">@{story.profiles.username}</span>
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed font-serif line-clamp-2">
                         {story.description}
                       </p>
+                      
+                      {/* Creator Stats */}
+                      <div className="flex items-center gap-4 mt-3">
+                         <div className="flex items-center gap-1.5 text-stone-400 text-[10px] font-sans font-bold uppercase tracking-wider">
+                            <Play className="w-3 h-3" /> {story.plays_count || 0} Reads
+                         </div>
+                      </div>
                     </div>
 
                     <div className="mt-auto pt-6 flex flex-col gap-2">
@@ -611,6 +660,25 @@ export default function StoryModePage() {
                         >
                            Start Reading
                         </button>
+                      )}
+
+                      {/* Creator Controls */}
+                      {currentUser?.id === story.creator_id && (
+                        <div className="flex items-center gap-2 mt-2">
+                           <button 
+                             onClick={() => setShowAnalytics(story.id)}
+                             className="flex-1 py-2.5 bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400 rounded-xl font-sans font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border border-slate-100 dark:border-zinc-700/50"
+                           >
+                             <BarChart2 className="w-3.5 h-3.5 text-emerald-500" /> View Stats
+                           </button>
+                           <button 
+                             onClick={() => deleteStory(story.id)}
+                             className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-xl hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors border border-red-100/50 dark:border-red-900/20"
+                             title="Delete Story"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1070,6 +1138,130 @@ The lecture is boring. You fall asleep.
           })}
         </div>
       )}
+      </div>
+      {/* Analytics Modal */}
+      {showAnalytics && (
+        <AnalyticsModal 
+          storyId={showAnalytics} 
+          onClose={() => setShowAnalytics(null)} 
+          storyTitle={allStories.find(s => s.id === showAnalytics)?.title || 'Story Analytics'}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Analytics Modal Component ---
+function AnalyticsModal({ storyId, storyTitle, onClose }: { storyId: string, storyTitle: string, onClose: () => void }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const now = new Date();
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const { data: plays } = await supabase
+        .from('story_plays')
+        .select('created_at')
+        .eq('story_id', storyId);
+
+      if (plays) {
+        const today = plays.filter(p => new Date(p.created_at).toDateString() === now.toDateString()).length;
+        const week = plays.filter(p => new Date(p.created_at) >= lastWeek).length;
+        const month = plays.filter(p => new Date(p.created_at) >= lastMonth).length;
+        const total = plays.length;
+
+        setStats({ today, week, month, total });
+      }
+      setLoading(false);
+    };
+    fetchStats();
+  }, [storyId]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-white">Story Analytics</h2>
+              <p className="text-sm text-stone-500 font-serif italic">{storyTitle}</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+              <X className="w-6 h-6 text-stone-400" />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="py-20 flex justify-center">
+               <TrendingUp className="w-8 h-8 animate-bounce text-emerald-500" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-6 bg-emerald-50 dark:bg-emerald-950/20 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Today</span>
+                  </div>
+                  <div className="text-3xl font-serif font-bold text-emerald-700 dark:text-emerald-300">
+                    {stats.today}
+                  </div>
+                  <div className="text-[9px] text-emerald-600/60 dark:text-emerald-400/60 font-medium mt-1 uppercase tracking-tighter">New Readers</div>
+                </div>
+
+                <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-2">
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">This Week</span>
+                  </div>
+                  <div className="text-3xl font-serif font-bold text-indigo-700 dark:text-indigo-300">
+                    {stats.week}
+                  </div>
+                  <div className="text-[9px] text-indigo-600/60 dark:text-indigo-400/60 font-medium mt-1 uppercase tracking-tighter">Total Engagement</div>
+                </div>
+
+                <div className="p-6 bg-amber-50 dark:bg-amber-950/20 rounded-3xl border border-amber-100 dark:border-amber-900/30">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 mb-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">30 Days</span>
+                  </div>
+                  <div className="text-3xl font-serif font-bold text-amber-700 dark:text-amber-300">
+                    {stats.month}
+                  </div>
+                  <div className="text-[9px] text-amber-600/60 dark:text-amber-400/60 font-medium mt-1 uppercase tracking-tighter">Monthly Reach</div>
+                </div>
+
+                <div className="p-6 bg-stone-50 dark:bg-zinc-800 rounded-3xl border border-stone-100 dark:border-zinc-700">
+                  <div className="flex items-center gap-2 text-stone-600 dark:text-stone-400 mb-2">
+                    <UsersIcon className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Lifetime</span>
+                  </div>
+                  <div className="text-3xl font-serif font-bold text-stone-700 dark:text-stone-300">
+                    {stats.total}
+                  </div>
+                  <div className="text-[9px] text-stone-600/60 dark:text-stone-400/60 font-medium mt-1 uppercase tracking-tighter">Total Reads</div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-stone-900 rounded-3xl text-white">
+                <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-sm font-bold">Audience Growth</h3>
+                   <TrendingUp className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (stats.week / 100) * 100)}%` }}></div>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-4 leading-relaxed font-serif italic">
+                  Tip: Share your story on the campus feed to increase your weekly engagement.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

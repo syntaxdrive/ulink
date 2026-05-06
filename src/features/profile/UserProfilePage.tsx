@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus, BookOpen } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 import { SEO } from '../../components/SEO/SEO';
@@ -24,10 +24,11 @@ export default function UserProfilePage() {
     // Connection Logic
     const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
     const [actionLoading, setActionLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'posts' | 'jobs'>('posts');
+    const [activeTab, setActiveTab] = useState<'posts' | 'jobs' | 'stories'>('posts');
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isViewingBackground, setIsViewingBackground] = useState(false);
     const [orgJobs, setOrgJobs] = useState<any[]>([]);
+    const [userStories, setUserStories] = useState<any[]>([]);
 
     // Helper to check if profile is organization
     const isOrganization = profile?.role === 'org';
@@ -198,6 +199,16 @@ export default function UserProfilePage() {
         }
     };
 
+    const fetchUserStories = async (id: string) => {
+        const { data } = await supabase
+            .from('stories')
+            .select('*')
+            .eq('creator_id', id)
+            .eq('is_published', true)
+            .order('created_at', { ascending: false });
+        if (data) setUserStories(data);
+    };
+
     const fetchUserPosts = async (id: string) => {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -254,10 +265,10 @@ export default function UserProfilePage() {
 
         return () => resetMetaTags();
     }, [profile]);
-
     useEffect(() => {
         if (profile?.id) {
             fetchUserPosts(profile.id);
+            fetchUserStories(profile.id);
             fetchConnectionStatus(profile.id);
 
             const fetchConnectionsCount = () => {
@@ -945,9 +956,9 @@ export default function UserProfilePage() {
                         </div>
                     )}
 
-                    {/* Tabs for Organizations */}
-                    {isOrganization && (
-                        <div className="flex gap-2 border-b border-stone-200 mb-6">
+                    {/* Tabs switcher for everyone if stories exist or is org */}
+                    {(isOrganization || userStories.length > 0) && (
+                        <div className="flex gap-2 border-b border-stone-200 mb-6 px-4">
                             <button
                                 onClick={() => setActiveTab('posts')}
                                 className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'posts'
@@ -960,25 +971,41 @@ export default function UserProfilePage() {
                                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
                                 )}
                             </button>
-                            <button
-                                onClick={() => setActiveTab('jobs')}
-                                className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'jobs'
-                                    ? 'text-emerald-600'
-                                    : 'text-stone-500 hover:text-stone-700'
-                                    }`}
-                            >
-                                Jobs ({orgJobs.length})
-                                {activeTab === 'jobs' && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
-                                )}
-                            </button>
+                            {userStories.length > 0 && (
+                                <button
+                                    onClick={() => setActiveTab('stories')}
+                                    className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'stories'
+                                        ? 'text-emerald-600'
+                                        : 'text-stone-500 hover:text-stone-700'
+                                        }`}
+                                >
+                                    Stories ({userStories.length})
+                                    {activeTab === 'stories' && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                    )}
+                                </button>
+                            )}
+                            {isOrganization && (
+                                <button
+                                    onClick={() => setActiveTab('jobs')}
+                                    className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'jobs'
+                                        ? 'text-emerald-600'
+                                        : 'text-stone-500 hover:text-stone-700'
+                                        }`}
+                                >
+                                    Jobs ({orgJobs.length})
+                                    {activeTab === 'jobs' && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     )}
 
                     {/* Posts Tab */}
-                    {(!isOrganization || activeTab === 'posts') && posts.length > 0 && (
+                    {activeTab === 'posts' && posts.length > 0 && (
                         <div className="space-y-6">
-                            {!isOrganization && <h3 className="text-xl font-bold text-slate-900 dark:text-white px-2">Recent Activity</h3>}
+                            {(!isOrganization && userStories.length === 0) && <h3 className="text-xl font-bold text-slate-900 dark:text-white px-2">Recent Activity</h3>}
                             {posts.map((post) => (
                                 <article key={post.id} className="bg-white dark:bg-bg-cardDark rounded-[2rem] p-6 shadow-sm border border-stone-100">
                                     <div className="flex justify-between items-start mb-4">
@@ -1023,6 +1050,42 @@ export default function UserProfilePage() {
                                         </div>
                                     </div>
                                 </article>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Stories Tab Content */}
+                    {activeTab === 'stories' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {userStories.map((story) => (
+                                <Link 
+                                    key={story.id} 
+                                    to="/app/story" 
+                                    className="flex flex-col bg-white dark:bg-bg-cardDark rounded-3xl overflow-hidden border border-stone-100 shadow-sm hover:border-emerald-200 transition-all group"
+                                >
+                                    <div className="aspect-video relative overflow-hidden bg-stone-100">
+                                        <img 
+                                            src={story.coverUrl || `https://source.unsplash.com/800x600/?${story.genre},story`} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            alt=""
+                                        />
+                                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-bold uppercase tracking-widest text-emerald-600 shadow-sm">
+                                            {story.genre}
+                                        </div>
+                                    </div>
+                                    <div className="p-5">
+                                        <h4 className="font-bold text-stone-900 dark:text-white group-hover:text-emerald-600 transition-colors line-clamp-1">{story.title}</h4>
+                                        <p className="text-xs text-stone-500 mt-1 line-clamp-2 font-serif italic">{story.description}</p>
+                                        <div className="mt-4 flex items-center justify-between border-t border-stone-50 pt-4">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400">
+                                                <Play className="w-3 h-3" /> {story.plays_count || 0} Reads
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                                                Play <ChevronRight className="w-3 h-3" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     )}

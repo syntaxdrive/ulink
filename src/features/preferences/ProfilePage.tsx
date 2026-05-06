@@ -61,6 +61,7 @@ export default function ProfilePage() {
     // Resume
     const [resumeUrl, setResumeUrl] = useState('');
     const [resumeUploading, setResumeUploading] = useState(false);
+    const [userStories, setUserStories] = useState<any[]>([]);
 
     // Image Cropping
     const [showAvatarCropper, setShowAvatarCropper] = useState(false);
@@ -130,6 +131,14 @@ export default function ProfilePage() {
                 if (newProfile) loadProfileData(newProfile);
             } else if (data) {
                 loadProfileData(data);
+                
+                // Fetch User Stories
+                const { data: stories } = await supabase
+                    .from('stories')
+                    .select('*')
+                    .eq('creator_id', user.id)
+                    .order('created_at', { ascending: false });
+                if (stories) setUserStories(stories);
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -991,6 +1000,37 @@ export default function ProfilePage() {
                                 accept="application/pdf"
                                 onChange={handleResumeUpload}
                             />
+                        </div>
+                    )}
+
+                    {/* My Stories Section */}
+                    {userStories.length > 0 && (
+                        <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-emerald-600" />
+                                    My Stories
+                                </h3>
+                                <Link to="/app/story" className="text-xs font-bold text-emerald-600 hover:underline">Manage Stories</Link>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {userStories.map((story) => (
+                                    <div key={story.id} className="p-4 border border-stone-100 dark:border-zinc-800 rounded-xl bg-stone-50/50 dark:bg-zinc-900/50">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center text-xl shadow-sm">
+                                                {story.icon || '📖'}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-stone-900 dark:text-zinc-100 text-sm truncate">{story.title}</h4>
+                                                <div className="flex items-center gap-3 mt-0.5">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{story.genre}</span>
+                                                    <span className="text-[10px] font-medium text-stone-400">{story.plays_count || 0} reads</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
