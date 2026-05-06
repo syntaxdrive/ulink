@@ -3,10 +3,12 @@ import { STORY_PROMPTS } from '../constants/storyPrompts';
 
 interface StoryImageProps {
   prompt: string;
+  artStyle?: string;
+  coverUrl?: string;
 }
 
-export function StoryImage({ prompt }: StoryImageProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+export function StoryImage({ prompt, artStyle, coverUrl }: StoryImageProps) {
+  const [imageUrl, setImageUrl] = useState<string | null>(coverUrl || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -14,7 +16,13 @@ export function StoryImage({ prompt }: StoryImageProps) {
     let isMounted = true;
 
     async function generateImage() {
+      if (coverUrl) {
+        setImageUrl(coverUrl);
+        setLoading(false);
+        return;
+      }
       if (!prompt) return;
+      
       setLoading(true);
       setError(false);
 
@@ -33,8 +41,9 @@ export function StoryImage({ prompt }: StoryImageProps) {
       img.onerror = () => {
         // 2. If no local asset exists, generate with AI (Stable bridge URL)
         // Using STORY_PROMPTS for rich context or defaulting to a basic prompt
-        const hfPrompt = STORY_PROMPTS[prompt] || `darkest dungeon style grimdark 2d comic art of ${prompt.replace(/_/g, ' ')}`;
-        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(hfPrompt)}?width=800&height=400&nologo=true&seed=42`;
+        const stylePrefix = artStyle ? `${artStyle} style, ` : 'darkest dungeon style grimdark 2d comic art, ';
+        const hfPrompt = STORY_PROMPTS[prompt] || `${stylePrefix} ${prompt.replace(/_/g, ' ')}`;
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(hfPrompt)}?width=800&height=400&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
         
         const aiImg = new Image();
         aiImg.src = pollinationsUrl;

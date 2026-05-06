@@ -20,6 +20,8 @@ interface StoryInfo {
   icon: string;
   estimatedTime: string;
   coverPrompt: string;
+  artStyle?: string;
+  coverUrl?: string;
   genre: string;
   creator_id?: string;
 }
@@ -137,6 +139,8 @@ export default function StoryModePage() {
     title: '',
     description: '',
     genre: 'Drama',
+    artStyle: 'Digital Art',
+    coverUrl: '',
     ink_json: '',
     coverPrompt: ''
   });
@@ -481,7 +485,11 @@ export default function StoryModePage() {
                       </span>
                     </div>
                     <div className="h-full group-hover:scale-105 transition-transform duration-700">
-                      <StoryImage prompt={story.coverPrompt || story.id} />
+                      <StoryImage 
+                        prompt={story.coverPrompt || story.id} 
+                        artStyle={story.artStyle}
+                        coverUrl={story.coverUrl}
+                      />
                     </div>
                   </div>
 
@@ -584,13 +592,42 @@ export default function StoryModePage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Cover Prompt (AI)</label>
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Art Style (AI)</label>
+                    <select 
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={newStory.artStyle}
+                      onChange={e => setNewStory({...newStory, artStyle: e.target.value})}
+                    >
+                      <option>Digital Art</option>
+                      <option>Anime / Manga</option>
+                      <option>Cyberpunk</option>
+                      <option>Oil Painting</option>
+                      <option>Comic Book</option>
+                      <option>Pixel Art</option>
+                      <option>Realistic</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">AI Prompt</label>
                     <input 
                       type="text" 
                       placeholder="e.g., bustling city at night"
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       value={newStory.coverPrompt}
                       onChange={e => setNewStory({...newStory, coverPrompt: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Custom Image URL (Optional)</label>
+                    <input 
+                      type="text" 
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={newStory.coverUrl}
+                      onChange={e => setNewStory({...newStory, coverUrl: e.target.value})}
                     />
                   </div>
                 </div>
@@ -652,6 +689,8 @@ export default function StoryModePage() {
                         title: newStory.title,
                         description: newStory.description,
                         genre: newStory.genre,
+                        art_style: newStory.artStyle,
+                        cover_url: newStory.coverUrl,
                         cover_prompt: newStory.coverPrompt,
                         ink_json: parsedJson,
                         is_published: true
@@ -686,7 +725,11 @@ export default function StoryModePage() {
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute inset-0 bg-stone-50/90 dark:bg-black/90 z-10" />
           <div className="absolute inset-0 opacity-20 blur-3xl scale-110 grayscale">
-            <StoryImage prompt={currentSceneImg} />
+            <StoryImage 
+              prompt={currentSceneImg} 
+              artStyle={allStories.find(s => s.id === activeStoryId.current)?.artStyle}
+              coverUrl={allStories.find(s => s.id === activeStoryId.current)?.coverUrl}
+            />
           </div>
         </div>
       )}

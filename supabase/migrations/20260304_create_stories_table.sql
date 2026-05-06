@@ -36,3 +36,4 @@ CREATE POLICY "Creators can delete their own stories"
     USING (auth.uid() = creator_id);
 
 -- Add to search if needed (optional)
+ALTER TABLE public.stories ADD COLUMN art_style TEXT DEFAULT 'Digital Art'; ALTER TABLE public.stories ADD COLUMN cover_url TEXT;
