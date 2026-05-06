@@ -8,7 +8,7 @@ import RepostModal from './RepostModal';
 import NativeVideoPlayer from './NativeVideoPlayer';
 import { useCommunityMembership } from '../../communities/hooks/useCommunityMembership';
 import { supabase } from '../../../lib/supabase';
-import { signInWithGoogle } from '../../../lib/auth-helpers';
+
 import ShareToConnectionsModal from './ShareToConnectionsModal';
 import { nativeShare } from '../../../utils/shareUtils';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
