@@ -412,14 +412,13 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
         { icon: Newspaper, label: 'News Feed', path: '/app/news' },
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
-        {icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
-        {icon: GraduationCap, label: 'Courses', path: '/app/learn'},
-        // {icon: BookOpen, label: 'Story Mode', path: '/app/story'},
-        {icon: Library, label: 'Study Rooms', path: '/app/study'},
-        // { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
+        { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
+        { icon: GraduationCap, label: 'Courses', path: '/app/learn'},
+        { icon: Library, label: 'Study Rooms', path: '/app/study'},
+        { icon: Download, label: 'Download App', path: '/download' },
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
-        ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
+        ...(!isGuest && userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
     ];
 
     const navItems = [...primaryNavItems, ...secondaryNavItems];
