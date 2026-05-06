@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus, BookOpen, Play, ChevronRight } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus, BookOpen, Play as PlayIcon, ChevronRight } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 import { SEO } from '../../components/SEO/SEO';
@@ -1078,7 +1078,7 @@ export default function UserProfilePage() {
                                         <p className="text-xs text-stone-500 mt-1 line-clamp-2 font-serif italic">{story.description}</p>
                                         <div className="mt-4 flex items-center justify-between border-t border-stone-50 pt-4">
                                             <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400">
-                                                <Play className="w-3 h-3" /> {story.plays_count || 0} Reads
+                                                <PlayIcon className="w-3 h-3" /> {story.plays_count || 0} Reads
                                             </div>
                                             <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
                                                 Play <ChevronRight className="w-3 h-3" />

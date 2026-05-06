@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus, Save, Play, Trash2, ArrowRight,
+  Plus, Save, Play as PlayIcon, Trash2, ArrowRight,
   Image as ImageIcon, Layout, ChevronLeft,
   Loader2, Check, X, HelpCircle, MousePointer2, Zap
 } from 'lucide-react';
@@ -46,6 +46,11 @@ export default function StoryBuilderPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [globalArtStyle, setGlobalArtStyle] = useState(() => {
+    const saved = localStorage.getItem('ulink_story_draft');
+    if (saved) return JSON.parse(saved).globalArtStyle || 'Digital Art';
+    return 'Digital Art';
+  });
 
   const [scenes, setScenes] = useState<Scene[]>(() => {
     const saved = localStorage.getItem('ulink_story_draft');
@@ -72,10 +77,10 @@ export default function StoryBuilderPage() {
 
   // 1. Autosave Logic
   useEffect(() => {
-    const draft = { title, description, genre, scenes };
+    const draft = { title, description, genre, scenes, globalArtStyle };
     localStorage.setItem('ulink_story_draft', JSON.stringify(draft));
     setLastSaved(new Date());
-  }, [title, description, genre, scenes]);
+  }, [title, description, genre, scenes, globalArtStyle]);
 
   // 2. Tutorial check
   useEffect(() => {
@@ -92,11 +97,17 @@ export default function StoryBuilderPage() {
       name: `Scene ${scenes.length + 1}`,
       text: '',
       coverPrompt: '',
-      artStyle: 'Digital Art',
+      artStyle: globalArtStyle,
       choices: []
     };
     setScenes([...scenes, newScene]);
     setActiveSceneId(newId);
+  };
+
+  const applyGlobalStyleToAll = () => {
+    if (window.confirm(`Update all ${scenes.length} scenes to use "${globalArtStyle}" style?`)) {
+      setScenes(prev => prev.map(s => ({ ...s, artStyle: globalArtStyle })));
+    }
   };
 
   const updateActiveScene = (updates: Partial<Scene>) => {
@@ -158,7 +169,7 @@ export default function StoryBuilderPage() {
         genre,
         story_type: 'simple',
         nodes,
-        art_style: scenes[0].artStyle,
+        art_style: globalArtStyle,
         is_published: true
       });
 
@@ -342,11 +353,31 @@ export default function StoryBuilderPage() {
               <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6 flex flex-col">
                  <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-blue-100 dark:bg-blue-950/30 text-blue-600 rounded-xl">
-                      <Play className="w-5 h-5" />
+                      <PlayIcon className="w-5 h-5" />
                     </div>
                     <h3 className="text-base md:text-lg font-bold">Story Settings</h3>
                   </div>
                   <div className="space-y-4 flex-1">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Global Art Style</label>
+                        <select 
+                          className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
+                          value={globalArtStyle}
+                          onChange={e => setGlobalArtStyle(e.target.value)}
+                        >
+                          {ART_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <button 
+                          onClick={applyGlobalStyleToAll}
+                          className="px-4 py-3 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap"
+                        >
+                          <Zap className="w-3 h-3 text-emerald-500" /> Apply to all
+                        </button>
+                      </div>
+                    </div>
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Genre</label>
                       <select 
@@ -359,6 +390,7 @@ export default function StoryBuilderPage() {
                         <option>Mystery</option>
                         <option>Romance</option>
                         <option>Sci-Fi</option>
+                        <option>Comedy</option>
                       </select>
                     </div>
                     <div>

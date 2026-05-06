@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Story } from 'inkjs';
 import { 
   Battery, Award,
-  ChevronRight, Volume2, VolumeX, Plus, X, BarChart2, Trash2, Calendar, TrendingUp, Users as UsersIcon, Clock
+  ChevronRight, Volume2, VolumeX, Plus, X, BarChart2, Trash2, Calendar, TrendingUp, Users as UsersIcon, Clock, Play as PlayIcon
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StoryImage } from './components/StoryImage';
@@ -541,20 +541,28 @@ export default function StoryModePage() {
               Immersive, choice-driven stories. Every decision permanently alters the narrative.
             </p>
           </div>
-          <button 
-            onClick={() => {
-              supabase.auth.getUser().then(({ data: { user } }) => {
-                if (!user) {
+          <div className="flex items-center gap-2">
+            {currentUser && (
+              <button 
+                onClick={() => navigate('/app/story/dashboard')}
+                className="px-6 py-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all flex items-center gap-2"
+              >
+                <BarChart2 className="w-4 h-4 text-emerald-500" /> Dashboard
+              </button>
+            )}
+            <button 
+              onClick={() => {
+                if (!currentUser) {
                   useAuthModalStore.getState().openAuthModal('Sign in to create your own stories');
                 } else {
                   navigate('/app/story/create');
                 }
-              });
-            }}
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-lg flex items-center gap-2 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" /> Visual Story Builder
-          </button>
+              }}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-lg flex items-center gap-2 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" /> Visual Story Builder
+            </button>
+          </div>
         </div>
 
         {loadingStories ? (
@@ -628,7 +636,7 @@ export default function StoryModePage() {
                       {/* Creator Stats */}
                       <div className="flex items-center gap-4 mt-3">
                          <div className="flex items-center gap-1.5 text-stone-400 text-[10px] font-sans font-bold uppercase tracking-wider">
-                            <Play className="w-3 h-3" /> {story.plays_count || 0} Reads
+                            <PlayIcon className="w-3 h-3" /> {story.plays_count || 0} Reads
                          </div>
                       </div>
                     </div>
