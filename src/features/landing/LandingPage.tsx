@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { signInWithGoogle } from '../../lib/auth-helpers';
 import { Users, Briefcase, Sparkles, CheckCircle2, Download, Star, Shield, Globe } from 'lucide-react';
 // import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -88,13 +89,15 @@ export default function LandingPage() {
                             <Link to="/about" className="hidden md:block text-sm font-medium text-slate-600 dark:text-zinc-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                                 About Us
                             </Link>
-                            <a
-                                href="#download"
-                                className="hidden md:flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
-                            >
-                                <Download className="w-3.5 h-3.5" />
-                                Download App
-                            </a>
+                            {!Capacitor.isNativePlatform() && (
+                                <a
+                                    href="#download"
+                                    className="hidden md:flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Download App
+                                </a>
+                            )}
                         </div>
                     </div>
                 </nav>

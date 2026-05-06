@@ -1,4 +1,5 @@
-import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info, RefreshCw } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info, RefreshCw, Users as UsersIcon } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -165,7 +166,7 @@ export default function SettingsPage() {
                 */}
 
                 {/* Notification Permission Card */}
-                {notifPermission === 'default' && (
+                {notifPermission === 'default' && !Capacitor.isNativePlatform() && (
                     <div className="bg-blue-50 rounded-[2rem] border border-blue-100 p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
@@ -185,26 +186,59 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                {/* Install App Section - Always Visible */}
-                <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
-                            <Download className="w-5 h-5" />
+                {/* Install App Section - Hide if Native APK */}
+                {!Capacitor.isNativePlatform() && (
+                    <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
+                                <Download className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-emerald-900">Install UniLink App</h2>
+                                <p className="text-xs text-emerald-700">
+                                    {isInstallable ? 'One-click install available!' : 'Add to your home screen'}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="font-semibold text-emerald-900">Install UniLink App</h2>
-                            <p className="text-xs text-emerald-700">
-                                {isInstallable ? 'One-click install available!' : 'Add to your home screen'}
-                            </p>
-                        </div>
-                    </div>
 
-                    <button
-                        onClick={isInstallable ? install : () => setShowInstallModal(true)}
-                        className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
-                    >
-                        {isInstallable ? 'Install Now' : 'Show Install Guide'}
-                    </button>
+                        <button
+                            onClick={isInstallable ? install : () => setShowInstallModal(true)}
+                            className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
+                        >
+                            {isInstallable ? 'Install Now' : 'Show Install Guide'}
+                        </button>
+                    </div>
+                )}
+
+                {/* Platform Founders Section */}
+                <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50 flex items-center gap-2">
+                        <UsersIcon className="w-4 h-4 text-stone-500" />
+                        <h2 className="font-semibold text-stone-900">Platform Credits</h2>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                                DO
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900 text-sm">Daniel Oyasor</h3>
+                                <p className="text-[10px] text-stone-500 uppercase tracking-widest font-black">Founder & Visionary</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                AD
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900 text-sm">Akele Dive</h3>
+                                <p className="text-[10px] text-stone-500 uppercase tracking-widest font-black">Co-Founder & Technical Lead</p>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-stone-400 leading-relaxed italic border-t border-stone-50 pt-4">
+                            UniLink is built with ❤️ in Nigeria to empower the next generation of African students and innovators.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Clear Cache Button */}

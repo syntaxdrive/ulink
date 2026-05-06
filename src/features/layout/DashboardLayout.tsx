@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus, BookOpen } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { type Session } from '@supabase/supabase-js';
 
 import { supabase } from '../../lib/supabase';
@@ -416,7 +417,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: GraduationCap, label: 'Courses', path: '/app/learn'},
         { icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         { icon: Library, label: 'Study Rooms', path: '/app/study'},
-        { icon: Download, label: 'Download App', path: '/download' },
+        ...(!Capacitor.isNativePlatform() ? [{ icon: Download, label: 'Download App', path: '/download' }] : []),
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
         ...(!isGuest && userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
