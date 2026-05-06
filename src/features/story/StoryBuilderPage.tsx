@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Save, Play, Trash2, ArrowRight, Sparkles, 
   Image as ImageIcon, Type, Layout, ChevronLeft,
-  Loader2, Check, X
+  Loader2, Check, X, HelpCircle, Info, Book, MousePointer2, Zap
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
@@ -33,6 +33,8 @@ export default function StoryBuilderPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const [scenes, setScenes] = useState<Scene[]>([
     {
@@ -47,6 +49,37 @@ export default function StoryBuilderPage() {
 
   const [activeSceneId, setActiveSceneId] = useState('start');
   const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
+
+  // 1. Autosave Logic
+  useEffect(() => {
+    const draft = { title, description, genre, scenes };
+    localStorage.setItem('ulink_story_draft', JSON.stringify(draft));
+    setLastSaved(new Date());
+  }, [title, description, genre, scenes]);
+
+  // 2. Load Draft & Tutorial check
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('ulink_story_draft');
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        // Only load if it's not the default empty state
+        if (parsed.title || parsed.scenes.length > 1 || parsed.scenes[0].text !== 'You wake up in your hostel room. The sun is shining.') {
+          setTitle(parsed.title || '');
+          setDescription(parsed.description || '');
+          setGenre(parsed.genre || 'Drama');
+          setScenes(parsed.scenes || []);
+        }
+      } catch (e) {
+        console.error('Failed to load draft', e);
+      }
+    }
+
+    const hasSeenTutorial = localStorage.getItem('ulink_story_tutorial_seen');
+    if (!hasSeenTutorial) {
+      setShowTutorial(true);
+    }
+  }, []);
 
   const addScene = () => {
     const newId = `scene_${Date.now()}`;
@@ -126,6 +159,7 @@ export default function StoryBuilderPage() {
       });
 
       if (error) throw error;
+      localStorage.removeItem('ulink_story_draft');
       navigate('/app/story');
     } catch (err) {
       console.error(err);
@@ -209,6 +243,17 @@ export default function StoryBuilderPage() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
+          <div className="hidden lg:flex flex-col items-end mr-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Draft Saved</span>
+            <span className="text-[10px] text-slate-400 font-medium">{lastSaved?.toLocaleTimeString()}</span>
+          </div>
+          <button 
+            onClick={() => setShowTutorial(true)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl text-slate-400 transition-colors"
+            title="Help & Tutorial"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
           <button 
             onClick={generateAIStory}
             disabled={isGenerating}
@@ -448,5 +493,77 @@ export default function StoryBuilderPage() {
         </main>
       </div>
     </div>
-  );
-}
+
+    {/* Tutorial Modal */}
+    {showTutorial && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowTutorial(false)} />
+        <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-[32px] shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
+          {/* Decorative Side */}
+          <div className="w-full md:w-1/3 bg-emerald-600 p-8 flex flex-col justify-between text-white shrink-0">
+            <div>
+              <Zap className="w-10 h-10 mb-4 opacity-50" />
+              <h2 className="text-2xl font-black leading-tight uppercase tracking-tighter italic">Create Your Story</h2>
+            </div>
+            <p className="text-xs font-bold opacity-80 leading-relaxed uppercase tracking-widest">A visual guide to building choice-based narratives on UniLink.</p>
+          </div>
+
+          {/* Content Side */}
+          <div className="flex-1 p-8 md:p-10 space-y-8 overflow-y-auto max-h-[80vh]">
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="p-3 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 rounded-2xl shrink-0">
+                  <Layout className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">1. Create Scenes</h4>
+                  <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">Each scene is a "node" in your story. Think of it like a page in a book. Describe what happens in the text area.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-950/30 text-blue-600 rounded-2xl shrink-0">
+                  <MousePointer2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">2. Add Choices</h4>
+                  <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">Choices are how players move between scenes. Add a choice and select which scene it "Leads To".</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="p-3 bg-amber-100 dark:bg-amber-950/30 text-amber-600 rounded-2xl shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">3. Use UAI Co-Pilot</h4>
+                  <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">Stuck on an idea? Click "AI Generate" and describe your topic. UAI will build the entire structure for you!</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="p-3 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-2xl shrink-0">
+                  <Check className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">4. Save & Publish</h4>
+                  <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">We autosave your draft every second. Once you're ready, hit Publish to share your story with the campus.</p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                setShowTutorial(false);
+                localStorage.setItem('ulink_story_tutorial_seen', 'true');
+              }}
+              className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform"
+            >
+              Got it, let's build!
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
