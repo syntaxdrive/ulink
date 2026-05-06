@@ -144,7 +144,6 @@ export default function LandingPage() {
                                     >
                                         Explore App
                                     </Link>
-                                </div>
 
                                 <p className="mt-4 text-xs text-slate-500 dark:text-zinc-500 text-center lg:text-left animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
                                     By continuing, you agree to our{' '}
