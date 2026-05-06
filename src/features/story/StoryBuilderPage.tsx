@@ -211,6 +211,33 @@ export default function StoryBuilderPage() {
     }
   };
 
+  const refineSceneWithAI = async () => {
+    const instruction = prompt("How should UAI refine this scene? (e.g. 'Make it more mysterious', 'Add more dialogue', 'Set it at night')");
+    if (!instruction) return;
+
+    setIsGenerating(true);
+    try {
+      const systemPrompt = `You are a creative writing assistant. 
+      Refine the following story scene based on this instruction: "${instruction}".
+      
+      Current Scene Content:
+      "${activeScene.text}"
+      
+      Return ONLY the refined text content. No other chat or explanation. Keep it immersive.`;
+
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?seed=${Math.floor(Math.random() * 1000)}`);
+      if (!response.ok) throw new Error('AI service unavailable');
+      
+      const refinedText = await response.text();
+      updateActiveScene({ text: refinedText.trim() });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to refine scene. Try a simpler instruction!');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
@@ -332,6 +359,14 @@ export default function StoryBuilderPage() {
                   <Layout className="w-5 h-5" />
                 </div>
                 <h3 className="text-base md:text-lg font-bold">Scene Content</h3>
+                <button 
+                  onClick={refineSceneWithAI}
+                  disabled={isGenerating}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all disabled:opacity-50"
+                >
+                  {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  Refine with AI
+                </button>
               </div>
               
               <div className="space-y-4">
