@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus, Save, Play, Trash2, ArrowRight, Sparkles, 
+  Plus, Save, Play, Trash2, ArrowRight,
   Image as ImageIcon, Type, Layout, ChevronLeft,
   Loader2, Check, X, HelpCircle, Info, Book, MousePointer2, Zap
 } from 'lucide-react';
@@ -43,7 +43,6 @@ export default function StoryBuilderPage() {
     return 'Drama';
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -174,104 +173,6 @@ export default function StoryBuilderPage() {
     }
   };
 
-  const generateAIStory = async () => {
-    const topic = prompt("What should the story be about? (e.g. 'A mystery during exams' or 'A romance in the cafeteria')");
-    if (!topic) return;
-
-    setIsGenerating(true);
-    try {
-      const prompt = `Write a 4-scene branching story about: ${topic}.
-      Format each scene EXACTLY like this:
-      
-      SCENE: [Scene Title]
-      TEXT: [Story content here...]
-      CHOICE: [Choice text] -> [Target Scene Title]
-      CHOICE: [Choice text] -> [Target Scene Title]
-      
-      The first scene must be named "Start".`;
-
-      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${Date.now()}`);
-      if (!response.ok) throw new Error('AI service unavailable');
-      
-      const content = await response.text();
-      console.log('AI Response:', content);
-
-      // Parse the plain text format
-      const scenes: Scene[] = [];
-      const sceneBlocks = content.split(/SCENE:/i).filter(b => b.trim());
-
-      sceneBlocks.forEach((block, idx) => {
-        const lines = block.split('\n').map(l => l.trim()).filter(l => l);
-        const name = lines[0] || `Scene ${idx + 1}`;
-        const textLine = lines.find(l => l.toUpperCase().startsWith('TEXT:'));
-        const text = textLine ? textLine.replace(/TEXT:/i, '').trim() : "The story continues...";
-        
-        const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        const choices = lines
-          .filter(l => l.toUpperCase().startsWith('CHOICE:'))
-          .map(l => {
-            const parts = l.replace(/CHOICE:/i, '').split('->');
-            return {
-              text: parts[0]?.trim() || "Next",
-              nextNodeId: parts[1]?.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') || ""
-            };
-          });
-
-        scenes.push({
-          id: id === 'start' ? 'start' : id,
-          name,
-          text,
-          coverPrompt: `${topic} ${name}`,
-          artStyle: 'Digital Art',
-          choices
-        });
-      });
-
-      if (scenes.length === 0) throw new Error('Could not parse any scenes');
-
-      // Ensure at least one scene is named "start"
-      if (!scenes.find(s => s.id === 'start')) {
-        scenes[0].id = 'start';
-      }
-
-      setScenes(scenes);
-      setTitle(topic.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
-      setActiveSceneId('start');
-    } catch (err) {
-      console.error('AI Generation Error:', err);
-      alert('UAI is having trouble formatting the story. Try a simpler topic or write the first scene yourself!');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const refineSceneWithAI = async () => {
-    const instruction = prompt("How should UAI refine this scene? (e.g. 'Make it more mysterious', 'Add more dialogue', 'Set it at night')");
-    if (!instruction) return;
-
-    setIsGenerating(true);
-    try {
-      const systemPrompt = `You are a creative writing assistant. 
-      Refine the following story scene based on this instruction: "${instruction}".
-      
-      Current Scene Content:
-      "${activeScene.text}"
-      
-      Return ONLY the refined text content. No other chat or explanation. Keep it immersive.`;
-
-      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?seed=${Math.floor(Math.random() * 1000)}`);
-      if (!response.ok) throw new Error('AI service unavailable');
-      
-      const refinedText = await response.text();
-      updateActiveScene({ text: refinedText.trim() });
-    } catch (err) {
-      console.error(err);
-      alert('Failed to refine scene. Try a simpler instruction!');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   return (
     <>
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
@@ -304,15 +205,6 @@ export default function StoryBuilderPage() {
             title="Help & Tutorial"
           >
             <HelpCircle className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={generateAIStory}
-            disabled={isGenerating}
-            className="flex items-center gap-2 p-2 md:px-4 md:py-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-xs md:text-sm hover:bg-indigo-100 transition-all disabled:opacity-50"
-            title="AI Generate"
-          >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            <span className="hidden md:inline">{isGenerating ? 'UAI is writing...' : 'AI Generate'}</span>
           </button>
           <button 
             onClick={handleSave}
@@ -393,14 +285,6 @@ export default function StoryBuilderPage() {
                   <Layout className="w-5 h-5" />
                 </div>
                 <h3 className="text-base md:text-lg font-bold">Scene Content</h3>
-                <button 
-                  onClick={refineSceneWithAI}
-                  disabled={isGenerating}
-                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all disabled:opacity-50"
-                >
-                  {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  Refine with AI
-                </button>
               </div>
               
               <div className="space-y-4">
@@ -590,21 +474,11 @@ export default function StoryBuilderPage() {
               </div>
 
               <div className="flex gap-4">
-                <div className="p-3 bg-amber-100 dark:bg-amber-950/30 text-amber-600 rounded-2xl shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">3. Use UAI Co-Pilot</h4>
-                  <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">Stuck on an idea? Click "AI Generate" and describe your topic. UAI will build the entire structure for you!</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
                 <div className="p-3 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-2xl shrink-0">
                   <Check className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">4. Save & Publish</h4>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">3. Save & Publish</h4>
                   <p className="text-[13px] text-slate-500 dark:text-zinc-400 mt-1">We autosave your draft every second. Once you're ready, hit Publish to share your story with the campus.</p>
                 </div>
               </div>
