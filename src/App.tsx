@@ -33,6 +33,7 @@ const DownloadPage = lazy(() => import('./features/landing/DownloadPage'));
 const LandingPage = lazy(() => import('./features/landing/LandingPage'));
 const AboutPage = lazy(() => import('./features/landing/AboutPage'));
 const LegalPage = lazy(() => import('./features/legal/LegalPage'));
+const StoryModePage = lazy(() => import('./features/story/StoryModePage'));
 const NotFoundPage = lazy(() => import('./features/layout/NotFoundPage'));
 import UpdateNotification from './components/UpdateNotification';
 import PWAInstallBanner from './components/PWAInstallBanner';
@@ -178,6 +179,7 @@ function App() {
               <Route path="jobs" element={<JobsPage />} />
               <Route path="talent" element={<TalentSearchPage />} />
               <Route path="learn" element={<CoursesPage />} />
+              <Route path="story" element={<StoryModePage />} />
               <Route path="study" element={<StudyRoomsPage />} />
               <Route path="marketplace" element={<MarketplacePage />} />
               <Route path="leaderboard" element={<LeaderboardPage />} />
