@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Story } from 'inkjs';
 import { 
   BookOpen, Battery, Award,
@@ -127,6 +128,8 @@ interface DialogueLine {
 }
 
 export default function StoryModePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [appState, setAppState] = useState<StoryState>('select');
   const [savedStories, setSavedStories] = useState<Record<string, boolean>>({});
@@ -506,13 +509,13 @@ export default function StoryModePage() {
                 if (!user) {
                   useAuthModalStore.getState().openAuthModal('Sign in to create your own stories');
                 } else {
-                  setShowCreateModal(true);
+                  navigate('/app/story/create');
                 }
               });
             }}
             className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-lg flex items-center gap-2 transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4" /> Create Story
+            <Plus className="w-4 h-4" /> Visual Story Builder
           </button>
         </div>
 

@@ -1,0 +1,428 @@
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, Save, Play, Trash2, ArrowRight, Sparkles, 
+  Image as ImageIcon, Type, Layout, ChevronLeft,
+  Loader2, Check
+} from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuthModalStore } from '../../stores/useAuthModalStore';
+
+interface Scene {
+  id: string;
+  name: string;
+  text: string;
+  coverPrompt: string;
+  artStyle: string;
+  choices: {
+    text: string;
+    nextNodeId: string;
+  }[];
+}
+
+const ART_STYLES = [
+  'Digital Art', 'Anime / Manga', 'Cyberpunk', 
+  'Oil Painting', 'Comic Book', 'Pixel Art', 'Realistic'
+];
+
+export default function StoryBuilderPage() {
+  const navigate = useNavigate();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [genre, setGenre] = useState('Drama');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const [scenes, setScenes] = useState<Scene[]>([
+    {
+      id: 'start',
+      name: 'Start',
+      text: 'You wake up in your hostel room. The sun is shining.',
+      coverPrompt: 'university hostel room morning sun',
+      artStyle: 'Digital Art',
+      choices: []
+    }
+  ]);
+
+  const [activeSceneId, setActiveSceneId] = useState('start');
+  const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
+
+  const addScene = () => {
+    const newId = `scene_${Date.now()}`;
+    const newScene: Scene = {
+      id: newId,
+      name: `Scene ${scenes.length + 1}`,
+      text: '',
+      coverPrompt: '',
+      artStyle: 'Digital Art',
+      choices: []
+    };
+    setScenes([...scenes, newScene]);
+    setActiveSceneId(newId);
+  };
+
+  const updateActiveScene = (updates: Partial<Scene>) => {
+    setScenes(prev => prev.map(s => s.id === activeSceneId ? { ...s, ...updates } : s));
+  };
+
+  const addChoice = () => {
+    const newChoices = [...activeScene.choices, { text: '', nextNodeId: '' }];
+    updateActiveScene({ choices: newChoices });
+  };
+
+  const updateChoice = (index: number, updates: { text?: string; nextNodeId?: string }) => {
+    const newChoices = activeScene.choices.map((c, i) => i === index ? { ...c, ...updates } : c);
+    updateActiveScene({ choices: newChoices });
+  };
+
+  const removeChoice = (index: number) => {
+    const newChoices = activeScene.choices.filter((_, i) => i !== index);
+    updateActiveScene({ choices: newChoices });
+  };
+
+  const deleteScene = (id: string) => {
+    if (scenes.length === 1) return;
+    if (id === activeSceneId) {
+      const remaining = scenes.filter(s => s.id !== id);
+      setActiveSceneId(remaining[0].id);
+      setScenes(remaining);
+    } else {
+      setScenes(scenes.filter(s => s.id !== id));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!title || scenes.length === 0) return;
+    
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        useAuthModalStore.getState().openAuthModal('Sign in to save your story');
+        return;
+      }
+
+      // Format for the database
+      const nodes: any = {};
+      scenes.forEach(s => {
+        nodes[s.id] = {
+          text: s.text,
+          choices: s.choices.filter(c => c.text && c.nextNodeId),
+          art_style: s.artStyle,
+          cover_prompt: s.coverPrompt
+        };
+      });
+
+      const { error } = await supabase.from('stories').insert({
+        creator_id: user.id,
+        title,
+        description,
+        genre,
+        story_type: 'simple',
+        nodes,
+        art_style: scenes[0].artStyle,
+        is_published: true
+      });
+
+      if (error) throw error;
+      navigate('/app/story');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save story');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const generateAIStory = async () => {
+    const topic = prompt("What should the story be about? (e.g. 'A mystery during exams')");
+    if (!topic) return;
+
+    setIsGenerating(true);
+    // This would call your AI service. For now, we'll simulate a structured response.
+    setTimeout(() => {
+      const mockScenes: Scene[] = [
+        {
+          id: 'start',
+          name: 'The Beginning',
+          text: `You are at the University library, deep into ${topic}. Suddenly, you find a mysterious note inside your textbook.`,
+          coverPrompt: `university library mystery note ${topic}`,
+          artStyle: 'Digital Art',
+          choices: [
+            { text: 'Read the note', nextNodeId: 'read_note' },
+            { text: 'Ignore it and keep studying', nextNodeId: 'study' }
+          ]
+        },
+        {
+          id: 'read_note',
+          name: 'The Secret',
+          text: 'The note contains a map of the hidden tunnels beneath the Faculty of Science. It mentions a secret treasure.',
+          coverPrompt: 'secret map glowing paper',
+          artStyle: 'Digital Art',
+          choices: [
+            { text: 'Investigate the tunnels', nextNodeId: 'tunnels' }
+          ]
+        },
+        {
+          id: 'study',
+          name: 'Focus',
+          text: 'You decide to focus. Hours pass, and you feel ready for the exam. But the mystery still lingers in your mind.',
+          coverPrompt: 'exhausted student studying lamp',
+          artStyle: 'Digital Art',
+          choices: []
+        },
+        {
+          id: 'tunnels',
+          name: 'The Descent',
+          text: 'You find the entrance. It is dark and smells of damp earth. You step inside...',
+          coverPrompt: 'dark underground tunnel university',
+          artStyle: 'Digital Art',
+          choices: []
+        }
+      ];
+      setScenes(mockScenes);
+      setTitle(`Mystery of ${topic}`);
+      setActiveSceneId('start');
+      setIsGenerating(false);
+    }, 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col">
+      {/* Top Header */}
+      <header className="h-20 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-6 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/app/story')} className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <input 
+              type="text" 
+              placeholder="Untilted Story"
+              className="text-xl font-bold bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white p-0 w-64"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Story Builder</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={generateAIStory}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all disabled:opacity-50"
+          >
+            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isGenerating ? 'UAI is writing...' : 'AI Generate'}
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save & Publish
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Scene List */}
+        <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col">
+          <div className="p-4 border-b border-slate-100 dark:border-zinc-800">
+            <button 
+              onClick={addScene}
+              className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl text-slate-400 hover:text-emerald-600 hover:border-emerald-600 dark:hover:text-emerald-400 dark:hover:border-emerald-400 transition-all flex items-center justify-center gap-2 font-bold text-sm"
+            >
+              <Plus className="w-4 h-4" /> Add New Scene
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {scenes.map((scene, idx) => (
+              <button
+                key={scene.id}
+                onClick={() => setActiveSceneId(scene.id)}
+                className={`w-full text-left p-4 rounded-2xl transition-all group relative ${activeSceneId === scene.id ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${activeSceneId === scene.id ? 'text-slate-400' : 'text-slate-400'}`}>Node {idx + 1}</span>
+                    <h4 className="font-bold text-sm line-clamp-1">{scene.name || 'Untitled Scene'}</h4>
+                  </div>
+                  {scenes.length > 1 && (
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); deleteScene(scene.id); }}
+                      className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${activeSceneId === scene.id ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-red-50 text-red-500'}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* Main Editor Area */}
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Scene Basic Info */}
+            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 rounded-xl">
+                  <Layout className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold">Scene Content</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <input 
+                  type="text" 
+                  placeholder="Scene Name (e.g., The Confrontation)"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg"
+                  value={activeScene.name}
+                  onChange={e => updateActiveScene({ name: e.target.value })}
+                />
+                <textarea 
+                  rows={6}
+                  placeholder="What happens in this scene? Describe the setting and action..."
+                  className="w-full px-6 py-5 rounded-2xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-serif text-lg leading-relaxed resize-none"
+                  value={activeScene.text}
+                  onChange={e => updateActiveScene({ text: e.target.value })}
+                />
+              </div>
+            </section>
+
+            {/* Visuals */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-950/30 text-amber-600 rounded-xl">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-bold">Visual Theme</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Art Style</label>
+                    <select 
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={activeScene.artStyle}
+                      onChange={e => updateActiveScene({ artStyle: e.target.value })}
+                    >
+                      {ART_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">AI Image Prompt</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. dramatic laboratory lighting"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={activeScene.coverPrompt}
+                      onChange={e => updateActiveScene({ coverPrompt: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6 flex flex-col">
+                 <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-950/30 text-blue-600 rounded-xl">
+                      <Play className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-bold">Story Settings</h3>
+                  </div>
+                  <div className="space-y-4 flex-1">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Genre</label>
+                      <select 
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        value={genre}
+                        onChange={e => setGenre(e.target.value)}
+                      >
+                        <option>Drama</option>
+                        <option>Horror</option>
+                        <option>Mystery</option>
+                        <option>Romance</option>
+                        <option>Sci-Fi</option>
+                      </select>
+                    </div>
+                    <div>
+                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Story Description</label>
+                       <textarea 
+                         rows={2}
+                         className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+                         value={description}
+                         onChange={e => setDescription(e.target.value)}
+                       />
+                    </div>
+                  </div>
+              </div>
+            </section>
+
+            {/* Choices */}
+            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-6 mb-20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-xl">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-bold">Player Choices</h3>
+                </div>
+                <button 
+                  onClick={addChoice}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all active:scale-95"
+                >
+                  <Plus className="w-4 h-4" /> Add Choice
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {activeScene.choices.length === 0 && (
+                  <div className="py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center text-slate-400 italic">
+                    <p>No choices added. This scene will be the end of the story.</p>
+                  </div>
+                )}
+                {activeScene.choices.map((choice, idx) => (
+                  <div key={idx} className="flex flex-col md:flex-row items-center gap-3 p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl animate-in slide-in-from-left duration-300">
+                    <div className="flex-1 w-full">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Decision Label</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g., Open the door"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all font-bold"
+                        value={choice.text}
+                        onChange={e => updateChoice(idx, { text: e.target.value })}
+                      />
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-slate-300 hidden md:block mt-4" />
+                    <div className="flex-1 w-full">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Leads To...</label>
+                      <select 
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 transition-all"
+                        value={choice.nextNodeId}
+                        onChange={e => updateChoice(idx, { nextNodeId: e.target.value })}
+                      >
+                        <option value="">Select a scene</option>
+                        {scenes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <button 
+                      onClick={() => removeChoice(idx)}
+                      className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors mt-4"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
