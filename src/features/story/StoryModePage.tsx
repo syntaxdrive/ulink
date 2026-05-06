@@ -176,7 +176,7 @@ export default function StoryModePage() {
   // Game state
   const storyRef = useRef<InstanceType<typeof Story> | null>(null);
   const activeStoryId = useRef<string>('');
-  const [activeStory, setActiveStory] = useRef<StoryInfo | null>(null);
+  const activeStory = useRef<StoryInfo | null>(null);
   const [currentSimpleNodeId, setCurrentSimpleNodeId] = useState<string | null>(null);
   const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   const [choices, setChoices] = useState<{text: string, index: number | string}[]>([]);
