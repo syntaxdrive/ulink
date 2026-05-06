@@ -1,23 +1,19 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Story } from 'inkjs';
-import { 
-  BookOpen, Battery, Award,
-  ChevronRight, Volume2, VolumeX
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
-import { StoryImage } from './components/StoryImage';
+import { supabase } from '../../lib/supabase';
+import { useAuthModalStore } from '../../stores/useAuthModalStore';
 
 interface StoryInfo {
   id: string;
   title: string;
-  episode: string;
+  episode?: string;
   description: string;
-  filename: string;
+  filename?: string;
+  ink_json?: any;
   theme: string;
   icon: string;
   estimatedTime: string;
   coverPrompt: string;
   genre: string;
+  creator_id?: string;
 }
 
 // Story configurations
@@ -124,6 +120,44 @@ export default function StoryModePage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [appState, setAppState] = useState<StoryState>('select');
   const [savedStories, setSavedStories] = useState<Record<string, boolean>>({});
+  const [allStories, setAllStories] = useState<StoryInfo[]>([]);
+  const [loadingStories, setLoadingStories] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Create Story State
+  const [newStory, setNewStory] = useState({
+    title: '',
+    description: '',
+    genre: 'Drama',
+    ink_json: '',
+    coverPrompt: ''
+  });
+
+  const fetchStories = async () => {
+    setLoadingStories(true);
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      // Merge with hardcoded ones if needed, or just use DB
+      const dbStories = data.map(s => ({
+        ...s,
+        estimatedTime: s.estimated_time,
+        coverPrompt: s.cover_prompt
+      }));
+      setAllStories([...STORIES, ...dbStories]);
+    } else {
+      setAllStories(STORIES);
+    }
+    setLoadingStories(false);
+  };
+
+  useEffect(() => {
+    fetchStories();
+  }, []);
   
   // Game state
   const storyRef = useRef<InstanceType<typeof Story> | null>(null);
@@ -165,13 +199,19 @@ export default function StoryModePage() {
   };
 
   // 1. Select Story
-  const selectStory = async (storyInfo: typeof STORIES[0], resume: boolean = false) => {
+  const selectStory = async (storyInfo: StoryInfo, resume: boolean = false) => {
     setAppState('loading');
     
     try {
-      const res = await fetch(`${storyInfo.filename}?t=${Date.now()}`);
-      if (!res.ok) throw new Error('Failed to load story data');
-      const json = await res.text();
+      let json: string;
+      if (storyInfo.ink_json) {
+        json = typeof storyInfo.ink_json === 'string' ? storyInfo.ink_json : JSON.stringify(storyInfo.ink_json);
+      } else {
+        const res = await fetch(`${storyInfo.filename}?t=${Date.now()}`);
+        if (!res.ok) throw new Error('Failed to load story data');
+        json = await res.text();
+      }
+
       storyRef.current = new Story(json);
       activeStoryId.current = storyInfo.id;
       
@@ -380,96 +420,253 @@ export default function StoryModePage() {
   if (appState === 'select') {
     return (
       <div className="max-w-4xl mx-auto px-6 py-12 md:py-20">
-        <header className="mb-16 text-center space-y-4">
-          <BookOpen className="w-8 h-8 mx-auto text-slate-800 dark:text-zinc-200 opacity-80" />
-          <h1 className="text-3xl md:text-5xl font-serif text-slate-900 dark:text-white tracking-tight">
-            The Reading Room
-          </h1>
-          <p className="text-slate-500 dark:text-zinc-400 max-w-lg mx-auto text-sm md:text-base font-serif italic">
-            Immersive, choice-driven stories. Every decision permanently alters the narrative.
-          </p>
-        </header>
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-16 gap-4">
+          <div className="text-left">
+            <h1 className="text-3xl md:text-5xl font-serif text-slate-900 dark:text-white tracking-tight">
+              The Reading Room
+            </h1>
+            <p className="text-slate-500 dark:text-zinc-400 max-w-lg text-sm md:text-base font-serif italic mt-2">
+              Immersive, choice-driven stories. Every decision permanently alters the narrative.
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              supabase.auth.getUser().then(({ data: { user } }) => {
+                if (!user) {
+                  useAuthModalStore.getState().openAuthModal('Sign in to create your own stories');
+                } else {
+                  setShowCreateModal(true);
+                }
+              });
+            }}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-lg flex items-center gap-2 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" /> Create Story
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {STORIES.map(story => {
-            const hasSave = savedStories[story.id];
-            
-            return (
-              <div
-                key={story.id}
-                className="flex flex-col rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-hidden shadow-sm hover:shadow-xl hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group"
-              >
-                {/* Cover Image Section */}
-                <div onClick={() => selectStory(story, hasSave)} className="cursor-pointer relative aspect-[16/10] overflow-hidden">
-                  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-                  <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
-                    <span className="text-xl bg-white/90 dark:bg-zinc-900/90 w-10 h-10 flex items-center justify-center rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800">
-                      {story.icon}
-                    </span>
-                    <span className="text-[10px] font-sans font-black tracking-widest uppercase text-white drop-shadow-md">
-                      {story.estimatedTime}
-                    </span>
-                  </div>
-                  <div className="h-full group-hover:scale-105 transition-transform duration-700">
-                    <StoryImage prompt={story.coverPrompt || story.id} />
-                  </div>
-                </div>
-
-                {/* Content Section */}
-                <div className="p-6 md:p-8 flex-1 flex flex-col">
-                  <div className="flex flex-col h-full text-left">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-sm">
-                        {story.genre}
+        {loadingStories ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-pulse">
+            {[1, 2].map(i => (
+              <div key={i} className="h-[400px] bg-slate-100 dark:bg-zinc-800 rounded-3xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {allStories.map(story => {
+              const hasSave = savedStories[story.id];
+              
+              return (
+                <div
+                  key={story.id}
+                  className="flex flex-col rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-hidden shadow-sm hover:shadow-xl hover:border-slate-300 dark:hover:border-zinc-700 transition-all duration-300 group"
+                >
+                  {/* Cover Image Section */}
+                  <div onClick={() => selectStory(story, hasSave)} className="cursor-pointer relative aspect-[16/10] overflow-hidden">
+                    <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                    <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                      <span className="text-xl bg-white/90 dark:bg-zinc-900/90 w-10 h-10 flex items-center justify-center rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800">
+                        {story.icon}
                       </span>
-                      {hasSave && (
-                        <span className="text-[9px] font-bold text-stone-400 animate-pulse">
-                          Saved
+                      <span className="text-[10px] font-sans font-black tracking-widest uppercase text-white drop-shadow-md">
+                        {story.estimatedTime}
+                      </span>
+                    </div>
+                    <div className="h-full group-hover:scale-105 transition-transform duration-700">
+                      <StoryImage prompt={story.coverPrompt || story.id} />
+                    </div>
+                  </div>
+
+                  {/* Content Section */}
+                  <div className="p-6 md:p-8 flex-1 flex flex-col">
+                    <div className="flex flex-col h-full text-left">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-sm">
+                          {story.genre}
                         </span>
+                        {hasSave && (
+                          <span className="text-[9px] font-bold text-stone-400 animate-pulse">
+                            Saved
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 group-hover:text-emerald-600 transition-colors mb-3">
+                        {story.title}
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed font-serif line-clamp-3">
+                        {story.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto pt-6 flex flex-col gap-2">
+                      {hasSave ? (
+                        <>
+                          <button 
+                            onClick={() => selectStory(story, true)}
+                            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm"
+                          >
+                             Resume Reading
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm("Start over? Your previous save will be overwritten.")) {
+                                selectStory(story, false);
+                              }
+                            }}
+                            className="w-full py-2.5 px-4 bg-transparent border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors"
+                          >
+                             Restart
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={() => selectStory(story, false)}
+                          className="w-full py-3 px-4 bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors shadow-sm"
+                        >
+                           Start Reading
+                        </button>
                       )}
                     </div>
-                    <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100 group-hover:text-emerald-600 transition-colors mb-3">
-                      {story.title}
-                    </h3>
-                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed font-serif line-clamp-3">
-                      {story.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-auto pt-6 flex flex-col gap-2">
-                    {hasSave ? (
-                      <>
-                        <button 
-                          onClick={() => selectStory(story, true)}
-                          className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        >
-                           Resume Reading
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (window.confirm("Start over? Your previous save will be overwritten.")) {
-                              selectStory(story, false);
-                            }
-                          }}
-                          className="w-full py-2.5 px-4 bg-transparent border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors"
-                        >
-                           Restart
-                        </button>
-                      </>
-                    ) : (
-                      <button 
-                        onClick={() => selectStory(story, false)}
-                        className="w-full py-3 px-4 bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl font-sans font-bold text-xs uppercase tracking-widest transition-colors shadow-sm"
-                      >
-                         Start Reading
-                      </button>
-                    )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Create Story Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-emerald-600" /> Create a New Path
+                </h2>
+                <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            );
-          })}
-        </div>
+
+              <div className="p-8 overflow-y-auto space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Story Title</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., Midnight in Lagos"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    value={newStory.title}
+                    onChange={e => setNewStory({...newStory, title: e.target.value})}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Genre</label>
+                    <select 
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={newStory.genre}
+                      onChange={e => setNewStory({...newStory, genre: e.target.value})}
+                    >
+                      <option>Drama</option>
+                      <option>Horror</option>
+                      <option>Mystery</option>
+                      <option>Romance</option>
+                      <option>Sci-Fi</option>
+                      <option>Comedy</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Cover Prompt (AI)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g., bustling city at night"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={newStory.coverPrompt}
+                      onChange={e => setNewStory({...newStory, coverPrompt: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Description</label>
+                  <textarea 
+                    rows={3}
+                    placeholder="What is this journey about?"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
+                    value={newStory.description}
+                    onChange={e => setNewStory({...newStory, description: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Ink JSON Content</label>
+                    <a href="https://github.com/inkle/ink" target="_blank" rel="noreferrer" className="text-[10px] text-emerald-600 hover:underline">Learn how to write in Ink</a>
+                  </div>
+                  <textarea 
+                    rows={8}
+                    placeholder="Paste your compiled Ink JSON here..."
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-emerald-500 transition-all font-mono text-sm"
+                    value={newStory.ink_json}
+                    onChange={e => setNewStory({...newStory, ink_json: e.target.value})}
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Use Inky to write your story, then 'Export for Web' or 'Export as JSON' and paste the content here.</p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-zinc-800/50 flex gap-3">
+                <button 
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-xl font-bold text-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!newStory.title || !newStory.ink_json) {
+                      showToast('Please fill in title and content', 'error');
+                      return;
+                    }
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user) return;
+
+                      let parsedJson;
+                      try {
+                        parsedJson = JSON.parse(newStory.ink_json);
+                      } catch {
+                        showToast('Invalid JSON format', 'error');
+                        return;
+                      }
+
+                      const { error } = await supabase.from('stories').insert({
+                        creator_id: user.id,
+                        title: newStory.title,
+                        description: newStory.description,
+                        genre: newStory.genre,
+                        cover_prompt: newStory.coverPrompt,
+                        ink_json: parsedJson,
+                        is_published: true
+                      });
+
+                      if (error) throw error;
+                      
+                      showToast('Story published successfully!', 'success');
+                      setShowCreateModal(false);
+                      fetchStories();
+                    } catch (err) {
+                      console.error(err);
+                      showToast('Failed to publish story', 'error');
+                    }
+                  }}
+                  className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 dark:shadow-none"
+                >
+                  Publish Story
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

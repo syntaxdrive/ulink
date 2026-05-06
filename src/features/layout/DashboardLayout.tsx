@@ -414,6 +414,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
         { icon: GraduationCap, label: 'Courses', path: '/app/learn'},
+        { icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         { icon: Library, label: 'Study Rooms', path: '/app/study'},
         { icon: Download, label: 'Download App', path: '/download' },
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
