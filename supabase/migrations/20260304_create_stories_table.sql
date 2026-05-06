@@ -1,16 +1,26 @@
--- Create stories table for choice-based games
+-- Create stories table for choice-based narratives and games
 CREATE TABLE IF NOT EXISTS public.stories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ DEFAULT now(),
     creator_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
-    cover_prompt TEXT, -- for AI images
     genre TEXT,
     theme TEXT DEFAULT 'from-blue-600 to-indigo-800',
     icon TEXT DEFAULT '📖',
     estimated_time TEXT DEFAULT '15-20 min',
-    ink_json JSONB NOT NULL,
+    
+    -- Visual Customization
+    art_style TEXT DEFAULT 'Digital Art',
+    cover_prompt TEXT,
+    cover_url TEXT,
+
+    -- Narrative Content (Support for both InkJS and Simple Node format)
+    story_type TEXT DEFAULT 'simple', -- 'simple' or 'ink'
+    nodes JSONB,                      -- Used for Simple Node-based stories
+    ink_json JSONB,                   -- Used for Classic InkJS stories
+    
+    -- Metadata
     is_published BOOLEAN DEFAULT true,
     plays_count INTEGER DEFAULT 0
 );
@@ -34,7 +44,3 @@ CREATE POLICY "Creators can update their own stories"
 CREATE POLICY "Creators can delete their own stories" 
     ON public.stories FOR DELETE 
     USING (auth.uid() = creator_id);
-
--- Add to search if needed (optional)
-ALTER TABLE public.stories ADD COLUMN art_style TEXT DEFAULT 'Digital Art'; ALTER TABLE public.stories ADD COLUMN cover_url TEXT;
-ALTER TABLE public.stories ADD COLUMN story_type TEXT DEFAULT 'ink'; ALTER TABLE public.stories ADD COLUMN nodes JSONB;
