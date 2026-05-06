@@ -180,35 +180,66 @@ export default function StoryBuilderPage() {
 
     setIsGenerating(true);
     try {
-      const prompt = `Generate a JSON story about ${topic}. Format: [{"id":"start","name":"..","text":"..","choices":[{"text":"..","nextNodeId":".."}]}]`;
+      const prompt = `Write a 4-scene branching story about: ${topic}.
+      Format each scene EXACTLY like this:
+      
+      SCENE: [Scene Title]
+      TEXT: [Story content here...]
+      CHOICE: [Choice text] -> [Target Scene Title]
+      CHOICE: [Choice text] -> [Target Scene Title]
+      
+      The first scene must be named "Start".`;
 
-      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&json=true&seed=${Date.now()}`);
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&seed=${Date.now()}`);
       if (!response.ok) throw new Error('AI service unavailable');
       
       const content = await response.text();
-      // Improved JSON extraction: find the first '[' and last ']'
-      const startIdx = content.indexOf('[');
-      const endIdx = content.lastIndexOf(']');
-      
-      if (startIdx === -1 || endIdx === -1) throw new Error('Invalid AI response format');
-      
-      const jsonStr = content.substring(startIdx, endIdx + 1);
-      const aiScenes = JSON.parse(jsonStr);
-      
-      if (!Array.isArray(aiScenes)) throw new Error('Empty story generated');
+      console.log('AI Response:', content);
 
-      // Ensure art style is present
-      const processedScenes = aiScenes.map(s => ({
-        ...s,
-        artStyle: s.artStyle || 'Digital Art'
-      }));
+      // Parse the plain text format
+      const scenes: Scene[] = [];
+      const sceneBlocks = content.split(/SCENE:/i).filter(b => b.trim());
 
-      setScenes(processedScenes);
-      setTitle(`${topic.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`);
+      sceneBlocks.forEach((block, idx) => {
+        const lines = block.split('\n').map(l => l.trim()).filter(l => l);
+        const name = lines[0] || `Scene ${idx + 1}`;
+        const textLine = lines.find(l => l.toUpperCase().startsWith('TEXT:'));
+        const text = textLine ? textLine.replace(/TEXT:/i, '').trim() : "The story continues...";
+        
+        const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const choices = lines
+          .filter(l => l.toUpperCase().startsWith('CHOICE:'))
+          .map(l => {
+            const parts = l.replace(/CHOICE:/i, '').split('->');
+            return {
+              text: parts[0]?.trim() || "Next",
+              nextNodeId: parts[1]?.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') || ""
+            };
+          });
+
+        scenes.push({
+          id: id === 'start' ? 'start' : id,
+          name,
+          text,
+          coverPrompt: `${topic} ${name}`,
+          artStyle: 'Digital Art',
+          choices
+        });
+      });
+
+      if (scenes.length === 0) throw new Error('Could not parse any scenes');
+
+      // Ensure at least one scene is named "start"
+      if (!scenes.find(s => s.id === 'start')) {
+        scenes[0].id = 'start';
+      }
+
+      setScenes(scenes);
+      setTitle(topic.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
       setActiveSceneId('start');
     } catch (err) {
-      console.error(err);
-      alert('UAI is a bit busy right now. Please try again or write your own mystery!');
+      console.error('AI Generation Error:', err);
+      alert('UAI is having trouble formatting the story. Try a simpler topic or write the first scene yourself!');
     } finally {
       setIsGenerating(false);
     }
