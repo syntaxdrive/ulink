@@ -116,7 +116,7 @@ function PodcastSidebarWidget() {
         if (_podcastSidebarCache.data.length > 0 && Date.now() - _podcastSidebarCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
-            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name')
+            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name)')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(3)
@@ -183,7 +183,7 @@ function MobilePodcastStrip() {
         if (_podcastStripCache.data.length > 0 && Date.now() - _podcastStripCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
-            .select('id, title, cover_url, category, creator:profiles!creator_id(name')
+            .select('id, title, cover_url, category, creator:profiles!creator_id(name)')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(8)

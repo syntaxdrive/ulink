@@ -162,7 +162,7 @@ export function useNotifications() {
             // Fetch General Notifications
             const { data: notifData } = await supabase
                 .from('notifications')
-                .select('id,user_id,type,message,title,data,action_url,read,is_read,created_at,actor_id,reference_id').limit(50)
+                .select('id,user_id,type,message,title,data,action_url,read,created_at').limit(50)
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
