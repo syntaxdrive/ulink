@@ -215,11 +215,13 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             setIsGuest(false);
 
             // Fetch User Profile
-            const { data: profile, error: profileError } = await supabase
+            const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
-                .select('id,name,username,email,avatar_url,role,university,is_admin,is_verified,points,headline,store_name')
+                .select('*')
                 .eq('id', user.id)
                 .single();
+
+            const profile = profileData as Profile | null;
 
             if (cancelled) return;
 
@@ -232,9 +234,11 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 if (!isOnboardingComplete(profile) && !window.location.pathname.startsWith('/onboarding')) {
                     navigate('/onboarding');
                 }
-            } else if (profileError?.code === 'PGRST116' &&
-                !window.location.pathname.startsWith('/onboarding')) {
-                // No row found at all — genuinely new user
+            } else if (
+                (profileError?.code === 'PGRST116' || !userProfile) &&
+                !window.location.pathname.startsWith('/onboarding')
+            ) {
+                // No row found at all, or request failed and we have no cached profile (genuinely new user)
                 navigate('/onboarding');
             }
             // 1. Fetch Initial Messages Count once
