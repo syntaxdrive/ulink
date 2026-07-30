@@ -107,13 +107,23 @@ export default function CampusChallengePage() {
     useEffect(() => {
         fetchPolls();
 
-        // Replaced expensive Realtime WebSockets with slow polling
-        const pollInterval = setInterval(() => {
-            fetchPolls();
-        }, 30000);
+        // ✅ Replaced 30s polling with Realtime subscription — challenge votes update live
+        const channel = supabase
+            .channel('campus-challenge-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'campus_challenge_polls' },
+                () => fetchPolls()
+            )
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'campus_challenge_votes' },
+                () => fetchPolls()
+            )
+            .subscribe();
 
-        return () => clearInterval(pollInterval);
+        return () => {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+        };
     }, [fetchPolls]);
+
 
     // ── Auth Helper ──────────────────────────────────────────────────────────
     const ensureAuth = () => {

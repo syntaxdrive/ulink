@@ -159,10 +159,10 @@ export function useNotifications() {
 
             if (!isSilent && !cacheExists) setLoading(true);
 
-            // Fetch General Notifications
+            // Fetch General Notifications — single .limit(50), specific columns
             const { data: notifData } = await supabase
                 .from('notifications')
-                .select('id,user_id,type,message,title,data,action_url,read,created_at').limit(50)
+                .select('id,user_id,type,message,title,data,action_url,read,created_at')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
@@ -249,11 +249,7 @@ export function useNotifications() {
                 // Request browser notification permission on first load
                 requestNotifPermission();
 
-                const { data: { session }, error } = await supabase.auth.getSession();
-    const user = session?.user;
-                if (error || !user) { setLoading(false); return; }
-
-                // 80/20 Rule
+                // 80/20 Rule: use cached session from fetchNotifications
                 if (needsRefresh() || (requests.length === 0 && generalNotifications.length === 0)) {
                     await fetchNotifications();
                 } else {

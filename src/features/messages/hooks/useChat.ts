@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { Profile, Message } from '../../../types';
 import { useChatStore } from '../../../stores/useChatStore';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export function useChat() {
+    const { userId: authUserId } = useAuth(); // ✅ No network call — reads from context
     const {
         conversations,
         setConversations: storeSetConversations,
@@ -13,13 +15,12 @@ export function useChat() {
         setActiveChatId,
         unreadCounts,
         setUnreadCount,
-        
         clearUnread
     } = useChatStore();
 
     const [activeChat, setActiveChatState] = useState<Profile | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [userId, setUserId] = useState<string | null>(null);
+    const [userId, setUserId] = useState<string | null>(authUserId);
     const [onlineUsers] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
 
@@ -53,7 +54,6 @@ export function useChat() {
     useEffect(() => {
         activeChatRef.current = activeChat;
         if (activeChat) {
-            // clear unread for this chat
             clearUnread(activeChat.id);
         }
     }, [activeChat]);
@@ -79,7 +79,7 @@ export function useChat() {
     const markAsRead = useCallback(async (senderId: string) => {
         if (!userId) return;
 
-        // Optimistic update in store for messages of this chatId
+        // Optimistic update in store
         const chatId = senderId;
         const currentMsgs = useChatStore.getState().messages[chatId] || [];
         storeSetMessages(chatId, currentMsgs.map(m =>
@@ -98,36 +98,32 @@ export function useChat() {
         clearUnread(senderId);
     }, [userId, storeSetMessages, clearUnread]);
 
-    // Initial load
+    // Initial load — use auth context user id, no extra getSession() call
     useEffect(() => {
-        const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-            if (!user) return;
-            setUserId(user.id);
-            await fetchConversations(user.id);
-            await fetchUnreadCounts(user.id);
+        if (!authUserId) {
             setLoading(false);
-        };
-        init();
-    }, [fetchConversations, fetchUnreadCounts]);
+            return;
+        }
+        setUserId(authUserId);
+        fetchConversations(authUserId);
+        fetchUnreadCounts(authUserId);
+    }, [authUserId, fetchConversations, fetchUnreadCounts]);
 
-    // Global listeners and intervals removed to conserve Supabase Realtime limits
-    // Rely on push notifications and active chat subscriptions instead.
-
-    // Active Chat Messages & Subscription
+    // Active Chat Messages & Realtime Subscription
+    // ✅ Removed 60s polling interval — Realtime channel handles all live message delivery
     useEffect(() => {
         if (!activeChat || !userId) return;
 
         const fetchMessages = async () => {
             const chatId = activeChat.id;
             const cache = useChatStore.getState().messages[chatId];
-            
+
             // Only fetch from network if cache is empty
             if (!cache || cache.length === 0) {
                 const { data } = await supabase
                     .from('messages')
-                    .select('*')
+                    // ✅ Specific columns only — no select('*')
+                    .select('id, sender_id, recipient_id, content, image_url, audio_url, created_at, read_at')
                     .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
                     .order('created_at', { ascending: true })
                     .limit(50);
@@ -206,27 +202,6 @@ export function useChat() {
         };
     }, [activeChat, userId, markAsRead]);
 
-    // Active Chat fallback: extremely infrequent sync (every 60s)
-    useEffect(() => {
-        if (!activeChat || !userId) return;
-
-        const timer = setInterval(async () => {
-            const { data } = await supabase
-                .from('messages')
-                .select('*')
-                .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
-                .order('created_at', { ascending: true })
-                .limit(50);
-
-            if (data) {
-                const chatId = activeChat.id;
-                storeSetMessages(chatId, data);
-            }
-        }, 60000);
-
-        return () => clearInterval(timer);
-    }, [activeChat, userId]);
-
     const sendMessage = async (content: string, imageUrl: string | null = null, replyTo?: Message, audioUrl: string | null = null) => {
         if (!activeChat || !userId) return;
 
@@ -255,7 +230,7 @@ export function useChat() {
             audio_url: audioUrl
         };
 
-        // Optimistic update in both local and store
+        // Optimistic update in both local state and store
         setMessages((prev) => {
             const next = [...prev, tempMsg];
             storeSetMessages(chatId, next);
@@ -268,7 +243,7 @@ export function useChat() {
             content: finalContent || (audioUrl ? 'Voice Message' : ''),
             image_url: imageUrl,
             audio_url: audioUrl
-        }).select('*').single();
+        }).select('id, sender_id, recipient_id, content, image_url, audio_url, created_at, read_at').single();
 
         if (error) {
             console.error('Error sending message:', error);
@@ -295,7 +270,6 @@ export function useChat() {
         const { error } = await supabase.from('messages').delete().eq('id', messageId);
         if (error) {
             console.error('Error deleting message:', error);
-            // Revert? For now, we assume success or refresh
         }
     };
 

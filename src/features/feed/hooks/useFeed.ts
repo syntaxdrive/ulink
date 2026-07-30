@@ -91,35 +91,24 @@ export function useFeed(communityId?: string) {
             }
         });
 
-        // Replaced expensive Realtime WebSockets with simple 30s polling
-        let pollInterval: any;
-        const startPolling = (userId: string | null) => {
-            if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(() => {
-                fetchPosts(userId || undefined, false);
-            }, 30000);
-        };
-        startPolling(currentUserId);
-
         return () => {
             subscription.unsubscribe();
-            if (pollInterval) clearInterval(pollInterval);
         };
     }, [communityId]);
 
-    // ── Polling: live comment updates for the currently-open comment section ──
     useEffect(() => {
         if (!activeCommentPostId) return;
 
         const pollInterval = setInterval(() => {
             supabase
                 .from('comments')
-                .select(`*, profiles: author_id(*)`)
+                // ✅ Specific columns only — removed profiles:author_id(*)
+                .select(`*, profiles:author_id(id, name, username, avatar_url, is_verified)`)
                 .eq('post_id', activeCommentPostId)
                 .order('created_at', { ascending: true })
                 .then(({ data }) => {
-                    if (data) setComments(prev => ({ 
-                        ...prev, 
+                    if (data) setComments(prev => ({
+                        ...prev,
                         [activeCommentPostId]: data.map((c: any) => ({
                             ...c,
                             sticker_url: getOptimizedMediaUrl(c.sticker_url),
@@ -134,6 +123,7 @@ export function useFeed(communityId?: string) {
 
         return () => clearInterval(pollInterval);
     }, [activeCommentPostId]);
+
 
     const fetchPosts = async (userId?: string, isLoadMore = false) => {
         const isInitial = !isLoadMore;

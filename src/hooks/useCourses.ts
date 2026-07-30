@@ -4,21 +4,16 @@ import type { Course, CourseCategory, CourseDocument, UserDocumentDownload } fro
 import { ACCEPTED_DOC_TYPES, MAX_DOC_SIZE_BYTES, resolveDocMimeType } from '../types/courses';
 import { extractYouTubeId, getYouTubeThumbnail } from '../utils/youtube';
 import { useCourseStore } from '../stores/useCourseStore';
+import { useAuth } from '../contexts/AuthContext';
 
 export function useCourses(category?: CourseCategory, searchQuery?: string) {
     const store = useCourseStore();
+    // ✅ Auth from context — zero network calls, replaces getUser() + 4x getSession()
+    const { userId: currentUserId } = useAuth();
 
     // Hydrate from store immediately — instant render on revisit
     const [courses, setCourses] = useState<Course[]>(store.courses);
     const [loading, setLoading] = useState(store.courses.length === 0);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-    // Get current user
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            setCurrentUserId(data.user?.id || null);
-        });
-    }, []);
 
     // Fetch courses — with fallback if course_documents migration not yet applied
     const fetchCourses = useCallback(async () => {
@@ -98,7 +93,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         fetchCourses();
     }, [fetchCourses]);
 
-    // Create course
+    // Create course — uses currentUserId from AuthContext (no getSession needed)
     const createCourse = async (data: {
         title: string;
         description?: string;
@@ -108,9 +103,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         tags?: string[];
         documentFile?: File | null;
     }) => {
-        const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-        if (!user) throw new Error('Not authenticated');
+        if (!currentUserId) throw new Error('Not authenticated');
 
         const isVideoMode = !!data.youtube_url;
         const isDocMode = !!data.documentFile;
@@ -142,7 +135,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
                 category: data.category,
                 level: data.level,
                 tags: data.tags || null,
-                author_id: user.id,
+                author_id: currentUserId,
                 thumbnail_url: thumbnailUrl,
                 content_type: contentType,
             })
@@ -169,43 +162,38 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
 
         // Upload document if provided — uploadDocumentToCourse will patch state once done
         if (data.documentFile && newCourse) {
-            await uploadDocumentToCourse(newCourse.id, data.documentFile, user.id);
+            await uploadDocumentToCourse(newCourse.id, data.documentFile, currentUserId);
         }
 
         return newCourse;
     };
 
-    // Upload a document to an existing course — Cloudinary first, Supabase Storage fallback
+    // Upload a document to an existing course — Supabase Storage (public bucket)
     const uploadDocumentToCourse = async (
         courseId: string,
         file: File,
         userId?: string,
         _onProgress?: (pct: number) => void
     ): Promise<CourseDocument | null> => {
-        const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-        const uid = userId || user?.id;
+        const uid = userId || currentUserId;
         if (!uid) throw new Error('Not authenticated');
 
         // Resolve MIME type — mobile browsers (iOS Safari, Android) often return empty file.type
         const resolvedType = resolveDocMimeType(file);
 
-        // Validate type with resolved MIME
         if (!ACCEPTED_DOC_TYPES[resolvedType]) {
             throw new Error(`File type not supported. Accepted: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT`);
         }
 
-        // Validate size
         if (file.size > MAX_DOC_SIZE_BYTES) {
             throw new Error(`File too large. Maximum size is 25MB.`);
         }
 
         let publicUrl = '';
         let storagePath = '';
-        let uploadedBytes = file.size;
+        const uploadedBytes = file.size;
 
-        // Documents go directly to Supabase Storage (public bucket) — Cloudinary raw resources
-        // require authenticated access by default, causing 401s when viewing in-app.
+        // Documents go directly to Supabase Storage (public bucket)
         const ext = file.name.split('.').pop() ?? 'bin';
         const fileName = `course-documents/${courseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error: storageErr } = await supabase.storage
@@ -224,7 +212,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
                 name: file.name,
                 storage_path: storagePath,
                 public_url: publicUrl,
-                file_type: resolvedType,  // use resolved type, not raw file.type
+                file_type: resolvedType,
                 file_size: uploadedBytes,
             })
             .select()
@@ -242,11 +230,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         return doc;
     };
 
-    // Delete a document — removes from Cloudinary and DB
+    // Delete a document
     const deleteDocument = async (doc: CourseDocument) => {
-        // Note: Cloudinary deletion requires a signed API call (server-side).
-        // For now we just delete the DB record; optionally add a Supabase Edge Function later.
-        // The file will remain on Cloudinary's CDN but won't be accessible from the app.
         await supabase.from('course_documents').delete().eq('id', doc.id);
         setCourses(prev => prev.map(c =>
             c.id === doc.course_id
@@ -265,24 +250,25 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         }
     };
 
-    // Fetch user's downloaded document library
+    // Fetch user's downloaded document library — paginated to 20 most recent
     const fetchMyLibrary = async (): Promise<UserDocumentDownload[]> => {
         const { data, error } = await supabase
             .from('user_document_downloads')
             .select(`
-                *,
+                id, downloaded_at,
                 course_documents (
                     id, name, public_url, file_type, file_size, downloads_count, created_at,
                     courses ( id, title, category )
                 )
             `)
-            .order('downloaded_at', { ascending: false });
+            .order('downloaded_at', { ascending: false })
+            .limit(20); // ✅ Paginated — previously fetched ALL rows
 
         if (error) throw error;
         return data || [];
     };
 
-    // Delete course — removes docs from DB (Cloudinary cleanup via Edge Function later)
+    // Delete course
     const deleteCourse = async (courseId: string) => {
         const { error } = await supabase.from('courses').delete().eq('id', courseId);
         if (error) throw error;
@@ -290,24 +276,22 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         store.removeCourse(courseId);
     };
 
-    // Toggle like
+    // Toggle like — uses currentUserId from AuthContext
     const toggleLike = async (courseId: string) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-            if (!user) return;
+            if (!currentUserId) return;
 
             const course = courses.find(c => c.id === courseId);
             if (!course) return;
 
             if (course.user_has_liked) {
                 await supabase.from('course_likes').delete()
-                    .eq('course_id', courseId).eq('user_id', user.id);
+                    .eq('course_id', courseId).eq('user_id', currentUserId);
                 const patch = { user_has_liked: false, likes_count: course.likes_count - 1 };
                 setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
                 store.updateCourse(courseId, patch);
             } else {
-                await supabase.from('course_likes').insert({ course_id: courseId, user_id: user.id });
+                await supabase.from('course_likes').insert({ course_id: courseId, user_id: currentUserId });
                 const patch = { user_has_liked: true, likes_count: course.likes_count + 1 };
                 setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
                 store.updateCourse(courseId, patch);
@@ -317,24 +301,22 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         }
     };
 
-    // Toggle enrollment
+    // Toggle enrollment — uses currentUserId from AuthContext
     const toggleEnrollment = async (courseId: string) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-            if (!user) return;
+            if (!currentUserId) return;
 
             const course = courses.find(c => c.id === courseId);
             if (!course) return;
 
             if (course.user_has_enrolled) {
                 await supabase.from('course_enrollments').delete()
-                    .eq('course_id', courseId).eq('user_id', user.id);
+                    .eq('course_id', courseId).eq('user_id', currentUserId);
                 const patch = { user_has_enrolled: false, enrollments_count: course.enrollments_count - 1 };
                 setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
                 store.updateCourse(courseId, patch);
             } else {
-                await supabase.from('course_enrollments').insert({ course_id: courseId, user_id: user.id });
+                await supabase.from('course_enrollments').insert({ course_id: courseId, user_id: currentUserId });
                 const patch = { user_has_enrolled: true, enrollments_count: course.enrollments_count + 1 };
                 setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c));
                 store.updateCourse(courseId, patch);

@@ -203,21 +203,22 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         let cancelled = false;
 
         const setupRealtime = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+            // We use the passed-in session prop to avoid race conditions with auth state changes
+            const user = session?.user;
             if (cancelled) return;
 
             if (!user) {
                 setIsGuest(true);
+                setUserProfile(null);
                 return;
             }
 
             setIsGuest(false);
 
-            // Fetch User Profile
+            // Fetch User Profile — specific columns only (no select('*'))
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points, onboarding_complete')
                 .eq('id', user.id)
                 .single();
 
@@ -307,9 +308,11 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         };
     }, [session?.user?.id]);
 
-    // Activity Heartbeat
+    // Activity Heartbeat — visibility-aware to avoid pinging when tab is hidden
     useEffect(() => {
         const ping = () => {
+            // ✅ Skip ping if tab is not visible — saves ~50% of heartbeat DB calls
+            if (document.visibilityState !== 'visible') return;
             supabase.rpc('update_last_seen').then(({ error }) => {
                 if (error) {
                     const isAbort =
@@ -332,7 +335,16 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
 
     const handleLogout = async () => {
         try { localStorage.removeItem('ulink_profile_cache'); } catch {}
-        await supabase.auth.signOut();
+        setIsGuest(true);
+        setUserProfile(null);
+        
+        // Try global signout, but force local if there's an error
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.warn('Global signout failed, clearing local session...', error);
+            await supabase.auth.signOut({ scope: 'local' });
+        }
+        
         navigate('/');
     };
 

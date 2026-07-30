@@ -42,6 +42,7 @@ import PWAInstallBanner from './components/PWAInstallBanner';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO/SEO';
 import { useUIStore } from './stores/useUIStore';
+import { AuthProvider } from './contexts/AuthContext';
 
 import { initializeNativeAuth } from './lib/auth-helpers';
 import DeepLinkHelper from './components/DeepLinkHelper';
@@ -129,81 +130,68 @@ function App() {
   }
 
   return (
-    <HelmetProvider>
-      <BrowserRouter>
-        <DeepLinkHelper />
-        <ShareIntentHelper />
-        <ShareTargetChoiceModal />
-        <UpdateNotification />
-        <PWAInstallBanner />
-        {/* Default SEO Tags */}
-        <SEO
-          title="Home"
-          description="Join the largest network of Nigerian university students. Collaborate, share resources, and grow your career."
-        />
-        <Suspense fallback={
-          <div className="h-screen w-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-bg-dark">
-            <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
-          </div>
-        }>
-          <Routes>
-            <Route path="/download" element={<DownloadPage />} />
-            <Route
-              path="/"
-              element={<Navigate to="/app" replace />}
-            />
-            <Route path="/welcome" element={<LandingPage />} />
-            <Route
-              path="/signup"
-              element={
-                session
-                  ? <Navigate to="/app" replace />
-                  : <LandingPage />
-              }
-            />
-            <Route path="/about" element={<AboutPage />} />
-            <Route
-              path="/onboarding"
-              element={session ? <OnboardingPage /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/app"
-              element={<DashboardLayout session={session} />}
-            >
-              <Route index element={<FeedPage />} />
-              <Route path="post/:postId" element={<PostPage />} />
-              <Route path="communities" element={<CommunitiesPage />} />
-              <Route path="communities/:slug" element={<CommunityDetailsPage />} />
-              <Route path="network" element={<NetworkPage />} />
-              <Route path="messages" element={session ? <MessagesPage /> : <Navigate to="/app" replace />} />
-              <Route path="jobs" element={<JobsPage />} />
-              <Route path="talent" element={<TalentSearchPage />} />
-              <Route path="learn" element={<CoursesPage />} />
-              <Route path="story" element={<StoryModePage />} />
-              <Route path="story/create" element={<StoryBuilderPage />} />
-              <Route path="story/dashboard" element={<CreatorDashboardPage />} />
-              <Route path="study" element={<StudyRoomsPage />} />
-              <Route path="marketplace" element={<MarketplacePage />} />
-              <Route path="leaderboard" element={<LeaderboardPage />} />
-              <Route path="challenge" element={<CampusChallengePage />} />
-              <Route path="news" element={<NewsPage />} />
-              <Route path="podcasts" element={<PodcastsPage />} />
-              <Route path="podcasts/manage" element={session ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
-              <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
-              <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
-              <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
-              <Route path="profile/:userId" element={<UserProfilePage />} />
-              <Route path="settings" element={session ? <SettingsPage /> : <Navigate to="/app" replace />} />
-              <Route path="admin" element={session ? <AdminPage /> : <Navigate to="/app" replace />} />
+    <AuthProvider>
+      <HelmetProvider>
+        <BrowserRouter>
+          <DeepLinkHelper />
+          <ShareIntentHelper />
+          <ShareTargetChoiceModal />
+          <UpdateNotification />
+          <PWAInstallBanner />
+          <SEO
+            title="Home"
+            description="Join the largest network of Nigerian university students. Collaborate, share resources, and grow your career."
+          />
+          <Suspense fallback={
+            <div className="h-screen w-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-bg-dark">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            </div>
+          }>
+            <Routes>
+              <Route path="/download" element={<DownloadPage />} />
+              <Route path="/" element={<Navigate to="/app" replace />} />
+              <Route path="/welcome" element={<LandingPage />} />
+              <Route path="/signup" element={session ? <Navigate to="/app" replace /> : <LandingPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/onboarding" element={session ? <OnboardingPage /> : <Navigate to="/" replace />} />
+              <Route path="/app" element={<DashboardLayout session={session} />}>
+                <Route index element={<FeedPage />} />
+                <Route path="post/:postId" element={<PostPage />} />
+                <Route path="communities" element={<CommunitiesPage />} />
+                <Route path="communities/:slug" element={<CommunityDetailsPage />} />
+                <Route path="network" element={<NetworkPage />} />
+                <Route path="messages" element={session ? <MessagesPage /> : <Navigate to="/app" replace />} />
+                <Route path="jobs" element={<JobsPage />} />
+                <Route path="talent" element={<TalentSearchPage />} />
+                <Route path="learn" element={<CoursesPage />} />
+                <Route path="story" element={<StoryModePage />} />
+                <Route path="story/create" element={<StoryBuilderPage />} />
+                <Route path="story/dashboard" element={<CreatorDashboardPage />} />
+                <Route path="study" element={<StudyRoomsPage />} />
+                <Route path="marketplace" element={<MarketplacePage />} />
+                <Route path="leaderboard" element={<LeaderboardPage />} />
+                <Route path="challenge" element={<CampusChallengePage />} />
+                <Route path="news" element={<NewsPage />} />
+                <Route path="podcasts" element={<PodcastsPage />} />
+                <Route path="podcasts/manage" element={session ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
+                <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
+                <Route path="notifications" element={session ? <NotificationsPage /> : <Navigate to="/app" replace />} />
+                <Route path="profile" element={session ? <ProfilePage /> : <Navigate to="/app" replace />} />
+                <Route path="profile/:userId" element={<UserProfilePage />} />
+                <Route path="settings" element={session ? <SettingsPage /> : <Navigate to="/app" replace />} />
+                <Route path="admin" element={session ? <AdminPage /> : <Navigate to="/app" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+              <Route path="/legal/:type" element={<LegalPage />} />
               <Route path="*" element={<NotFoundPage />} />
-            </Route>
-            <Route path="/legal/:type" element={<LegalPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </HelmetProvider>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </HelmetProvider>
+    </AuthProvider>
   );
 }
 
 export default App;
+
+

@@ -83,12 +83,18 @@ export default function AdminReactionsBoard() {
     useEffect(() => {
         fetchNotes();
 
-        // Replaced expensive Realtime WebSockets with slow polling
-        const pollInterval = setInterval(() => {
-            fetchNotes();
-        }, 30000);
+        // ✅ Replaced 30s polling with a Realtime subscription (admin-only table, low traffic)
+        const channel = supabase
+            .channel('admin-notes-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_notes' },
+                () => fetchNotes() // Re-fetch on any change
+            )
+            .subscribe();
 
-        return () => clearInterval(pollInterval);
+        return () => {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     // ── Add note ──────────────────────────────────────────────────────────────
