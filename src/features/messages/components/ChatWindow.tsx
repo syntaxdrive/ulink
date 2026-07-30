@@ -18,26 +18,6 @@ interface ChatWindowProps {
     onDeleteMessage: (id: string) => Promise<void>;
 }
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Send, Paperclip, Image as ImageIcon, X, FileText, Mic, Square, Loader2 } from 'lucide-react';
-import type { Message, Profile } from '../../../types';
-import MessageItem from './MessageItem';
-import ForwardMessageModal from './ForwardMessageModal';
-import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
-import { compressImage } from '../../../lib/mediaCompression';
-
-interface ChatWindowProps {
-    activeChat: Profile;
-    messages: Message[];
-    userId: string | null;
-    onlineUsers: Set<string>;
-    onBack: () => void;
-    onSendMessage: (content: string, imageUrl: string | null, replyTo?: Message, audioUrl?: string | null) => Promise<void>;
-    onDeleteMessage: (id: string) => Promise<void>;
-}
-
 export default function ChatWindow({ activeChat, messages, userId, onlineUsers, onBack, onSendMessage, onDeleteMessage }: ChatWindowProps) {
     const [newMessage, setNewMessage] = useState('');
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -147,7 +127,6 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         if (replyingTo || imageFile) scrollToBottom('smooth');
     }, [replyingTo, imageFile, scrollToBottom]);
 
-
     const handleImageClick = () => {
         fileInputRef.current?.click();
     };
@@ -155,15 +134,13 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Check file size (10MB limit)
-            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+            const maxSize = 10 * 1024 * 1024; // 10MB limit
             if (file.size > maxSize) {
                 alert('Image size must be less than 10MB. Please choose a smaller image.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
 
-            // Check file type (Images + Docs)
             const allowedTypes = [
                 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
                 'application/pdf',
@@ -208,15 +185,11 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
 
     const startRecording = async () => {
         try {
-            // Check if we're on native (APK) or Web
             const { Capacitor } = await import('@capacitor/core');
             const isNative = Capacitor.isNativePlatform();
 
             if (isNative) {
-                // NATIVE APK PATH: Use Capacitor Plugin for permissions & stability
                 const { VoiceRecorder } = await import('capacitor-voice-recorder');
-                
-                // Fast-check/ask for permissions
                 const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
                 if (!hasPermission) {
                     const { value: nowHasPermission } = await VoiceRecorder.requestAudioRecordingPermission();
@@ -225,10 +198,8 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         return;
                     }
                 }
-
                 await VoiceRecorder.startRecording();
             } else {
-                // WEB BROWSER PATH: Use standard MediaRecorder
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
                     : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
@@ -274,8 +245,6 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         if (isNative) {
             const { VoiceRecorder } = await import('capacitor-voice-recorder');
             const { value: recording } = await VoiceRecorder.stopRecording();
-            
-            // Native recorder returns base64 directly — awesome for APK performance
             const base64Audio = `data:audio/aac;base64,${recording.recordDataBase64}`;
             
             setIsSending(true);
@@ -299,13 +268,11 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const sendAudioMessage = async (audioBlob: Blob) => {
         setIsSending(true);
         try {
-            // Convert audio blob to Base64 to bypass Supabase Storage MIME type restrictions
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
 
             reader.onloadend = async () => {
                 const base64Audio = reader.result as string;
-
                 try {
                     await onSendMessage('', null, replyingTo || undefined, base64Audio);
                     setReplyingTo(null);
@@ -335,8 +302,6 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // ... (Keep existing typing logic hooks)
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((!newMessage.trim() && !imageFile) || !userId || isSending) return;
@@ -352,13 +317,11 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                     const compressedImage = new File([compressedBlob], imageFile.name, { type: imageFile.type || 'image/jpeg' });
                     
                     if (cloudinaryService.isConfigured()) {
-                        // Images → Cloudinary (f_auto,q_auto on delivery)
                         try {
                             const result = await cloudinaryService.uploadImage(compressedImage, { folder: 'ulink/messages' });
                             imageUrl = result.secureUrl;
                         } catch (cloudErr) {
                             console.warn('[Chat image] Cloudinary failed, falling back to Supabase:', cloudErr);
-                            // Supabase fallback for images
                             const fileExt = compressedImage.name.split('.').pop();
                             const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
                             const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, compressedImage);
@@ -373,7 +336,6 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                         imageUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
                     }
                 } else {
-                    // Non-image files (PDF, DOC, etc.) → always Supabase (uncompressed)
                     const fileExt = imageFile.name.split('.').pop();
                     const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
                     const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, imageFile);
@@ -382,7 +344,6 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                 }
             }
 
-            // Pass simple args to parent/hook
             await onSendMessage(newMessage, imageUrl, replyingTo || undefined);
 
             setNewMessage('');
@@ -401,6 +362,200 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
     const handleForwardToRecipients = async (recipientIds: string[], message: Message) => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
+            const user = session?.user;
+            if (!user) return;
+
+            for (const recipientId of recipientIds) {
+                const { data: existingConv } = await supabase
+                    .from('conversation_participants')
+                    .select('conversation_id').limit(1)
+                    .eq('user_id', user.id)
+                    .single();
+
+                let conversationId = existingConv?.conversation_id;
+
+                if (!conversationId) {
+                    const { data: newConv } = await supabase
+                        .from('conversations')
+                        .insert({ type: 'private' })
+                        .select()
+                        .single();
+
+                    if (newConv) {
+                        conversationId = newConv.id;
+                        await supabase.from('conversation_participants').insert([
+                            { conversation_id: conversationId, user_id: user.id },
+                            { conversation_id: conversationId, user_id: recipientId }
+                        ]);
+                    }
+                }
+
+                await supabase.from('messages').insert({
+                    conversation_id: conversationId,
+                    sender_id: user.id,
+                    recipient_id: recipientId,
+                    content: message.content,
+                    image_url: message.image_url,
+                    audio_url: message.audio_url
+                });
+            }
+        } catch (error) {
+            console.error('Error forwarding message:', error);
+            throw error;
+        }
+    };
+
+    return (
+        <div className="flex-1 flex flex-col h-full bg-stone-50/50 dark:bg-black relative">
+            {/* Header */}
+            <div className="p-4 bg-white/95 dark:bg-black backdrop-blur-sm border-b border-stone-100 dark:border-zinc-800 flex items-center gap-3 shadow-sm z-10">
+                <button
+                    onClick={onBack}
+                    className="md:hidden p-2 -ml-2 text-stone-500 hover:text-stone-800 active:bg-stone-100 rounded-full transition-colors"
+                >
+                    <ArrowLeft className="w-6 h-6" />
+                </button>
+
+                <Link to={`/app/profile/${activeChat.username || activeChat.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:bg-stone-50 p-2 -my-2 rounded-lg transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-stone-200 overflow-hidden relative shrink-0">
+                        <img
+                            src={getOptimizedMediaUrl(activeChat.avatar_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeChat.name)}&background=random`}
+                            alt={activeChat.name}
+                            className="w-full h-full object-cover"
+                        />
+                        {onlineUsers.has(activeChat.id) && (
+                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full z-10"></div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-bold text-stone-900 flex items-center gap-1 truncate">
+                            {activeChat.name}
+                            {activeChat.gold_verified ? (
+                                <BadgeCheck className="w-4 h-4 text-yellow-500 fill-yellow-50 shrink-0" />
+                            ) : activeChat.is_verified ? (
+                                <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-50 shrink-0" />
+                            ) : null}
+                        </h3>
+                        <p className="text-xs text-stone-500 truncate">
+                            {onlineUsers.has(activeChat.id) ? (
+                                <span className="text-green-600 font-medium">Online</span>
+                            ) : (
+                                activeChat.headline || activeChat.university || activeChat.role
+                            )}
+                        </p>
+                    </div>
+                </Link>
+            </div>
+
+            {/* Messages List */}
+            <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+                {messages.map((msg) => (
+                    <MessageItem
+                        key={msg.id}
+                        msg={msg}
+                        isMe={msg.sender_id === userId}
+                        onReply={setReplyingTo}
+                        activeChat={activeChat}
+                        onImageClick={setLightboxImage}
+                        onDelete={onDeleteMessage}
+                        onForward={handleForward}
+                    />
+                ))}
+
+                {/* Typing Indicator Bubble */}
+                {isTyping && (
+                    <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-stone-100 dark:border-zinc-800 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                            <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-zinc-600 rounded-full animate-bounce"></span>
+                        </div>
+                    </div>
+                )}
+                {/* Bottom anchor for smooth scroll targeting */}
+                <div ref={bottomAnchorRef} className="h-0" />
+            </div>
+
+            {/* Jump to Bottom Button */}
+            {showScrollBtn && (
+                <button
+                    onClick={() => scrollToBottom('smooth')}
+                    className="absolute bottom-24 right-4 z-20 p-2.5 bg-emerald-600 text-white rounded-full shadow-lg animate-in fade-in zoom-in-95 duration-200 hover:bg-emerald-700 active:scale-90 transition-all"
+                    title="Jump to latest"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </button>
+            )}
+
+            {/* Reply Preview */}
+            {(replyingTo || imageFile) && (
+                <div className="px-4 py-2 bg-stone-100 dark:bg-zinc-900 border-t border-stone-200 dark:border-zinc-800 flex justify-between items-center text-sm text-stone-600 dark:text-zinc-400">
+                    <div className="flex items-center gap-2">
+                        {replyingTo && (
+                            <span className="truncate max-w-[150px] md:max-w-md">Replying to: {replyingTo.content}</span>
+                        )}
+                        {imageFile && (
+                            <div className="flex items-center gap-2 ml-4">
+                                {imagePreview ? (
+                                    <>
+                                        <ImageIcon className="w-4 h-4" />
+                                        <img src={imagePreview} className="w-8 h-8 rounded object-cover border dark:border-zinc-700" alt="preview" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <FileText className="w-4 h-4" />
+                                        <span className="font-medium text-stone-900 dark:text-white truncate max-w-[120px]">{imageFile.name}</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <button onClick={() => { setReplyingTo(null); clearImage(); }} className="p-1 hover:text-stone-900 dark:hover:text-white shrink-0 ml-2">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* Input Area */}
+            {isRecording ? (
+                <div className="p-4 bg-white dark:bg-zinc-900 border-t border-stone-100 dark:border-zinc-800 flex items-center justify-between pb-safe">
+                    <div className="flex items-center gap-3 text-red-500 animate-pulse">
+                        <div className="w-3 h-3 bg-red-500 rounded-full" />
+                        <span className="font-mono font-medium">{formatTime(recordingTime)}</span>
+                    </div>
+                    <div className="text-sm text-stone-500 dark:text-zinc-400 font-medium">Recording voice note...</div>
+                    <button
+                        onClick={stopRecording}
+                        className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-transform active:scale-95 shadow-lg shadow-red-200"
+                    >
+                        <Square className="w-5 h-5 fill-current" />
+                    </button>
+                </div>
+            ) : (
+                <div className="p-4 bg-white dark:bg-black border-t border-stone-100 dark:border-zinc-800 pb-safe relative">
+                    <form onSubmit={handleSubmit} className="flex gap-2">
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={handleFileChange} />
+
+                        <button
+                            type="button"
+                            onClick={handleImageClick}
+                            className={`p-2 rounded-xl transition-all ${imageFile ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-stone-50 dark:bg-zinc-800 text-stone-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400'}`}
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </button>
+
+                        <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => {
+                                setNewMessage(e.target.value);
                                 handleTyping();
                             }}
                             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
