@@ -39,77 +39,6 @@ async function resolveName(userId: string): Promise<string> {
 
 type FeedEvent = { type: 'post' | 'like' | 'comment'; userId: string };
 
-function LiveTicker({ postCount, latestFeedEvent }: { postCount: number; latestFeedEvent: FeedEvent | null }) {
-    const [message, setMessage] = useState('🌐 UniLink is live — students are active right now');
-    const [visible, setVisible] = useState(true);
-    const [isRealEvent, setIsRealEvent] = useState(false);
-
-    const showMessage = (msg: string, real = false) => {
-        setVisible(false);
-        setTimeout(() => {
-            setMessage(msg);
-            setIsRealEvent(real);
-            setVisible(true);
-        }, 250);
-    };
-
-    // Resolve name and show ticker message when a new feed event arrives
-    useEffect(() => {
-        if (!latestFeedEvent) return;
-        resolveName(latestFeedEvent.userId).then(name => {
-            if (latestFeedEvent.type === 'post') showMessage(`✍️ ${name} just posted something new`, true);
-            else if (latestFeedEvent.type === 'comment') showMessage(`💬 ${name} just dropped a comment`, true);
-            else showMessage(`❤️ ${name} liked a post`, true);
-        });
-    }, [latestFeedEvent]);
-
-    // Idle message rotation
-    useEffect(() => {
-        const IDLE = [
-            '🌐 UniLink is live — students are active right now',
-            '⚡ Campus challenge is heating up — join now!',
-            '🏆 Check the leaderboard — see where you rank!',
-            '🤝 Grow your network — connect with classmates',
-            '📢 Explore communities on your campus',
-        ];
-        let idleIdx = 0;
-        const idleTimer = setInterval(() => {
-            setIsRealEvent(prev => {
-                if (!prev) {
-                    idleIdx = (idleIdx + 1) % IDLE.length;
-                    showMessage(IDLE[idleIdx], false);
-                }
-                return prev;
-            });
-        }, 6000);
-        return () => clearInterval(idleTimer);
-    }, []);
-
-    // Reset isRealEvent after 8s so idle rotation can resume
-    useEffect(() => {
-        if (!isRealEvent) return;
-        const t = setTimeout(() => setIsRealEvent(false), 8000);
-        return () => clearTimeout(t);
-    }, [isRealEvent, message]);
-
-    return (
-        <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/30 rounded-xl px-3 py-2 overflow-hidden">
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isRealEvent ? 'animate-ping' : 'animate-pulse'}`} />
-                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Live</span>
-            </div>
-            <p className={`text-xs text-emerald-800 dark:text-emerald-300 truncate transition-all duration-300 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'}`}>
-                {message}
-            </p>
-            {postCount > 0 && (
-                <span className="flex-shrink-0 ml-auto text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
-                    {postCount} posts
-                </span>
-            )}
-        </div>
-    );
-}
-
 
 function PodcastSidebarWidget() {
     const [podcasts, setPodcasts] = useState<any[]>(_podcastSidebarCache.data);
@@ -479,30 +408,24 @@ export default function FeedPage() {
                         ))}
                     </div>
 
-                    {/* Live Activity Ticker */}
-                    {!searchQuery && (
-                        <div className="px-4 lg:px-0 space-y-3">
-                            {/* Trending Tags (Mobile only) */}
-                            {sortedTags.length > 0 && (
-                                <div className="lg:hidden">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <TrendingUp className="w-3 h-3 text-emerald-500" />
-                                        <span className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-600 tracking-widest">Trending</span>
-                                    </div>
-                                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                                        {sortedTags.map(tag => (
-                                            <button
-                                                key={tag}
-                                                onClick={() => setSearchQuery(tag)}
-                                                className="px-3 py-1.5 rounded-full bg-stone-100 dark:bg-black text-stone-600 dark:text-zinc-300 text-[11px] font-bold border border-stone-200 dark:border-zinc-800 whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5"
-                                            >
-                                                {tag}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            <LiveTicker postCount={posts.length} latestFeedEvent={latestFeedEvent} />
+                    {/* Mobile Trending Tags */}
+                    {!searchQuery && sortedTags.length > 0 && (
+                        <div className="lg:hidden px-4 mb-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                <span className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-600 tracking-widest">Trending</span>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                {sortedTags.map(tag => (
+                                    <button
+                                        key={tag}
+                                        onClick={() => setSearchQuery(tag)}
+                                        className="px-3 py-1.5 rounded-full bg-stone-100 dark:bg-black text-stone-600 dark:text-zinc-300 text-[11px] font-bold border border-stone-200 dark:border-zinc-800 whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5"
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
 
