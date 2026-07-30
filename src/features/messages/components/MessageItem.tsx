@@ -1,7 +1,7 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X, ShoppingCart, ExternalLink, Ban } from 'lucide-react';
+import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, ShoppingCart, ExternalLink, Ban } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
 import { getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
