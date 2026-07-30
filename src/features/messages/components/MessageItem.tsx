@@ -1,4 +1,5 @@
 import { memo, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Clock, Forward, X, ShoppingCart, ExternalLink, Ban } from 'lucide-react';
 import { type Message, type Profile } from '../../../types';
@@ -103,7 +104,6 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
     return (
         <div
             className={`relative flex items-end gap-2 group ${isMe ? 'justify-end' : 'justify-start'} px-2`}
-            style={{ contentVisibility: 'auto', containIntrinsicSize: '120px' }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onTouchMove={handleTouchMove}
@@ -300,11 +300,11 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                 </div>
             )}
 
-            {/* Action Menu Modal (Overlay floating popover, fixed z-[300] to avoid clipping/blur bugs) */}
-            {showMenu && !isDeleted && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            {/* Action Menu Modal (Rendered via Portal at document.body level for absolute z-index priority) */}
+            {showMenu && !isDeleted && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-150">
                     <div
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={() => setShowMenu(false)}
                     />
                     <div
@@ -349,12 +349,13 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Delete Options Modal (Delete for me vs Delete for everyone) */}
-            {showDeleteModal && (
-                <div className="fixed inset-0 z-[400] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDeleteModal(false)}>
+            {/* Delete Options Modal (Rendered via Portal at document.body level for absolute z-index priority) */}
+            {showDeleteModal && createPortal(
+                <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDeleteModal(false)}>
                     <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto shadow-inner">
                             <Trash2 className="w-6 h-6" />
@@ -400,7 +401,8 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
