@@ -197,7 +197,20 @@ export default function OnboardingPage() {
                 .from('profiles')
                 .upsert(updates);
 
-            if (updateErr) throw updateErr;
+            if (updateErr) {
+                console.warn('Full onboarding update warning:', updateErr.message);
+                // Fallback: If newer columns like department/study_year aren't in Supabase DB yet,
+                // save essential core fields so onboarding succeeds!
+                delete updates.department;
+                delete updates.study_year;
+                delete updates.graduation_year;
+
+                const { error: fallbackErr } = await supabase
+                    .from('profiles')
+                    .upsert(updates);
+
+                if (fallbackErr) throw fallbackErr;
+            }
 
             // Process referrals
             const referralCode = sessionStorage.getItem('referral_code');
