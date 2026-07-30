@@ -18,7 +18,7 @@ async function main() {
 
     console.log(`Found ${profiles.length} profiles. Migrating to Users...`);
     
-    // We generate a random password for migrated users since we can't extract it from Supabase auth.users
+    // Default password for migrated accounts
     const defaultPassword = await bcrypt.hash('UlinkMigration2026!', 10);
 
     for (const p of profiles) {
@@ -27,11 +27,11 @@ async function main() {
             update: {},
             create: {
                 id: p.id,
-                email: p.email,
+                email: p.email || `${p.username || p.id}@unilink.app`,
                 name: p.name,
-                username: p.username,
-                role: p.role,
-                password: defaultPassword,
+                username: p.username || p.id,
+                role: p.role || 'Student',
+                password_hash: defaultPassword,
                 university: p.university,
                 avatar_url: p.avatar_url,
                 background_url: p.background_image_url,
@@ -56,7 +56,7 @@ async function main() {
                 update: {},
                 create: {
                     id: post.id,
-                    user_id: post.author_id,
+                    author_id: post.author_id,
                     content: post.content,
                     image_url: post.image_url,
                     created_at: new Date(post.created_at)
