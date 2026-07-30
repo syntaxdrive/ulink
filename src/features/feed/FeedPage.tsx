@@ -15,6 +15,8 @@ import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
 import SponsoredPostItem from './components/SponsoredPostItem';
 import ProfileCompletionBanner from './components/ProfileCompletionBanner';
 import NewsSlider from './components/NewsSlider';
+import GettingStartedChecklist from './components/GettingStartedChecklist';
+import FirstPostPrompt from './components/FirstPostPrompt';
 import { useUIStore } from '../../stores/useUIStore';
 
 
@@ -508,6 +510,23 @@ export default function FeedPage() {
                     {currentUserProfile && (
                         <div className="px-4 lg:px-0">
                             <WelcomeMessage userName={currentUserProfile.name.split(' ')[0]} />
+                        </div>
+                    )}
+
+                    {/* Getting Started Onboarding Checklist */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <GettingStartedChecklist 
+                                user={currentUserProfile} 
+                                userPostCount={posts.filter(p => p.user_id === currentUserId).length}
+                            />
+                        </div>
+                    )}
+
+                    {/* First Post Quick Prompts */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <FirstPostPrompt user={currentUserProfile} />
                         </div>
                     )}
 
