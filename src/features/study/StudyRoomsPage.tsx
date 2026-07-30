@@ -1317,7 +1317,7 @@ export default function StudyRoomsPage() {
             : [];
 
         return (
-            <div className="fixed inset-0 z-[100] bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col h-[100dvh] w-full pt-[env(safe-area-inset-top)] sm:pt-0 sm:static sm:z-auto sm:bg-transparent sm:h-[calc(100vh-96px)]">
+            <div className="fixed inset-0 z-[100] bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col h-[100dvh] w-full pt-[env(safe-area-inset-top)]">
                 
                 {/* ── Room Header (Fixed Top) ── */}
                 <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 shadow-sm z-10 flex items-center justify-between gap-3 sm:gap-4">
@@ -1369,7 +1369,7 @@ export default function StudyRoomsPage() {
                 </div>
 
                 {/* ── Tab Content Container (Middle Flex) ── */}
-                <div className="flex-1 overflow-hidden flex flex-col w-full sm:max-w-7xl mx-auto sm:px-4 sm:pt-4">
+                <div className="flex-1 overflow-hidden flex flex-col w-full sm:px-6 sm:py-3">
                     {/* ── CHAT ── */}
                     {tab === 'chat' && (
                         <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0b141a] sm:rounded-2xl sm:border border-slate-200 dark:border-zinc-800 shadow-sm relative">
@@ -2154,7 +2154,7 @@ export default function StudyRoomsPage() {
                 </div>
 
                 {/* ── Floating Bottom Tabs ── */}
-                <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 pb-[calc(env(safe-area-inset-bottom)+0.2rem)] pt-2 px-2 sm:rounded-b-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 w-full sm:max-w-7xl mx-auto sm:mb-4">
+                <div className="w-full flex-shrink-0 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 pb-[calc(env(safe-area-inset-bottom)+0.2rem)] pt-2 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10 w-full">
                     <div className="flex justify-around items-center w-full">
                         {tabs.map(({ id, label, icon: Icon, badge }) => (
                             <button
@@ -2188,7 +2188,7 @@ export default function StudyRoomsPage() {
     // ROOMS LIST
     // ─────────────────────────────────────────────────────────────────────
     return (
-        <div className="w-full max-w-5xl lg:max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:pb-8 space-y-6">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:pb-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 flex items-center gap-2.5">
