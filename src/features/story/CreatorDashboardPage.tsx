@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   BarChart2, Plus, ArrowLeft, TrendingUp, Users, BookOpen, 
-  Trash2, Edit3, Eye, Clock, Calendar, Zap, Loader2, Play
+  Trash2, Edit3, Eye, Clock, Zap, Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { SEO } from '../../components/SEO/SEO';
@@ -32,7 +32,8 @@ export default function CreatorDashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
       if (!user) {
         navigate('/app/story');
         return;
@@ -41,7 +42,7 @@ export default function CreatorDashboardPage() {
       // 1. Fetch stories
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
-        .select('*')
+        .select('*').limit(50)
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -54,7 +55,7 @@ export default function CreatorDashboardPage() {
       if (storyIds.length > 0) {
         const { data: playsData } = await supabase
           .from('story_plays')
-          .select('created_at, story_id')
+          .select('created_at, story_id').limit(50)
           .in('story_id', storyIds);
         plays = playsData || [];
       }
@@ -159,7 +160,7 @@ export default function CreatorDashboardPage() {
             label="Active Readers"
             value={totalStats.activeReaders.toLocaleString()}
             subValue="Last 24h"
-            color="purple"
+            color="emerald"
           />
           <StatCard 
             icon={<Zap className="w-5 h-5" />}
@@ -314,7 +315,6 @@ function StatCard({ icon, label, value, subValue, color }: { icon: any, label: s
   const colorMap: any = {
     emerald: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30',
     blue: 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30',
-    purple: 'bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-900/30',
     amber: 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30'
   };
 

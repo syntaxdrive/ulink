@@ -15,13 +15,13 @@ const CATEGORIES = [
 const CATEGORY_GRADIENTS: Record<string, string> = {
     Technology:    'from-blue-600 to-cyan-500',
     Business:      'from-amber-500 to-orange-600',
-    Education:     'from-purple-600 to-violet-500',
+    Education:     'from-emerald-600 to-violet-500',
     Entertainment: 'from-pink-500 to-rose-600',
     Health:        'from-green-500 to-emerald-600',
     Sports:        'from-orange-500 to-red-500',
     News:          'from-red-600 to-rose-500',
     Comedy:        'from-yellow-400 to-orange-400',
-    Arts:          'from-violet-500 to-purple-600',
+    Arts:          'from-violet-500 to-emerald-600',
     Other:         'from-slate-500 to-zinc-600',
 };
 

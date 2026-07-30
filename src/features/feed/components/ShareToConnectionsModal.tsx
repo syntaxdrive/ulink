@@ -19,7 +19,8 @@ export default function ShareToConnectionsModal({ post, onClose }: ShareToConnec
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const user = session?.user;
             if (user) setCurrentUserId(user.id);
         });
     }, []);

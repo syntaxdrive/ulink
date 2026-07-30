@@ -18,13 +18,14 @@ export function useNetwork() {
     const [userProfile, setUserProfile] = useState<Profile | null>(store.userProfile);
 
     const fetchNetworkData = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) { setLoading(false); return; }
 
         // Fetch my profile
         const { data: profile } = await supabase
             .from('profiles')
-            .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
+            .select('id,name,username,avatar_url,university,role,headline,is_verified,points').limit(50)
             .eq('id', user.id)
             .single();
         if (profile) setUserProfile(profile as any);
@@ -32,7 +33,7 @@ export function useNetwork() {
         // 1. Fetch all my connections (accepted & pending)
         const { data: allConnections } = await supabase
             .from('connections')
-            .select('id, requester_id, recipient_id, status')
+            .select('id, requester_id, recipient_id, status').limit(50)
             .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
 
         const connectedIds = new Set<string>();
@@ -59,7 +60,7 @@ export function useNetwork() {
         if (connectedProfileIds.length > 0) {
             const { data } = await supabase
                 .from('profiles')
-                .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
+                .select('id,name,username,avatar_url,university,role,headline,is_verified,points').limit(50)
                 .in('id', connectedProfileIds);
             if (data) networkProfiles = data as any;
         }
@@ -69,7 +70,7 @@ export function useNetwork() {
         const excludeIds = new Set([user.id, ...Array.from(connectedIds), ...Array.from(pendingIds)]);
         const { data: allProfiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('id,name,username,avatar_url,university,role,headline,is_verified,points,created_at')
+            .select('id,name,username,avatar_url,university,role,headline,is_verified,points,created_at').limit(50)
             .neq('id', user.id)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -112,7 +113,8 @@ export function useNetwork() {
         }
 
         setSearching(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         try {
@@ -127,7 +129,7 @@ export function useNetwork() {
                 const q = query.trim().toLowerCase();
                 const { data: fallback } = await supabase
                     .from('profiles')
-                    .select('id,name,username,avatar_url,university,role,headline,is_verified,points')
+                    .select('id,name,username,avatar_url,university,role,headline,is_verified,points').limit(50)
                     .or(`name.ilike.%${q}%,username.ilike.%${q}%,university.ilike.%${q}%,headline.ilike.%${q}%`)
                     .neq('id', user.id)
                     .limit(30);
@@ -142,7 +144,8 @@ export function useNetwork() {
 
     const connect = async (targetUserId: string) => {
         setConnecting(targetUserId);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
         if (user) {
             // Optimistic update — both local state and store

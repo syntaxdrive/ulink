@@ -13,7 +13,7 @@ export function useSponsoredPosts() {
         try {
             const { data, error } = await supabase
                 .from('sponsored_posts')
-                .select('*')
+                .select('*').limit(50)
                 .order('created_at', { ascending: false })
                 .limit(20);
 
@@ -33,7 +33,7 @@ export function useSponsoredPosts() {
                 .from('sponsored_posts')
                 .insert([{
                     ...postData,
-                    created_by: (await supabase.auth.getUser()).data.user?.id
+                    created_by: (await supabase.auth.getSession()).data.session?.user?.id
                 }])
                 .select()
                 .single();
@@ -88,7 +88,8 @@ export function useSponsoredPosts() {
             await supabase.rpc('increment_sponsored_post_impression', { post_id: postId });
 
             // Optionally track detailed impression
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 await supabase.from('sponsored_post_impressions').insert({
                     sponsored_post_id: postId,
@@ -105,7 +106,8 @@ export function useSponsoredPosts() {
             await supabase.rpc('increment_sponsored_post_click', { post_id: postId });
 
             // Track click in impressions table if needed
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 await supabase
                     .from('sponsored_post_impressions')

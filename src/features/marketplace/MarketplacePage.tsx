@@ -51,7 +51,7 @@ type Condition = typeof CONDITIONS[number];
 
 const CATEGORY_COLORS: Record<string, string> = {
     Textbooks:   'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    Electronics: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    Electronics: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
     Clothing:    'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
     Food:        'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
     Services:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -68,7 +68,7 @@ const CONDITION_COLORS: Record<string, string> = {
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
     Textbooks:   'from-blue-400 to-blue-600',
-    Electronics: 'from-purple-400 to-purple-600',
+    Electronics: 'from-emerald-400 to-emerald-600',
     Clothing:    'from-pink-400 to-pink-600',
     Food:        'from-orange-400 to-orange-600',
     Services:    'from-emerald-400 to-emerald-600',

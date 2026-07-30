@@ -47,7 +47,7 @@ export default function SponsoredPostsManager() {
         const fetchOrgs = async () => {
             const { data } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .eq('role', 'org')
                 .order('name', { ascending: true });
             if (data) {

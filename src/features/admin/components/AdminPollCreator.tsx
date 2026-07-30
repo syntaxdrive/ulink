@@ -35,7 +35,7 @@ export default function AdminPollCreator() {
     const fetchPolls = async () => {
         const { data } = await supabase
             .from('polls')
-            .select('*')
+            .select('*').limit(50)
             .order('created_at', { ascending: false });
         setPolls(data ?? []);
         setLoading(false);
@@ -61,7 +61,8 @@ export default function AdminPollCreator() {
         if (!question.trim() || options.some(o => !o.text.trim())) return;
         setSubmitting(true);
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         await supabase.from('polls').insert({
             question: question.trim(),
             description: description.trim() || null,

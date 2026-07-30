@@ -36,7 +36,7 @@ const FEEDS = [
 async function getOrCreateBotProfile() {
     let { data: bot, error: fetchError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id').limit(50)
         .eq('email', BOT_EMAIL)
         .single();
 
@@ -82,7 +82,7 @@ async function fetchAndPostNews() {
         // Check if we already posted this link recently (basic deduping by checking content)
         const { data: existingPosts } = await supabase
             .from('posts')
-            .select('id')
+            .select('id').limit(50)
             .eq('author_id', botId)
             .ilike('content', `%${item.link}%`)
             .limit(1);

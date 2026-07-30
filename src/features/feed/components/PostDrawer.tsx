@@ -12,11 +12,12 @@ export default function PostDrawer() {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 const { data } = await supabase
                     .from('profiles')
-                    .select('*')
+                    .select('*').limit(50)
                     .eq('id', user.id)
                     .single();
                 setUserProfile(data);

@@ -134,13 +134,14 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Fetch Profile
             const { data, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .eq('id', user.id)
                 .single();
 
@@ -415,7 +416,7 @@ export default function ProfilePage() {
                             {bgUrl ? (
                                 <img src={bgUrl} alt="Background" className="w-full h-full object-cover" />
                             ) : (
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-emerald-600 opacity-10"></div>
                             )}
                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/bg:opacity-100 transition-opacity">
                                 <Camera className="w-6 h-6 text-white drop-shadow-md" />

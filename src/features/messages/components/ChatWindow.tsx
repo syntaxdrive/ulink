@@ -6,6 +6,7 @@ import type { Message, Profile } from '../../../types';
 import MessageItem from './MessageItem';
 import ForwardMessageModal from './ForwardMessageModal';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloudinaryService';
+import { compressImage } from '../../../lib/mediaCompression';
 
 interface ChatWindowProps {
     activeChat: Profile;
@@ -327,22 +328,33 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
             if (imageFile) {
                 const isImage = imageFile.type.startsWith('image/');
 
-                if (isImage && cloudinaryService.isConfigured()) {
-                    // Images → Cloudinary (f_auto,q_auto on delivery)
-                    try {
-                        const result = await cloudinaryService.uploadImage(imageFile, { folder: 'ulink/messages' });
-                        imageUrl = result.secureUrl;
-                    } catch (cloudErr) {
-                        console.warn('[Chat image] Cloudinary failed, falling back to Supabase:', cloudErr);
-                        // Supabase fallback for images
-                        const fileExt = imageFile.name.split('.').pop();
+                if (isImage) {
+                    const compressedBlob = await compressImage(imageFile, 1280, 1280, 0.8);
+                    const compressedImage = new File([compressedBlob], imageFile.name, { type: imageFile.type || 'image/jpeg' });
+                    
+                    if (cloudinaryService.isConfigured()) {
+                        // Images → Cloudinary (f_auto,q_auto on delivery)
+                        try {
+                            const result = await cloudinaryService.uploadImage(compressedImage, { folder: 'ulink/messages' });
+                            imageUrl = result.secureUrl;
+                        } catch (cloudErr) {
+                            console.warn('[Chat image] Cloudinary failed, falling back to Supabase:', cloudErr);
+                            // Supabase fallback for images
+                            const fileExt = compressedImage.name.split('.').pop();
+                            const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
+                            const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, compressedImage);
+                            if (uploadError) { alert('Failed to send image.'); return; }
+                            imageUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
+                        }
+                    } else {
+                        const fileExt = compressedImage.name.split('.').pop();
                         const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
-                        const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, imageFile);
+                        const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, compressedImage);
                         if (uploadError) { alert('Failed to send image.'); return; }
                         imageUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
                     }
                 } else {
-                    // Non-image files (PDF, DOC, etc.) → always Supabase
+                    // Non-image files (PDF, DOC, etc.) → always Supabase (uncompressed)
                     const fileExt = imageFile.name.split('.').pop();
                     const fileName = `chat/${Date.now()}_${Math.random()}.${fileExt}`;
                     const { error: uploadError } = await supabase.storage.from('uploads').upload(fileName, imageFile);
@@ -369,7 +381,8 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
 
     const handleForwardToRecipients = async (recipientIds: string[], message: Message) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Send message to each recipient
@@ -377,7 +390,7 @@ export default function ChatWindow({ activeChat, messages, userId, onlineUsers, 
                 // Get or create conversation with recipient
                 const { data: existingConv } = await supabase
                     .from('conversation_participants')
-                    .select('conversation_id')
+                    .select('conversation_id').limit(50)
                     .eq('user_id', user.id)
                     .single();
 

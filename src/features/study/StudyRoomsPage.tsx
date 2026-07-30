@@ -221,7 +221,7 @@ export default function StudyRoomsPage() {
         // Fetch active rooms then participant counts (filtered to active rooms only)
         const { data: roomsData } = await supabase
             .from('study_rooms')
-            .select('*')
+            .select('*').limit(50)
             .eq('is_active', true)
             .order('created_at', { ascending: false });
 
@@ -229,7 +229,7 @@ export default function StudyRoomsPage() {
 
         const roomIds = roomsData.map((r: StudyRoom) => r.id);
         const { data: pcData } = roomIds.length
-            ? await supabase.from('study_room_participants').select('room_id, user_id').in('room_id', roomIds)
+            ? await supabase.from('study_room_participants').select('room_id, user_id').limit(50).in('room_id', roomIds)
             : { data: [] };
 
         const counts: Record<string, number> = {};
@@ -256,11 +256,7 @@ export default function StudyRoomsPage() {
     }, [fetchRooms]);
 
     useEffect(() => {
-        const ch = supabase.channel('rooms_list')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_rooms' }, () => { void fetchRooms(); })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_participants' }, () => { void fetchRooms(); })
-            .subscribe();
-        return () => { supabase.removeChannel(ch); };
+        // Polling removed to prevent connection and DB compute exhaustion
     }, [fetchRooms]);
 
     useEffect(() => {
@@ -299,12 +295,10 @@ export default function StudyRoomsPage() {
 
     // ── In-room fetchers ──────────────────────────────────────────────────
     const fetchParticipants = useCallback(async (rid: string) => {
-        const { data: list } = await supabase.from('study_room_participants').select('*').eq('room_id', rid);
+        const { data: list } = await supabase.from('study_room_participants').select('*, profiles(id, name, username, avatar_url, university').eq('room_id', rid).limit(50);
         if (!list?.length) { setParticipants([]); return; }
-        const uids = [...new Set(list.map(p => p.user_id))];
-        const { data: prfs } = await supabase.from('profiles').select('id, name, username, avatar_url, university').in('id', uids);
-        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
-        const data = list.map(p => ({ ...p, profiles: map[p.user_id] || { name: 'User', avatar_url: null } }));
+        
+        const data = list.map((p: any) => ({ ...p, profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles || { name: 'User', avatar_url: null } }));
         setParticipants(data);
         if (uid) { const m = data.find((p: Participant) => p.user_id === uid); if (m) setMyStatus(m.status); }
     }, [uid]);
@@ -313,7 +307,7 @@ export default function StudyRoomsPage() {
         if (!uid) return;
         const { data } = await supabase
             .from('study_room_join_requests')
-            .select('room_id, status')
+            .select('room_id, status').limit(50)
             .eq('requester_id', uid)
             .in('status', ['pending', 'approved', 'rejected']);
         const next: Record<string, 'pending' | 'approved' | 'rejected'> = {};
@@ -325,32 +319,25 @@ export default function StudyRoomsPage() {
 
     useEffect(() => {
         fetchMyJoinRequests();
-        const ch = supabase.channel('my_room_join_requests')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_join_requests' }, fetchMyJoinRequests)
-            .subscribe();
-        return () => { supabase.removeChannel(ch); };
+        // Polling removed to prevent DB limits exhaustion
     }, [fetchMyJoinRequests]);
 
     const fetchJoinRequests = useCallback(async (rid: string) => {
         const { data: list } = await supabase
             .from('study_room_join_requests')
-            .select('*')
+            .select('*, profiles(id, name, username, avatar_url')
             .eq('room_id', rid)
             .eq('status', 'pending')
             .order('created_at', { ascending: true });
+        
         const reqs = list || [];
         if (!reqs.length) {
             setJoinRequests([]);
             return;
         }
 
-        const requesterIds = [...new Set(reqs.map(r => r.requester_id))];
-        const { data: prfs } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar_url')
-            .in('id', requesterIds);
-        const map = Object.fromEntries((prfs || []).map((p: any) => [p.id, p]));
-        setJoinRequests(reqs.map((r: any) => ({ ...r, profiles: map[r.requester_id] || { name: 'User', username: '', avatar_url: null } })));
+        const data = reqs.map((r: any) => ({ ...r, profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles || { name: 'User', username: '', avatar_url: null } }));
+        setJoinRequests(data);
     }, []);
 
     const requestJoinPrivateRoom = async (room: StudyRoom) => {
@@ -358,7 +345,7 @@ export default function StudyRoomsPage() {
         const { data, error } = await supabase
             .from('study_room_join_requests')
             .upsert({ room_id: room.id, requester_id: uid, status: 'pending' }, { onConflict: 'room_id,requester_id' })
-            .select('id')
+            .select('id').limit(50)
             .single();
         if (error) {
             alert(`Request failed: ${error.message}`);
@@ -419,12 +406,10 @@ export default function StudyRoomsPage() {
     };
 
     const fetchMessages = useCallback(async (rid: string) => {
-        const { data: list } = await supabase.from('study_room_messages').select('*').eq('room_id', rid).order('created_at').limit(200);
+        const { data: list } = await supabase.from('study_room_messages').select('*, profiles(id, name, avatar_url)').eq('room_id', rid).order('created_at').limit(200);
         if (!list) return;
-        const uids = [...new Set(list.map(m => m.user_id))];
-        const { data: prfs } = await supabase.from('profiles').select('id, name, avatar_url').in('id', uids);
-        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
-        const data = list.map(m => ({ ...m, profiles: map[m.user_id] || { name: 'User', avatar_url: null } }));
+        
+        const data = list.map((m: any) => ({ ...m, profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles || { name: 'User', avatar_url: null } }));
         setMessages(prev => {
             const aiMessages = prev.filter(m => m.isAI);
             const combined = [...data, ...aiMessages];
@@ -433,23 +418,21 @@ export default function StudyRoomsPage() {
     }, []);
 
     const fetchDocs = useCallback(async (rid: string) => {
-        const { data: list } = await supabase.from('study_room_documents').select('*').eq('room_id', rid).eq('is_active', true).order('created_at', { ascending: false });
+        const { data: list } = await supabase.from('study_room_documents').select('*, profiles(id, name').eq('room_id', rid).eq('is_active', true).order('created_at', { ascending: false }).limit(50);
         if (!list) return;
-        const uids = [...new Set(list.map(d => d.shared_by))];
-        const { data: prfs } = await supabase.from('profiles').select('id, name').in('id', uids);
-        const map = Object.fromEntries(prfs?.map(p => [p.id, p]) || []);
-        const data = list.map(d => ({ ...d, profiles: map[d.shared_by] || { name: 'User' } }));
+        
+        const data = list.map((d: any) => ({ ...d, profiles: Array.isArray(d.profiles) ? d.profiles[0] : d.profiles || { name: 'User' } }));
         setDocs(data);
     }, []);
 
     const fetchPolls = useCallback(async (rid: string) => {
-        const { data } = await supabase.from('study_room_polls').select('*').eq('room_id', rid).order('created_at', { ascending: false });
+        const { data } = await supabase.from('study_room_polls').select('*').limit(50).eq('room_id', rid).order('created_at', { ascending: false });
         setPolls(data || []);
     }, []);
 
     const fetchVotes = useCallback(async (pollIds: string[]) => {
         if (!pollIds.length) return;
-        const { data } = await supabase.from('study_room_poll_votes').select('*').in('poll_id', pollIds);
+        const { data } = await supabase.from('study_room_poll_votes').select('*').limit(50).in('poll_id', pollIds);
         setVotes(data || []);
     }, []);
 
@@ -460,7 +443,7 @@ export default function StudyRoomsPage() {
     const fetchVoiceNotes = useCallback(async (rid: string) => {
         const { data: list, error } = await supabase
             .from('study_room_voicenotes')
-            .select('*')
+            .select('*, profiles(id, name, avatar_url')
             .eq('room_id', rid)
             .order('created_at', { ascending: false });
 
@@ -475,42 +458,23 @@ export default function StudyRoomsPage() {
             return;
         }
 
-        const userIds = [...new Set(notes.map(v => v.user_id).filter(Boolean))];
-        const { data: prfs } = userIds.length
-            ? await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds)
-            : { data: [] };
-        const profileMap = Object.fromEntries((prfs || []).map(p => [p.id, p]));
-
-        setVoicenotes(notes.map(v => ({
+        const data = notes.map((v: any) => ({
             ...v,
-            profiles: profileMap[v.user_id] || { name: 'User', avatar_url: null },
-        })));
+            profiles: Array.isArray(v.profiles) ? v.profiles[0] : v.profiles || { name: 'User', avatar_url: null },
+        }));
+        
+        setVoicenotes(data);
     }, []);
 
-    // ── In-room realtime ──────────────────────────────────────────────────
+    // ── In-room polling ──────────────────────────────────────────────────
     useEffect(() => {
         if (!activeRoom) return;
         const rid = activeRoom.id;
         fetchParticipants(rid); fetchMessages(rid); fetchDocs(rid); fetchPolls(rid); fetchVoiceNotes(rid);
         if (activeRoom.creator_id === uid) fetchJoinRequests(rid);
-        const ch = supabase.channel(`room_${rid}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'study_rooms', filter: `id=eq.${rid}` }, (payload) => setActiveRoom(prev => prev ? { ...prev, ...(payload.new as StudyRoom) } : null))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_participants', filter: `room_id=eq.${rid}` }, () => fetchParticipants(rid))
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'study_room_messages', filter: `room_id=eq.${rid}` }, () => fetchMessages(rid))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_documents', filter: `room_id=eq.${rid}` }, () => fetchDocs(rid))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_polls', filter: `room_id=eq.${rid}` }, () => fetchPolls(rid))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_poll_votes' }, () => fetchVotes(polls.map(p => p.id)))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_voicenotes', filter: `room_id=eq.${rid}` }, () => fetchVoiceNotes(rid))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'study_room_join_requests', filter: `room_id=eq.${rid}` }, () => { if (activeRoom.creator_id === uid) fetchJoinRequests(rid); fetchMyJoinRequests(); })
-            .subscribe();
+        
+        // Polling removed to prevent connection and DB compute exhaustion
 
-        // Fallback polling for message updates so chat doesn't get stuck
-        const poll = setInterval(() => { fetchMessages(rid); }, 5000);
-
-        return () => { 
-            supabase.removeChannel(ch); 
-            clearInterval(poll);
-        };
     }, [activeRoom?.id, uid]);
 
     useEffect(() => {

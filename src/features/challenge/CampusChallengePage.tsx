@@ -60,11 +60,12 @@ export default function CampusChallengePage() {
 
     // ── Fetch polls + my existing votes ───────────────────────────────────────
     const fetchPolls = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
         const { data: pollsData } = await supabase
             .from('polls')
-            .select('*')
+            .select('*').limit(50)
             .eq('is_active', true)
             .order('created_at', { ascending: false })
             .limit(20);
@@ -81,7 +82,7 @@ export default function CampusChallengePage() {
         if (user) {
             const { data: myVoteData } = await supabase
                 .from('challenge_poll_votes')
-                .select('poll_id, option_id')
+                .select('poll_id, option_id').limit(50)
                 .eq('user_id', user.id)
                 .in('poll_id', pollsData.map(p => p.id));
 
@@ -106,20 +107,12 @@ export default function CampusChallengePage() {
     useEffect(() => {
         fetchPolls();
 
-        // Real-time: when anyone votes, refresh results for current poll
-        const channel = supabase
-            .channel('challenge_poll_votes_realtime')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'challenge_poll_votes' }, (payload) => {
-                const pollId = payload.new?.poll_id;
-                if (pollId) {
-                    supabase.rpc('get_poll_results', { p_poll_id: pollId }).then(({ data }) => {
-                        if (data) setResults(prev => ({ ...prev, [pollId]: data }));
-                    });
-                }
-            })
-            .subscribe();
+        // Replaced expensive Realtime WebSockets with slow polling
+        const pollInterval = setInterval(() => {
+            fetchPolls();
+        }, 30000);
 
-        return () => { supabase.removeChannel(channel); };
+        return () => clearInterval(pollInterval);
     }, [fetchPolls]);
 
     // ── Auth Helper ──────────────────────────────────────────────────────────
@@ -142,7 +135,7 @@ export default function CampusChallengePage() {
         // Get university for leaderboard
         const { data: profile } = await supabase
             .from('profiles')
-            .select('university')
+            .select('university').limit(50)
             .eq('id', currentUserId)
             .single();
 

@@ -28,13 +28,14 @@ export default function ForwardMessageModal({ message, isOpen, onClose, onForwar
     const fetchContacts = async () => {
         setLoading(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Get all connections
             const { data: connections } = await supabase
                 .from('connections')
-                .select('requester_id, recipient_id')
+                .select('requester_id, recipient_id').limit(50)
                 .eq('status', 'accepted')
                 .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
 
@@ -48,7 +49,7 @@ export default function ForwardMessageModal({ message, isOpen, onClose, onForwar
             // Fetch profiles
             const { data: profiles } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .in('id', contactIds)
                 .order('name');
 

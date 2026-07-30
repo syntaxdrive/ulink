@@ -19,48 +19,20 @@ export function useFollow(profileId: string) {
         fetchFollowStatus();
         fetchCounts();
 
-        // Subscribe to real-time updates for followers (people following this profile)
-        const followersChannel = supabase
-            .channel(`followers:${profileId}`)
-            .on('postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'follows',
-                    filter: `following_id=eq.${profileId}`
-                },
-                () => {
-                    fetchCounts();
-                    fetchFollowStatus();
-                }
-            )
-            .subscribe();
-
-        // Subscribe to real-time updates for following (people this profile follows)
-        const followingChannel = supabase
-            .channel(`following:${profileId}`)
-            .on('postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'follows',
-                    filter: `follower_id=eq.${profileId}`
-                },
-                () => {
-                    fetchCounts();
-                }
-            )
-            .subscribe();
+        // Replaced expensive Realtime WebSockets with slow polling (60s)
+        const pollInterval = setInterval(() => {
+            fetchCounts();
+        }, 60000);
 
         return () => {
-            supabase.removeChannel(followersChannel);
-            supabase.removeChannel(followingChannel);
+            clearInterval(pollInterval);
         };
     }, [profileId]);
 
     const fetchFollowStatus = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) {
                 setLoading(false);
                 return;
@@ -71,7 +43,7 @@ export function useFollow(profileId: string) {
             // Check if current user follows this profile
             const { data, error } = await supabase
                 .from('follows')
-                .select('id')
+                .select('id').limit(50)
                 .eq('follower_id', user.id)
                 .eq('following_id', profileId)
                 .maybeSingle();
@@ -235,7 +207,8 @@ export function useSuggestedFollows(limit: number = 5) {
 
     const fetchSuggestions = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) {
                 setLoading(false);
                 return;

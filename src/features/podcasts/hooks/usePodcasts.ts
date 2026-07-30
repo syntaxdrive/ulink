@@ -20,18 +20,17 @@ export async function fetchPodcasts(category?: string): Promise<Podcast[]> {
     return data ?? [];
 }
 
-export async function fetchMyPodcast(): Promise<Podcast | null> {
+export async function fetchMyPodcasts(): Promise<Podcast[]> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) return [];
 
     const { data, error } = await supabase
         .from('podcasts')
         .select('*')
-        .eq('creator_id', user.id)
-        .maybeSingle();
+        .eq('creator_id', user.id);
 
     if (error) throw error;
-    return data;
+    return data ?? [];
 }
 
 export async function fetchEpisodes(podcastId: string): Promise<PodcastEpisode[]> {

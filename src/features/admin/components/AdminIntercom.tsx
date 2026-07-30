@@ -20,7 +20,8 @@ export default function AdminIntercom() {
 
     useEffect(() => {
         const setupIntercom = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Initialize Presence & Broadcast channel
@@ -88,7 +89,8 @@ export default function AdminIntercom() {
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = async () => {
                     const base64data = (reader.result as string).split(',')[1];
-                    const { data: { user } } = await supabase.auth.getUser();
+                    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
                     channelRef.current.send({
                         type: 'broadcast',

@@ -31,7 +31,8 @@ async function subscribeToPush() {
         }
 
         if (sub) {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
             const subJson = sub.toJSON();
             
@@ -147,7 +148,8 @@ export function useNotifications() {
 
     const fetchNotifications = useCallback(async (isSilent = false) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
             
             // Skip if cache is fresh
@@ -160,7 +162,7 @@ export function useNotifications() {
             // Fetch General Notifications
             const { data: notifData } = await supabase
                 .from('notifications')
-                .select('id,user_id,type,message,title,data,action_url,read,is_read,created_at,actor_id,reference_id')
+                .select('id,user_id,type,message,title,data,action_url,read,is_read,created_at,actor_id,reference_id').limit(50)
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
@@ -240,15 +242,15 @@ export function useNotifications() {
     };
 
     useEffect(() => {
-        let connectionChannel: any;
-        let notifChannel: any;
+        let globalChannel: any;
 
         const init = async () => {
             try {
                 // Request browser notification permission on first load
                 requestNotifPermission();
 
-                const { data: { user }, error } = await supabase.auth.getUser();
+                const { data: { session }, error } = await supabase.auth.getSession();
+    const user = session?.user;
                 if (error || !user) { setLoading(false); return; }
 
                 // 80/20 Rule
@@ -258,9 +260,9 @@ export function useNotifications() {
                     setLoading(false);
                 }
 
-                // 1. Connection requests
-                connectionChannel = supabase
-                    .channel(`connection-requests-${user.id}`)
+                // Consolidate both connection requests and general notifications into ONE single Realtime channel
+                globalChannel = supabase
+                    .channel(`global-notifs-${user.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` },
                         (payload) => {
                             fetchSingleRequest(payload.new.id);
@@ -273,11 +275,6 @@ export function useNotifications() {
                             );
                         }
                     )
-                    .subscribe();
-
-                // 2. General Notifications
-                notifChannel = supabase
-                    .channel(`general-notifications-${user.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
                         (payload) => {
                             const notif = payload.new as GeneralNotification;
@@ -320,22 +317,21 @@ export function useNotifications() {
         init();
 
         return () => {
-            if (connectionChannel) {
-                connectionChannel.unsubscribe();
-                supabase.removeChannel(connectionChannel);
-            }
-            if (notifChannel) {
-                notifChannel.unsubscribe();
-                supabase.removeChannel(notifChannel);
+            if (globalChannel) {
+                globalChannel.unsubscribe();
+                supabase.removeChannel(globalChannel);
             }
         };
     }, []); // Empty dependency array -> mount once
 
-    // Realtime fallback: periodic refresh for notification badges/list when websocket events are delayed.
+    // Realtime fallback: periodic refresh only when tab is visible and every 10 min.
+    // Real-time subscriptions handle instant delivery; this is just a safety net.
     useEffect(() => {
         const timer = setInterval(() => {
-            void fetchNotifications();
-        }, 120000); // Poll every 2 minutes instead of 15 seconds to reduce noise
+            if (document.visibilityState === 'visible') {
+                void fetchNotifications(true); // Always silent
+            }
+        }, 600_000); // Poll every 10 minutes — real-time handles the rest
 
         const onVisibility = () => {
             if (document.visibilityState === 'visible') {
@@ -381,7 +377,8 @@ export function useNotifications() {
 
     const clearAll = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             const { error } = await supabase
@@ -430,7 +427,8 @@ export function useNotifications() {
 
     const markAllRead = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             const { error } = await supabase

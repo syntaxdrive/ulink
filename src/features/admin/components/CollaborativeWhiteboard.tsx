@@ -24,11 +24,12 @@ export default function CollaborativeWhiteboard() {
     useEffect(() => {
         const loadState = async () => {
             // Get Current User
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('name')
+                    .select('name').limit(50)
                     .eq('id', user.id)
                     .single();
 
@@ -41,7 +42,7 @@ export default function CollaborativeWhiteboard() {
             // Get Whiteboard State
             const { data: boardData } = await supabase
                 .from('whiteboards')
-                .select('snapshot')
+                .select('snapshot').limit(50)
                 .eq('name', 'Main Board')
                 .single();
 
@@ -52,7 +53,7 @@ export default function CollaborativeWhiteboard() {
             // Fetch Users for Sidebar
             const { data: usersData } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .limit(50)
                 .order('created_at', { ascending: false });
 

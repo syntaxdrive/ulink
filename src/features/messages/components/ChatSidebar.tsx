@@ -9,7 +9,6 @@ interface ChatSidebarProps {
     unreadCounts: Record<string, number>;
     onlineUsers: Set<string>;
     activeTab: 'all' | 'market';
-    onTabChange: (tab: 'all' | 'market') => void;
 }
 
 export default function ChatSidebar({ 
@@ -18,8 +17,7 @@ export default function ChatSidebar({
     setActiveChat, 
     unreadCounts, 
     onlineUsers,
-    activeTab,
-    onTabChange 
+    activeTab
 }: ChatSidebarProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -54,27 +52,13 @@ export default function ChatSidebar({
             <div className="p-4 border-b border-stone-100 dark:border-zinc-800">
                 <h2 className="font-bold text-lg mb-4 text-stone-900 dark:text-white">Messages</h2>
                 
-                {/* Tabs */}
-                <div className="flex gap-1 p-1 bg-stone-100 dark:bg-zinc-900 rounded-xl mb-4">
-                    <button
-                        onClick={() => onTabChange('all')}
-                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${activeTab === 'all' ? 'bg-white dark:bg-zinc-800 text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-zinc-500 hover:text-stone-700'}`}
-                    >
-                        Chats
-                    </button>
-                    <button
-                        onClick={() => onTabChange('market')}
-                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${activeTab === 'market' ? 'bg-white dark:bg-zinc-800 text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-zinc-500 hover:text-stone-700'}`}
-                    >
-                        Marketplace
-                    </button>
-                </div>
+                {/* Tabs removed as requested by user */}
 
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-zinc-600" />
                     <input
                         type="text"
-                        placeholder={activeTab === 'market' ? "Search market chats..." : "Search connections..."}
+                        placeholder="Search connections..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-stone-50 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-950 text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600"

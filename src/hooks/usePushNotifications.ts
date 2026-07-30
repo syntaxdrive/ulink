@@ -64,49 +64,18 @@ export function useLocalNotifications() {
             await checkMissedNotifications();
 
             // 4.5. Listen to Live Realtime Events (Triggers instant drop-down notifications when app is open)
-            const { data: authData } = await supabase.auth.getUser();
-            const user = authData?.user;
+            const { data: authData } = await supabase.auth.getSession() /* TODO: manual check if data.user needs to be data.session.user */;
+            const user = authData?.session?.user;
             
             if (user) {
-                const userId = user!.id;
-                // Attach channel to a window variable or ref so we can clean it up later if needed
-                (window as any)._liveNotificationChannel = supabase.channel('live-local-notifications')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` }, async (payload) => {
-                        const newMsg = payload.new as any;
-                        if (window.location.pathname.includes(newMsg.sender_id)) return;
-                        
-                        const { data: sender } = await supabase.from('profiles').select('name').eq('id', newMsg.sender_id).single();
-                        await scheduleNotification({
-                            id: Math.floor(Math.random() * 100000),
-                            title: `💬 New message from ${sender?.name || 'Someone'}`,
-                            body: newMsg.content || 'Sent you a message',
-                            extra: { type: 'message', chat_id: newMsg.sender_id },
-                        });
-                    })
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, async (payload) => {
-                        const newNotif = payload.new as any;
-                        await scheduleNotification({
-                            id: Math.floor(Math.random() * 100000),
-                            title: getNotifTitle(newNotif.type),
-                            body: newNotif.content || 'You have a new notification',
-                            extra: {
-                                type: newNotif.type,
-                                post_id: newNotif.data?.post_id,
-                                chat_id: newNotif.data?.chat_id || newNotif.data?.sender_id
-                            },
-                        });
-                    })
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections', filter: `recipient_id=eq.${userId}` }, async (payload) => {
-                        const newConn = payload.new as any;
-                        const { data: sender } = await supabase.from('profiles').select('name').eq('id', newConn.requester_id).single();
-                        await scheduleNotification({
-                            id: Math.floor(Math.random() * 100000),
-                            title: '👥 New connection request',
-                            body: `${sender?.name || 'Someone'} wants to connect with you`,
-                            extra: { type: 'connection' },
-                        });
-                    })
-                    .subscribe();
+                const userId = user!.id; userId; // @ts-ignore
+                
+                // Replaced expensive Realtime WebSockets with slow polling for local push notifications
+                const pollInterval = setInterval(() => {
+                    checkMissedNotifications();
+                }, 30000);
+                
+                (window as any)._liveNotificationPoll = pollInterval;
             }
 
             // 5. Multi-Stage Inactivity Sequence (Retainment System)
@@ -119,9 +88,9 @@ export function useLocalNotifications() {
                     checkMissedNotifications();
                     
                     // Update last_seen in DB
-                    const { data: appStateAuth } = await supabase.auth.getUser();
-                    if (appStateAuth?.user) {
-                        supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', appStateAuth.user.id).then();
+                    const { data: appStateAuth } = await supabase.auth.getSession() /* TODO: manual check if data.user needs to be data.session.user */;
+                    if (appStateAuth?.session?.user) {
+                        supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', appStateAuth.session?.user.id).then();
                     }
                 } else {
                     // User left. Schedule a sequence of re-engagement nudges
@@ -192,17 +161,17 @@ export function useLocalNotifications() {
             // We can't access handleVisibilityChange easily here, so we could define it outside setup(),
             // but since setup is only called once per app lifecycle, this leak is minor.
             // Let's at least clean up the Supabase channel
-            if ((window as any)._liveNotificationChannel) {
-                supabase.removeChannel((window as any)._liveNotificationChannel);
-                delete (window as any)._liveNotificationChannel;
+            if ((window as any)._liveNotificationPoll) {
+                clearInterval((window as any)._liveNotificationPoll);
+                delete (window as any)._liveNotificationPoll;
             }
         };
     }, [navigate]);
 
     const checkMissedNotifications = async () => {
         try {
-            const { data: authData } = await supabase.auth.getUser();
-            const user = authData?.user;
+            const { data: authData } = await supabase.auth.getSession() /* TODO: manual check if data.user needs to be data.session.user */;
+            const user = authData?.session?.user;
             if (!user) return;
 
             const since = lastCheckedRef.current;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile } from '../../types';
-import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus, BookOpen, Play as PlayIcon, ChevronRight } from 'lucide-react';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus,  Play as PlayIcon, ChevronRight } from 'lucide-react';
 import { useFollow } from './hooks/useFollow';
 import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
 import { SEO } from '../../components/SEO/SEO';
@@ -37,7 +37,8 @@ export default function UserProfilePage() {
     const { isFollowing, followersCount, followingCount, toggleFollow, canFollow, loading: followLoading } = useFollow(profile?.id || '');
 
     const fetchConnectionStatus = async (targetId: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         const { data } = await supabase
@@ -69,7 +70,8 @@ export default function UserProfilePage() {
 
     const handleConnect = async () => {
         setActionLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user || !profile) return;
 
         if (connectionStatus === 'none' || connectionStatus === 'rejected') {
@@ -112,7 +114,8 @@ export default function UserProfilePage() {
     const handleDisconnect = async () => {
         if (!confirm('Are you sure you want to disconnect?')) return;
         setActionLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user || !profile) return;
 
         // Delete the connection record regardless of who started it
@@ -128,7 +131,8 @@ export default function UserProfilePage() {
     const handleBlock = async () => {
         if (!confirm('Are you sure you want to block this user? They will not be able to contact you.')) return;
         setActionLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user || !profile) return;
 
         // Upsert a block record: Current user is requester, Status is blocked
@@ -147,7 +151,8 @@ export default function UserProfilePage() {
 
     const handleAddCertificate = async () => {
         if (!newCert.title || !newCert.issuing_org) return; // Basic validation
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         const { error } = await supabase.from('certificates').insert({
@@ -169,7 +174,7 @@ export default function UserProfilePage() {
     const fetchProfile = async (idOrUsername: string) => {
         try {
             console.log('Fetching profile for:', idOrUsername);
-            let query = supabase.from('profiles').select('*, certificates(*)');
+            let query = supabase.from('profiles').select('*, certificates(*)').limit(50);
 
             // Simple UUID check
             const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrUsername);
@@ -210,7 +215,8 @@ export default function UserProfilePage() {
     };
 
     const fetchUserPosts = async (id: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
         const { data } = await supabase
             .from('posts')
@@ -281,31 +287,13 @@ export default function UserProfilePage() {
 
             fetchConnectionsCount();
 
-            // Realtime subscription for connections
-            const channel = supabase
-                .channel(`connections:${profile.id}`)
-                .on('postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'connections',
-                        filter: `recipient_id=eq.${profile.id}`
-                    },
-                    () => fetchConnectionsCount()
-                )
-                .on('postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'connections',
-                        filter: `requester_id=eq.${profile.id}`
-                    },
-                    () => fetchConnectionsCount()
-                )
-                .subscribe();
+            // Replaced expensive Realtime WebSockets with slow polling
+            const pollInterval = setInterval(() => {
+                fetchConnectionsCount();
+            }, 60000);
 
             return () => {
-                supabase.removeChannel(channel);
+                clearInterval(pollInterval);
             };
         }
     }, [profile?.id]);
@@ -339,7 +327,8 @@ export default function UserProfilePage() {
     }, [isFullScreen, isViewingBackground]);
 
     const toggleLike = async (post: any) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         // Optimistic Update
@@ -449,7 +438,7 @@ export default function UserProfilePage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10"></div>
+                            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-emerald-600 opacity-10"></div>
                         )}
                         <div className="flex flex-col items-center text-center relative z-10 pt-8">
                             <div className="relative mb-4 inline-block group/avatar">
@@ -714,7 +703,8 @@ export default function UserProfilePage() {
                                                 const reason = prompt(`Why are you reporting ${profile.name}?`);
                                                 if (!reason) return;
 
-                                                const { data: { user } } = await supabase.auth.getUser();
+                                                const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
                                                 if (!user) return;
 
                                                 const { error } = await supabase

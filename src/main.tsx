@@ -5,9 +5,14 @@ import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
+import { initAuthCache } from './lib/auth'
 
 // Register service worker for PWA support
 registerSW({ immediate: true })
+
+// Initialize auth cache immediately — keeps user in memory so every
+// component that needs the user never has to make a network call.
+initAuthCache()
 
 import ErrorBoundary from './components/ErrorBoundary'
 

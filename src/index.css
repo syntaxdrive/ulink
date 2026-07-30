@@ -454,3 +454,39 @@ html, body {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #3f3f46;
 }
+
+/* -------------------------------------------------------
+   Print Styles for PDF Export (Investor Analytics)
+   ------------------------------------------------------- */
+@media print {
+    /* Hide navigation and layout chrome */
+    header, aside, nav, .bottom-nav {
+        display: none !important;
+    }
+
+    /* Expand main content to full width */
+    main {
+        margin-left: 0 !important;
+        padding-top: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Force background colors to print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Page Setup */
+    @page {
+        size: auto;
+        margin: 10mm 15mm;
+    }
+
+    /* Reset background to white for printing to save ink, unless explicitly colored */
+    body {
+        background-color: white !important;
+        color: black !important;
+    }
+}

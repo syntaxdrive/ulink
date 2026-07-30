@@ -15,13 +15,14 @@ export default function ReferralCard() {
     }, []);
 
     const fetchReferralData = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         // Fetch profile with referral code
         const { data: profileData } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*').limit(50)
             .eq('id', user.id)
             .single();
 

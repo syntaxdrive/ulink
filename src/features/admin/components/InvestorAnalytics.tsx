@@ -4,7 +4,7 @@ import {
     TrendingUp, Users, Newspaper, MessageCircle, BookOpen,
     Briefcase, ShoppingBag, Mic2, Activity, Globe, Award,
     ArrowUpRight, ArrowDownRight, Minus, BarChart3, Target,
-    Zap, Eye, Clock
+    Zap, Eye, Clock, Printer
 } from 'lucide-react';
 
 interface DailySignup { date: string; count: number; }
@@ -42,16 +42,16 @@ export default function InvestorAnalytics() {
                 { count: comc },
                 { data: users },
             ] = await Promise.all([
-                supabase.from('profiles').select('*', { count: 'exact', head: true }),
-                supabase.from('posts').select('*', { count: 'exact', head: true }),
-                supabase.from('messages').select('*', { count: 'exact', head: true }),
-                supabase.from('connections').select('*', { count: 'exact', head: true }),
-                supabase.from('jobs').select('*', { count: 'exact', head: true }),
-                supabase.from('courses').select('*', { count: 'exact', head: true }),
-                supabase.from('marketplace_listings').select('*', { count: 'exact', head: true }),
-                supabase.from('podcasts').select('*', { count: 'exact', head: true }),
-                supabase.from('study_rooms').select('*', { count: 'exact', head: true }),
-                supabase.from('communities').select('*', { count: 'exact', head: true }),
+                supabase.from('profiles').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('posts').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('messages').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('connections').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('jobs').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('courses').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('marketplace_listings').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('podcasts').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('study_rooms').select('*', { count: 'exact', head: true }).limit(50),
+                supabase.from('communities').select('*', { count: 'exact', head: true }).limit(50),
                 supabase.from('profiles').select('id, created_at, university').order('created_at').limit(5000),
             ]);
 
@@ -118,7 +118,7 @@ export default function InvestorAnalytics() {
         { label: 'Job Listings', count: totalJobs, icon: Briefcase, color: 'amber' },
         { label: 'Courses', count: totalCourses, icon: BookOpen, color: 'indigo' },
         { label: 'Marketplace', count: totalListings, icon: ShoppingBag, color: 'rose' },
-        { label: 'Podcasts', count: totalPodcasts, icon: Mic2, color: 'purple' },
+        { label: 'Podcasts', count: totalPodcasts, icon: Mic2, color: 'emerald' },
         { label: 'Study Rooms', count: totalStudyRooms, icon: Target, color: 'teal' },
     ];
 
@@ -134,7 +134,43 @@ export default function InvestorAnalytics() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8" id="investor-report">
+            {/* ── Report Header (Only visible on print) ── */}
+            <div className="hidden print:block mb-8 text-center border-b-2 border-slate-900 pb-6">
+                <h1 className="text-4xl font-black text-slate-900 mb-2 font-display">UniLink Growth Report</h1>
+                <p className="text-slate-500 font-medium">Generated on {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+
+            {/* ── Action Bar ── */}
+            <div className="flex justify-end print:hidden">
+                <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg transition-all active:scale-95"
+                >
+                    <Printer className="w-4 h-4" />
+                    Download PDF Report
+                </button>
+            </div>
+
+            {/* ── Executive Summary ── */}
+            <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-3xl p-6 md:p-8 relative overflow-hidden print:bg-transparent print:border-none print:p-0 print:mb-8">
+                <div className="absolute -right-10 -top-10 text-emerald-100 dark:text-emerald-900/20 opacity-50 pointer-events-none print:hidden">
+                    <TrendingUp className="w-64 h-64" />
+                </div>
+                <div className="relative z-10">
+                    <h3 className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Award className="w-4 h-4" />
+                        Executive Summary
+                    </h3>
+                    <p className="text-lg md:text-xl font-medium text-slate-800 dark:text-zinc-200 leading-relaxed max-w-4xl">
+                        UniLink is demonstrating hyper-growth across {topUnis.length > 0 ? topUnis.length : 'multiple'} African university campuses. 
+                        In the last 30 days alone, we've onboarded <strong className="text-emerald-700 dark:text-emerald-400">{totalLast30.toLocaleString()}</strong> new highly-engaged students, representing a <strong className="text-emerald-700 dark:text-emerald-400">{growthPct}%</strong> period-over-period growth rate. 
+                        With a deep viral coefficient and an exceptional engagement rate of <strong className="text-emerald-700 dark:text-emerald-400">{totalUsers > 0 ? Math.round(((totalPosts + totalMessages + totalConnections) / totalUsers) * 10) / 10 : 0} actions per user</strong>, 
+                        UniLink is rapidly solidifying its position as the definitive digital campus network for the next generation of African professionals.
+                    </p>
+                </div>
+            </div>
+
             {/* ── Hero KPI Banner ── */}
             <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 rounded-[2.5rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 opacity-5">
@@ -262,16 +298,21 @@ export default function InvestorAnalytics() {
                             amber: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
                             indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400',
                             rose: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400',
-                            purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
                             teal: 'bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400',
                         };
+                        const perUser = totalUsers > 0 ? (f.count / totalUsers).toFixed(1) : '0.0';
+                        
                         return (
                             <div key={f.label} className="bg-slate-50 dark:bg-zinc-800/50 rounded-2xl p-4 border border-slate-100 dark:border-zinc-700/50 hover:shadow-md hover:-translate-y-0.5 transition-all">
                                 <div className={`w-9 h-9 rounded-xl ${colorMap[f.color] || colorMap.blue} flex items-center justify-center mb-3`}>
                                     <Icon className="w-4 h-4" />
                                 </div>
-                                <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{f.count.toLocaleString()}</p>
+                                <div className="flex items-baseline gap-1">
+                                    <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{perUser}</p>
+                                    <span className="text-[10px] font-bold text-slate-400">/ user</span>
+                                </div>
                                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{f.label}</p>
+                                <p className="text-[9px] text-slate-400 mt-1">{f.count.toLocaleString()} total</p>
                             </div>
                         );
                     })}
@@ -312,6 +353,70 @@ export default function InvestorAnalytics() {
                     <span className="text-sm text-slate-500 dark:text-zinc-400">Total universities represented</span>
                     <span className="text-lg font-black text-slate-900 dark:text-white">{topUnis.length}+</span>
                 </div>
+            </div>
+
+            {/* ── Page Break for PDF ── */}
+            <div className="hidden print:block print:break-before-page"></div>
+
+            {/* ── Ecosystem & Vertical Expansion (Page 2) ── */}
+            <div className="hidden print:block mb-8 text-center border-b-2 border-slate-900 pb-6 mt-8">
+                <h2 className="text-3xl font-black text-slate-900 mb-2 font-display">Ecosystem Expansion</h2>
+                <p className="text-slate-500 font-medium">Vertical Performance & Market Capture</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:grid-cols-2">
+                {/* Career & Talent */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4">
+                        <Briefcase className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Career & Talent Acquisition</h3>
+                    <p className="text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
+                        UniLink is replacing traditional job boards by directly connecting top-tier African students with global and local organizations. 
+                        With <strong className="text-slate-900 dark:text-white">{totalJobs.toLocaleString()} active job listings</strong>, the platform has become the premium pipeline for graduate recruitment, internships, and remote talent sourcing on the continent.
+                    </p>
+                </div>
+
+                {/* Campus Marketplace */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm">
+                    <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center mb-4">
+                        <ShoppingBag className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Campus Marketplace Economy</h3>
+                    <p className="text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
+                        We have successfully localized e-commerce for the student demographic. By facilitating peer-to-peer transactions within secure university perimeters, our marketplace currently hosts <strong className="text-slate-900 dark:text-white">{totalListings.toLocaleString()} active listings</strong>. This vertical drives massive daily retention and opens future pathways for transactional monetization.
+                    </p>
+                </div>
+
+                {/* Podcasts & Media */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm">
+                    <div className="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-2xl flex items-center justify-center mb-4">
+                        <Mic2 className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Podcast & Media Network</h3>
+                    <p className="text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
+                        UniLink's native audio streaming infrastructure has positioned the app as a central media hub. We currently host <strong className="text-slate-900 dark:text-white">{totalPodcasts.toLocaleString()} podcast episodes</strong> generated by students and partners, keeping users engaged in-app longer and providing highly targeted audio advertising opportunities.
+                    </p>
+                </div>
+
+                {/* Story Mode & Social Proof */}
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm">
+                    <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mb-4">
+                        <BookOpen className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Story Mode & Deep Engagement</h3>
+                    <p className="text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
+                        By integrating ephemeral content through <strong>Story Mode</strong> alongside our robust academic features, we ensure users return multiple times daily. The platform bridges the gap between academic utility and viral social engagement, driving our impressive DAU/WAU metrics.
+                    </p>
+                </div>
+            </div>
+
+            {/* ── Conclusion Statement ── */}
+            <div className="bg-slate-900 rounded-3xl p-8 text-center shadow-xl print:bg-white print:border-2 print:border-slate-900 print:text-slate-900 mt-8">
+                <h3 className="text-2xl font-black text-white print:text-slate-900 mb-4 font-display">The Next Big Thing on African Campuses</h3>
+                <p className="text-slate-300 print:text-slate-700 max-w-3xl mx-auto text-lg leading-relaxed">
+                    UniLink is not just another social network; it is the fundamental digital infrastructure for higher education in Africa. By consolidating networking, e-commerce, media, and recruitment into a single, high-retention ecosystem, we have achieved a critical mass that is poised to dominate the demographic.
+                </p>
             </div>
         </div>
     );

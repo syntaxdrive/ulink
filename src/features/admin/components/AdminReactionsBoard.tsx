@@ -14,7 +14,7 @@ interface AdminNote {
     author?: { name: string | null; avatar_url: string | null; email: string | null };
 }
 
-type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'purple' | 'orange';
+type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'emerald' | 'orange';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const NOTE_COLORS: { key: NoteColor; bg: string; border: string; shadow: string }[] = [
@@ -22,7 +22,7 @@ const NOTE_COLORS: { key: NoteColor; bg: string; border: string; shadow: string 
     { key: 'pink',    bg: 'bg-pink-100',    border: 'border-pink-300',    shadow: 'shadow-pink-200'    },
     { key: 'blue',    bg: 'bg-sky-100',     border: 'border-sky-300',     shadow: 'shadow-sky-200'     },
     { key: 'green',   bg: 'bg-emerald-100', border: 'border-emerald-300', shadow: 'shadow-slate-200' },
-    { key: 'purple',  bg: 'bg-purple-100',  border: 'border-purple-300',  shadow: 'shadow-purple-200'  },
+    { key: 'emerald',  bg: 'bg-emerald-100',  border: 'border-emerald-300',  shadow: 'shadow-emerald-200'  },
     { key: 'orange',  bg: 'bg-orange-100',  border: 'border-orange-300',  shadow: 'shadow-orange-200'  },
 ];
 
@@ -83,14 +83,12 @@ export default function AdminReactionsBoard() {
     useEffect(() => {
         fetchNotes();
 
-        const channel = supabase
-            .channel('admin_notes_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_notes' }, () => {
-                fetchNotes();
-            })
-            .subscribe();
+        // Replaced expensive Realtime WebSockets with slow polling
+        const pollInterval = setInterval(() => {
+            fetchNotes();
+        }, 30000);
 
-        return () => { supabase.removeChannel(channel); };
+        return () => clearInterval(pollInterval);
     }, []);
 
     // ── Add note ──────────────────────────────────────────────────────────────

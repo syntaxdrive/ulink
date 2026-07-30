@@ -116,7 +116,7 @@ function PodcastSidebarWidget() {
         if (_podcastSidebarCache.data.length > 0 && Date.now() - _podcastSidebarCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
-            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name)')
+            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(3)
@@ -183,7 +183,7 @@ function MobilePodcastStrip() {
         if (_podcastStripCache.data.length > 0 && Date.now() - _podcastStripCache.ts < WIDGET_TTL) return;
         supabase
             .from('podcasts')
-            .select('id, title, cover_url, category, creator:profiles!creator_id(name)')
+            .select('id, title, cover_url, category, creator:profiles!creator_id(name')
             .eq('status', 'approved')
             .order('followers_count', { ascending: false })
             .limit(8)
@@ -200,10 +200,10 @@ function MobilePodcastStrip() {
 
     const GRADIENTS: Record<string, string> = {
         Technology: 'from-blue-600 to-cyan-500', Business: 'from-amber-500 to-orange-600',
-        Education: 'from-purple-600 to-violet-500', Entertainment: 'from-pink-500 to-rose-600',
+        Education: 'from-emerald-600 to-violet-500', Entertainment: 'from-pink-500 to-rose-600',
         Health: 'from-green-500 to-emerald-600', Sports: 'from-orange-500 to-red-500',
         News: 'from-red-600 to-rose-500', Comedy: 'from-yellow-400 to-orange-400',
-        Arts: 'from-violet-500 to-purple-600', Other: 'from-slate-500 to-zinc-600',
+        Arts: 'from-violet-500 to-emerald-600', Other: 'from-slate-500 to-zinc-600',
     };
 
     return (
@@ -352,7 +352,7 @@ export default function FeedPage() {
         }
         supabase
             .from('profiles')
-            .select('id, name, username, avatar_url, role')
+            .select('id, name, username, avatar_url, role').limit(50)
             .order('updated_at', { ascending: false })
             .limit(5)
             .then(({ data }) => {
@@ -371,7 +371,7 @@ export default function FeedPage() {
             if (searchQuery.trim().length >= 2) {
                 const { data } = await supabase
                     .from('profiles')
-                    .select('id, name, username, avatar_url, headline, university, role, is_verified')
+                    .select('id, name, username, avatar_url, headline, university, role, is_verified').limit(50)
                     .or(`name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,university.ilike.%${searchQuery}%`)
                     .limit(4);
                 setPeopleResults(data || []);
@@ -417,7 +417,7 @@ export default function FeedPage() {
 
     const quickNavItems = [
         { to: '/app/network', icon: Users, label: 'Network', color: 'blue' },
-        { to: '/app/communities', icon: Globe, label: 'Communities', color: 'purple' },
+        { to: '/app/communities', icon: Globe, label: 'Communities', color: 'emerald' },
         { to: '/app/challenge', icon: Zap, label: 'Challenge', color: 'yellow' },
         { to: '/app/leaderboard', icon: Trophy, label: 'Leaderboard', color: 'orange' },
     ];

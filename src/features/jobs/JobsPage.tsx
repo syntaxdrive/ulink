@@ -128,7 +128,8 @@ export default function JobsPage() {
     const [filterType, setFilterType] = useState<string>('All');
 
     const checkUserRole = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (user) {
             setUserId(user.id);
             const { data } = await supabase.from('profiles').select('role, university, company_name').eq('id', user.id).single();
@@ -146,7 +147,7 @@ export default function JobsPage() {
         
         const { data, error } = await supabase
             .from('jobs')
-            .select('id,title,company,location,type,salary_range,description,requirements,creator_id,created_at,is_active,application_url,application_email,deadline')
+            .select('id,title,company,location,type,salary_range,description,requirements,creator_id,created_at,is_active,application_url,application_email,deadline').limit(50)
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -158,12 +159,13 @@ export default function JobsPage() {
     };
 
     const fetchMyApplications = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         const { data } = await supabase
             .from('job_applications')
-            .select('job_id, status')
+            .select('job_id, status').limit(50)
             .eq('user_id', user.id);
 
         if (data) {
@@ -228,7 +230,8 @@ export default function JobsPage() {
     const handleCreateJob = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsPosting(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         try {
@@ -296,7 +299,8 @@ export default function JobsPage() {
 
 
     const handleApply = async (job: Job) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return;
 
         // Open Link

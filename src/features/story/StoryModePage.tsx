@@ -9,6 +9,8 @@ import confetti from 'canvas-confetti';
 import { StoryImage } from './components/StoryImage';
 import { getBaseUrl } from '../../config';
 import { supabase } from '../../lib/supabase';
+import { getUser } from '../../lib/auth';
+import { queryCache } from '../../lib/queryCache';
 import { useAuthModalStore } from '../../stores/useAuthModalStore';
 import { SEO } from '../../components/SEO/SEO';
 
@@ -161,15 +163,22 @@ export default function StoryModePage() {
 
   const fetchStories = async () => {
     setLoadingStories(true);
-    const { data, error } = await supabase
-      .from('stories')
-      .select('*, profiles(name, username, avatar_url)')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false });
+    const data = await queryCache.get(
+      'stories:published',
+      async () => {
+        const { data, error } = await supabase
+          .from('stories')
+          .select('*, profiles(name, username, avatar_url')
+          .eq('is_published', true)
+          .order('created_at', { ascending: false });
+        if (error || !data) return null;
+        return data;
+      },
+      5 * 60_000 // 5-minute TTL
+    );
 
-    if (!error && data) {
-      // Merge with hardcoded ones if needed, or just use DB
-      const dbStories = data.map(s => ({
+    if (data) {
+      const dbStories = data.map((s: any) => ({
         ...s,
         estimatedTime: s.estimated_time,
         coverPrompt: s.cover_prompt
@@ -184,7 +193,7 @@ export default function StoryModePage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
+    getUser().then(user => setCurrentUser(user));
     fetchStories();
   }, []);
 
@@ -196,6 +205,7 @@ export default function StoryModePage() {
       showToast('Failed to delete story', 'error');
     } else {
       showToast('Story deleted', 'success');
+      queryCache.invalidate('stories:');
       fetchStories();
     }
   };
@@ -862,7 +872,8 @@ The lecture is boring. You fall asleep.
                       return;
                     }
                     try {
-                      const { data: { user } } = await supabase.auth.getUser();
+                      const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
                       if (!user) return;
 
                       let finalContent: any;
@@ -971,7 +982,7 @@ The lecture is boring. You fall asleep.
         </div>
       )}
 
-      <div className="relative z-20 max-w-3xl mx-auto px-4 md:px-8 pb-12 min-h-full transition-all duration-700">
+      <div className="relative z-20 w-full min-h-full transition-all duration-700">
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
@@ -1017,7 +1028,7 @@ The lecture is boring. You fall asleep.
 
       <div 
         id="story-dialogue-container"
-        className="px-6 md:px-14 py-8 space-y-5 pb-12 bg-[#fdfcf9] dark:bg-stone-900 shadow-[0_10px_50px_rgba(0,0,0,0.06)] dark:shadow-none rounded-sm border border-stone-200/60 dark:border-white/5 relative"
+        className="px-6 md:px-14 py-8 space-y-5 pb-32 min-h-screen bg-stone-50/80 dark:bg-stone-950/60 backdrop-blur-lg relative border-none rounded-none w-full"
       >
         {/* Subtle Page Edge Effect */}
         <div className="absolute inset-y-0 right-0 w-px bg-stone-200/50 dark:bg-white/5" />
@@ -1038,9 +1049,9 @@ The lecture is boring. You fall asleep.
             const [loc, time] = hasTime ? line.text.split('⏰') : [line.text, null];
             
             return (
-              <div key={i} className="py-10 text-center animate-in fade-in zoom-in-95 duration-1000">
+              <div key={i} className="py-10 text-center animate-in fade-in zoom-in-95 duration-1000 max-w-2xl mx-auto">
                 {line.image && (
-                  <div className="w-full mb-10 rounded-lg overflow-hidden shadow-xl border border-stone-200 dark:border-white/10 grayscale-[0.2] sepia-[0.1]">
+                  <div className="w-full md:max-w-md md:mx-auto aspect-[9/16] mb-10 rounded-lg overflow-hidden shadow-xl border border-stone-200 dark:border-white/10 grayscale-[0.2] sepia-[0.1]">
                     <StoryImage prompt={line.image} />
                   </div>
                 )}
@@ -1062,7 +1073,7 @@ The lecture is boring. You fall asleep.
 
           if (line.speaker === 'Decision') {
             return (
-              <div key={i} className="decision-block my-8 p-8 pl-10 border-l-[3px] border-stone-800 dark:border-amber-400 bg-stone-100/50 dark:bg-stone-800/40 rounded-sm italic shadow-sm animate-in slide-in-from-left duration-700">
+              <div key={i} className="decision-block my-8 p-8 pl-10 border-l-[3px] border-stone-800 dark:border-amber-400 bg-stone-100/50 dark:bg-stone-800/40 rounded-sm italic shadow-sm animate-in slide-in-from-left duration-700 max-w-2xl mx-auto">
                 <div className="text-stone-400 dark:text-stone-500 font-sans font-black text-[9px] tracking-[0.3em] uppercase mb-2 opacity-90">
                   Decision
                 </div>
@@ -1075,9 +1086,9 @@ The lecture is boring. You fall asleep.
 
           if (line.speaker === 'System' || !line.speaker) {
             return (
-              <div key={i} className="py-4 text-stone-800 dark:text-stone-200 md:text-xl leading-relaxed md:leading-[1.9] drop-shadow-sm font-medium selection:bg-stone-200">
+              <div key={i} className="py-4 text-stone-800 dark:text-stone-200 md:text-xl leading-relaxed md:leading-[1.9] drop-shadow-sm font-medium selection:bg-stone-200 max-w-2xl mx-auto">
                  {line.image && (
-                   <div className="w-full my-8 rounded-lg overflow-hidden shadow-xl border border-stone-200 dark:border-white/10 grayscale-[0.2] sepia-[0.1]">
+                   <div className="w-full md:max-w-md md:mx-auto aspect-[9/16] my-8 rounded-lg overflow-hidden shadow-xl border border-stone-200 dark:border-white/10 grayscale-[0.2] sepia-[0.1]">
                      <StoryImage prompt={line.image} />
                    </div>
                  )}
@@ -1088,7 +1099,7 @@ The lecture is boring. You fall asleep.
 
           // Spoken dialogue – Classic Novel Quote Style
           return (
-            <div key={i} className="py-4 leading-relaxed md:leading-[1.9] md:text-xl text-stone-900 dark:text-stone-100 animate-in fade-in duration-500 border-l border-stone-200 dark:border-stone-800 pl-6">
+            <div key={i} className="py-4 leading-relaxed md:leading-[1.9] md:text-xl text-stone-900 dark:text-stone-100 animate-in fade-in duration-500 border-l border-stone-200 dark:border-stone-800 pl-6 max-w-2xl mx-auto">
               <span className="font-sans font-black text-[10px] uppercase tracking-[0.2em] text-stone-400 dark:text-stone-500 mb-2 block">
                 {line.speaker}
               </span> 
@@ -1172,7 +1183,7 @@ function AnalyticsModal({ storyId, storyTitle, onClose }: { storyId: string, sto
 
       const { data: plays } = await supabase
         .from('story_plays')
-        .select('created_at')
+        .select('created_at').limit(50)
         .eq('story_id', storyId);
 
       if (plays) {

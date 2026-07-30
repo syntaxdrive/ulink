@@ -13,14 +13,14 @@ export function useChat() {
         setActiveChatId,
         unreadCounts,
         setUnreadCount,
-        incrementUnread,
+        
         clearUnread
     } = useChatStore();
 
     const [activeChat, setActiveChatState] = useState<Profile | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [userId, setUserId] = useState<string | null>(null);
-    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+    const [onlineUsers] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
 
     // Sync activeChat state with store's activeChatId
@@ -101,7 +101,8 @@ export function useChat() {
     // Initial load
     useEffect(() => {
         const init = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
             setUserId(user.id);
             await fetchConversations(user.id);
@@ -111,71 +112,8 @@ export function useChat() {
         init();
     }, [fetchConversations, fetchUnreadCounts]);
 
-    // Global Listener (Unread counts & Presence)
-    useEffect(() => {
-        if (!userId) return;
-
-        const channel = supabase.channel('global-messages-listener')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` },
-                async (payload) => {
-                    const newMsg = payload.new as Message;
-                    const senderId = newMsg.sender_id;
-
-                    if (activeChatRef.current?.id !== senderId) {
-                        incrementUnread(senderId);
-                    }
-                    fetchConversations(userId, true);
-                })
-            .subscribe();
-
-        const presence = supabase.channel('global-presence');
-        presence
-            .on('presence', { event: 'sync' }, () => {
-                const state = presence.presenceState();
-                const ids = new Set<string>();
-                for (const key in state) {
-                    state[key].forEach((p: any) => {
-                        if (p.user_id) ids.add(p.user_id);
-                    });
-                }
-                setOnlineUsers(ids);
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await presence.track({ user_id: userId, online_at: new Date().toISOString() });
-                }
-            });
-
-        return () => {
-            if (channel) {
-                channel.unsubscribe();
-                supabase.removeChannel(channel);
-            }
-            if (presence) {
-                presence.untrack().then(() => {
-                    presence.unsubscribe();
-                    supabase.removeChannel(presence);
-                });
-            }
-        };
-    }, [userId, fetchConversations]);
-
-    // Realtime fallback: periodic sync for unread counts + conversation ordering.
-    // Optimized: Polling reduced to once every 2 minutes as we have Realtime listeners.
-    useEffect(() => {
-        if (!userId) return;
-
-        const timer = setInterval(() => {
-            if (useChatStore.getState().needsRefresh()) {
-                void fetchConversations(userId, true);
-                void fetchUnreadCounts(userId);
-            }
-        }, 120000);
-
-        return () => clearInterval(timer);
-    }, [userId, fetchConversations, fetchUnreadCounts]);
+    // Global listeners and intervals removed to conserve Supabase Realtime limits
+    // Rely on push notifications and active chat subscriptions instead.
 
     // Active Chat Messages & Subscription
     useEffect(() => {

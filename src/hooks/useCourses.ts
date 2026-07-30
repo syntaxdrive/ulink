@@ -42,13 +42,13 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
             };
 
             // Try with documents join first
-            let { data, error } = await applyFilters(supabase.from('courses').select(DOCS_SELECT));
+            let { data, error } = await applyFilters(supabase.from('courses').select(DOCS_SELECT).limit(50));
 
             if (error) {
                 // PGRST200 = relationship not found (migration not yet applied)
                 if (error.message?.includes('course_documents') || (error as any).code === 'PGRST200') {
                     console.warn('[useCourses] course_documents not in schema cache yet. Apply migration 20260303_course_documents.sql in Supabase SQL Editor, then reload.');
-                    const fallback = await applyFilters(supabase.from('courses').select(BASE_SELECT));
+                    const fallback = await applyFilters(supabase.from('courses').select(BASE_SELECT).limit(50));
                     data = fallback.data;
                     if (fallback.error) throw fallback.error;
                 } else {
@@ -67,8 +67,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
                 const courseIds = data.map((c: any) => c.id);
 
                 const [{ data: likes }, { data: enrollments }] = await Promise.all([
-                    supabase.from('course_likes').select('course_id').in('course_id', courseIds).eq('user_id', currentUserId),
-                    supabase.from('course_enrollments').select('course_id').in('course_id', courseIds).eq('user_id', currentUserId),
+                    supabase.from('course_likes').select('course_id').limit(50).in('course_id', courseIds).eq('user_id', currentUserId),
+                    supabase.from('course_enrollments').select('course_id').limit(50).in('course_id', courseIds).eq('user_id', currentUserId),
                 ]);
 
                 const likedIds = new Set(likes?.map((l: any) => l.course_id) || []);
@@ -108,7 +108,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         tags?: string[];
         documentFile?: File | null;
     }) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) throw new Error('Not authenticated');
 
         const isVideoMode = !!data.youtube_url;
@@ -181,7 +182,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         userId?: string,
         _onProgress?: (pct: number) => void
     ): Promise<CourseDocument | null> => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         const uid = userId || user?.id;
         if (!uid) throw new Error('Not authenticated');
 
@@ -291,7 +293,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
     // Toggle like
     const toggleLike = async (courseId: string) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             const course = courses.find(c => c.id === courseId);
@@ -317,7 +320,8 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
     // Toggle enrollment
     const toggleEnrollment = async (courseId: string) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             const course = courses.find(c => c.id === courseId);

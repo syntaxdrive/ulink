@@ -96,12 +96,13 @@ export default function OnboardingPage() {
     const [connectingId, setConnectingId] = useState<string | null>(null);
 
     const checkExistingProfile = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return navigate('/');
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*').limit(50)
             .eq('id', user.id)
             .single();
 
@@ -159,14 +160,15 @@ export default function OnboardingPage() {
         }
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) throw new Error('No user found');
 
             const updates: Record<string, any> = {
                 id: user.id,
                 email: user.email,
                 name: displayName.trim(),
-                avatar_url: user.user_metadata.avatar_url,
+                avatar_url: user.user_metadata?.avatar_url || null,
                 role,
                 username: username.toLowerCase(),
                 headline: headline.trim() || null,
@@ -223,7 +225,7 @@ export default function OnboardingPage() {
         try {
             let query = supabase
                 .from('profiles')
-                .select('id, name, username, avatar_url, university, headline, is_verified')
+                .select('id, name, username, avatar_url, university, headline, is_verified').limit(50)
                 .neq('id', userId)
                 .limit(12);
 
@@ -245,7 +247,8 @@ export default function OnboardingPage() {
     const handleConnect = async (profileId: string) => {
         setConnectingId(profileId);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             await supabase.from('connections').insert({

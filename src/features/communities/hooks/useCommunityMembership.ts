@@ -8,13 +8,14 @@ export function useCommunityMembership() {
         setJoiningCommunity(communityId);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) throw new Error('Not authenticated');
 
             // Fetch community privacy first
             const { data: comm } = await supabase
                 .from('communities')
-                .select('privacy')
+                .select('privacy').limit(50)
                 .eq('id', communityId)
                 .single();
 
@@ -42,7 +43,8 @@ export function useCommunityMembership() {
 
     const leaveCommunity = async (communityId: string) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) throw new Error('Not authenticated');
 
             const { error } = await supabase
@@ -61,12 +63,13 @@ export function useCommunityMembership() {
 
     const checkMembership = async (communityId: string): Promise<boolean> => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return false;
 
             const { data } = await supabase
                 .from('community_members')
-                .select('id')
+                .select('id').limit(50)
                 .match({ community_id: communityId, user_id: user.id })
                 .single();
 

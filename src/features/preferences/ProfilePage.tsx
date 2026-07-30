@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { type Profile, type Project, type Certificate } from '../../types';
 import {
     Loader2, Mail, School, Save, Camera, Plus, X, Trash2, Github, Linkedin,
     Globe, MapPin, Briefcase, BadgeCheck, Upload, Share, Instagram, Twitter,
-    Facebook, Youtube, MessageCircle, FileText, Download, Eye, AtSign, Play, ChevronRight
+    Facebook, Youtube, MessageCircle, FileText, Download, Eye, AtSign
 } from 'lucide-react';
 import ImageCropper from '../../components/ImageCropper';
 import ProfileCompletion from '../../components/ProfileCompletion';
 import { cloudinaryService, getOptimizedMediaUrl } from '../../services/cloudinaryService';
+import { compressImage } from '../../lib/mediaCompression';
 import { NIGERIAN_UNIVERSITIES } from '../../lib/universities';
 
 export default function ProfilePage() {
@@ -106,12 +108,13 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             const { data, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .eq('id', user.id)
                 .single();
 
@@ -135,7 +138,7 @@ export default function ProfilePage() {
                 // Fetch User Stories
                 const { data: stories } = await supabase
                     .from('stories')
-                    .select('*')
+                    .select('*').limit(50)
                     .eq('creator_id', user.id)
                     .order('created_at', { ascending: false });
                 if (stories) setUserStories(stories);
@@ -191,18 +194,22 @@ export default function ProfilePage() {
             setSaving(true);
             let publicUrl: string;
 
+            // Compress before upload
+            const file = new File([croppedBlob], `avatar_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            const compressedBlob = await compressImage(file, 800, 800, 0.8);
+            
             // Attempt 1: Cloudinary (f_auto,q_auto on delivery = ~70% smaller avatar)
             if (cloudinaryService.isConfigured()) {
                 try {
-                    const file = new File([croppedBlob], `avatar_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                    const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/avatars' });
+                    const uploadFile = new File([compressedBlob], `avatar_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    const result = await cloudinaryService.uploadImage(uploadFile, { folder: 'ulink/avatars' });
                     publicUrl = result.secureUrl;
                 } catch (cloudErr) {
                     console.warn('[Avatar] Cloudinary failed, falling back to Supabase:', cloudErr);
                     // Attempt 2: Supabase fallback
                     const fileName = `${profile.id}/avatar_${Date.now()}.jpg`;
                     const { error: uploadError } = await supabase.storage
-                        .from('avatars').upload(fileName, croppedBlob, { upsert: true });
+                        .from('avatars').upload(fileName, compressedBlob, { upsert: true });
                     if (uploadError) throw uploadError;
                     publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
                 }
@@ -210,7 +217,7 @@ export default function ProfilePage() {
                 // Cloudinary not configured — use Supabase
                 const fileName = `${profile.id}/avatar_${Date.now()}.jpg`;
                 const { error: uploadError } = await supabase.storage
-                    .from('avatars').upload(fileName, croppedBlob, { upsert: true });
+                    .from('avatars').upload(fileName, compressedBlob, { upsert: true });
                 if (uploadError) throw uploadError;
                 publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
             }
@@ -233,24 +240,28 @@ export default function ProfilePage() {
             setSaving(true);
             let publicUrl: string;
 
+            // Compress before upload
+            const file = new File([croppedBlob], `bg_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            const compressedBlob = await compressImage(file, 1920, 1080, 0.8);
+            
             // Attempt 1: Cloudinary
             if (cloudinaryService.isConfigured()) {
                 try {
-                    const file = new File([croppedBlob], `bg_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                    const result = await cloudinaryService.uploadImage(file, { folder: 'ulink/backgrounds' });
+                    const uploadFile = new File([compressedBlob], `bg_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                    const result = await cloudinaryService.uploadImage(uploadFile, { folder: 'ulink/backgrounds' });
                     publicUrl = result.secureUrl;
                 } catch (cloudErr) {
                     console.warn('[Background] Cloudinary failed, falling back to Supabase:', cloudErr);
                     const fileName = `backgrounds/${profile.id}_${Date.now()}.jpg`;
                     const { error: uploadError } = await supabase.storage
-                        .from('uploads').upload(fileName, croppedBlob, { upsert: true });
+                        .from('uploads').upload(fileName, compressedBlob, { upsert: true });
                     if (uploadError) throw uploadError;
                     publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
                 }
             } else {
                 const fileName = `backgrounds/${profile.id}_${Date.now()}.jpg`;
                 const { error: uploadError } = await supabase.storage
-                    .from('uploads').upload(fileName, croppedBlob, { upsert: true });
+                    .from('uploads').upload(fileName, compressedBlob, { upsert: true });
                 if (uploadError) throw uploadError;
                 publicUrl = supabase.storage.from('uploads').getPublicUrl(fileName).data.publicUrl;
             }
@@ -537,7 +548,7 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center py-12">
+            <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 flex justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             </div>
         );

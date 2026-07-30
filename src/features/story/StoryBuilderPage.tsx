@@ -21,8 +21,8 @@ interface Scene {
 }
 
 const ART_STYLES = [
-  'Digital Art', 'Anime / Manga', 'Cyberpunk', 
-  'Oil Painting', 'Comic Book', 'Pixel Art', 'Realistic'
+  'Cinematic Photography', 'Liquid Glass 3D', 'Spatial UI', 
+  'Digital Art', 'Anime / Manga', 'Cyberpunk', 'Realistic'
 ];
 
 export default function StoryBuilderPage() {
@@ -48,8 +48,8 @@ export default function StoryBuilderPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [globalArtStyle, setGlobalArtStyle] = useState(() => {
     const saved = localStorage.getItem('ulink_story_draft');
-    if (saved) return JSON.parse(saved).globalArtStyle || 'Digital Art';
-    return 'Digital Art';
+    if (saved) return JSON.parse(saved).globalArtStyle || 'Cinematic Photography';
+    return 'Cinematic Photography';
   });
 
   const [scenes, setScenes] = useState<Scene[]>(() => {
@@ -66,7 +66,7 @@ export default function StoryBuilderPage() {
         name: 'Start',
         text: 'You wake up in your hostel room. The sun is shining.',
         coverPrompt: 'university hostel room morning sun',
-        artStyle: 'Digital Art',
+        artStyle: 'Cinematic Photography',
         choices: []
       }
     ];
@@ -145,7 +145,8 @@ export default function StoryBuilderPage() {
     
     setIsSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
       if (!user) {
         useAuthModalStore.getState().openAuthModal('Sign in to save your story');
         return;
@@ -410,7 +411,7 @@ export default function StoryBuilderPage() {
             <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 dark:border-zinc-800 space-y-4 md:space-y-6 mb-20">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-xl">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 rounded-xl">
                     <ArrowRight className="w-5 h-5" />
                   </div>
                   <h3 className="text-base md:text-lg font-bold">Player Choices</h3>
@@ -506,7 +507,7 @@ export default function StoryBuilderPage() {
               </div>
 
               <div className="flex gap-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-950/30 text-purple-600 rounded-2xl shrink-0">
+                <div className="p-3 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 rounded-2xl shrink-0">
                   <Check className="w-5 h-5" />
                 </div>
                 <div>

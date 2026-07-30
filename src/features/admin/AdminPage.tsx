@@ -47,12 +47,13 @@ export default function AdminPage() {
     }, []);
 
     const checkAdmin = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) return navigate('/');
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('is_admin')
+            .select('is_admin').limit(50)
             .eq('id', user.id)
             .single();
 
@@ -75,7 +76,7 @@ export default function AdminPage() {
             // 2. Fetch Recent Users (bumped to 500 for accurate table)
             const { data: usersData } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*').limit(50)
                 .order('created_at', { ascending: false })
                 .limit(500);
             if (usersData) setUsers(usersData as any);

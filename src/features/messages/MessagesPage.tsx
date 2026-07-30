@@ -50,7 +50,7 @@ export default function MessagesPage() {
             if (!target) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('id,name,username,avatar_url,university,role,is_verified,headline')
+                    .select('id,name,username,avatar_url,university,role,is_verified,headline').limit(50)
                     .eq('id', initialChatId)
                     .single();
                 
@@ -98,7 +98,7 @@ export default function MessagesPage() {
                 unreadCounts={unreadCounts}
                 onlineUsers={onlineUsers}
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                /* onTabChange={setActiveTab} */
             />
 
             {/* Chat Window or Empty State */}

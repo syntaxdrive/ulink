@@ -31,7 +31,7 @@ export async function notifyMentionedUsers(
         // Get sender's name and user IDs from usernames
         const [senderRes, profilesRes] = await Promise.all([
             supabase.from('profiles').select('name').eq('id', senderId).single(),
-            supabase.from('profiles').select('id').in('username', usernames).neq('id', senderId)
+            supabase.from('profiles').select('id').limit(50).in('username', usernames).neq('id', senderId)
         ]);
 
         const senderName = senderRes.data?.name || 'Someone';

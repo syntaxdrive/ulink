@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Globe, Lock } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { cloudinaryService } from '../../../services/cloudinaryService';
+import { compressImage } from '../../../lib/mediaCompression';
 
 interface CreateCommunityModalProps {
     isOpen: boolean;
@@ -16,7 +17,10 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
     const [name, setName] = useState('');
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const user = session?.user;
+            setUser(user);
+        });
     }, []);
     const [description, setDescription] = useState('');
     const [privacy, setPrivacy] = useState<'public' | 'private'>('public');
@@ -90,7 +94,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
             // Check slug availability
             const { data: existing, error: checkError } = await supabase
                 .from('communities')
-                .select('id')
+                .select('id').limit(50)
                 .eq('slug', slug)
                 .maybeSingle();
 
@@ -110,26 +114,28 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
 
             if (iconFile) {
                 try {
+                    const compressedBlob = await compressImage(iconFile, 800, 800, 0.8);
+                    const compressedIcon = new File([compressedBlob], iconFile.name, { type: iconFile.type || 'image/jpeg' });
                     // Attempt 1: Cloudinary
                     if (cloudinaryService.isConfigured()) {
                         try {
-                            const result = await cloudinaryService.uploadImage(iconFile, { folder: 'ulink/community-icons' });
+                            const result = await cloudinaryService.uploadImage(compressedIcon, { folder: 'ulink/community-icons' });
                             iconUrl = result.secureUrl;
                         } catch (cloudErr) {
                             console.warn('[Community icon] Cloudinary failed, falling back to Supabase:', cloudErr);
-                            const iconExt = iconFile.name.split('.').pop();
+                            const iconExt = compressedIcon.name.split('.').pop();
                             const iconPath = `community-icons/${slug}-${Date.now()}.${iconExt}`;
                             const { error: iconError } = await supabase.storage
-                                .from('community-images').upload(iconPath, iconFile, { cacheControl: '3600', upsert: false });
+                                .from('community-images').upload(iconPath, compressedIcon, { cacheControl: '3600', upsert: false });
                             if (iconError) throw new Error(`Failed to upload icon: ${iconError.message}`);
                             iconUrl = supabase.storage.from('community-images').getPublicUrl(iconPath).data.publicUrl;
                         }
                     } else {
                         // Supabase only
-                        const iconExt = iconFile.name.split('.').pop();
+                        const iconExt = compressedIcon.name.split('.').pop();
                         const iconPath = `community-icons/${slug}-${Date.now()}.${iconExt}`;
                         const { error: iconError } = await supabase.storage
-                            .from('community-images').upload(iconPath, iconFile, { cacheControl: '3600', upsert: false });
+                            .from('community-images').upload(iconPath, compressedIcon, { cacheControl: '3600', upsert: false });
                         if (iconError) throw new Error(`Failed to upload icon: ${iconError.message}`);
                         iconUrl = supabase.storage.from('community-images').getPublicUrl(iconPath).data.publicUrl;
                     }
@@ -141,25 +147,27 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
 
             if (coverFile) {
                 try {
+                    const compressedBlob = await compressImage(coverFile, 1920, 1080, 0.8);
+                    const compressedCover = new File([compressedBlob], coverFile.name, { type: coverFile.type || 'image/jpeg' });
                     // Attempt 1: Cloudinary
                     if (cloudinaryService.isConfigured()) {
                         try {
-                            const result = await cloudinaryService.uploadImage(coverFile, { folder: 'ulink/community-covers' });
+                            const result = await cloudinaryService.uploadImage(compressedCover, { folder: 'ulink/community-covers' });
                             coverUrl = result.secureUrl;
                         } catch (cloudErr) {
                             console.warn('[Community cover] Cloudinary failed, falling back to Supabase:', cloudErr);
-                            const coverExt = coverFile.name.split('.').pop();
+                            const coverExt = compressedCover.name.split('.').pop();
                             const coverPath = `community-covers/${slug}-${Date.now()}.${coverExt}`;
                             const { error: coverError } = await supabase.storage
-                                .from('community-images').upload(coverPath, coverFile, { cacheControl: '3600', upsert: false });
+                                .from('community-images').upload(coverPath, compressedCover, { cacheControl: '3600', upsert: false });
                             if (coverError) throw new Error(`Failed to upload cover: ${coverError.message}`);
                             coverUrl = supabase.storage.from('community-images').getPublicUrl(coverPath).data.publicUrl;
                         }
                     } else {
-                        const coverExt = coverFile.name.split('.').pop();
+                        const coverExt = compressedCover.name.split('.').pop();
                         const coverPath = `community-covers/${slug}-${Date.now()}.${coverExt}`;
                         const { error: coverError } = await supabase.storage
-                            .from('community-images').upload(coverPath, coverFile, { cacheControl: '3600', upsert: false });
+                            .from('community-images').upload(coverPath, compressedCover, { cacheControl: '3600', upsert: false });
                         if (coverError) throw new Error(`Failed to upload cover: ${coverError.message}`);
                         coverUrl = supabase.storage.from('community-images').getPublicUrl(coverPath).data.publicUrl;
                     }

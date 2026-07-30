@@ -51,7 +51,8 @@ export function useFeed(communityId?: string) {
 
     useEffect(() => {
         const init = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 setCurrentUserId(user.id);
                 const { data } = await supabase
@@ -90,118 +91,48 @@ export function useFeed(communityId?: string) {
             }
         });
 
-        // Single realtime channel for posts, likes, comments — shared with LiveTicker via latestFeedEvent
-        const channel = supabase
-            .channel('public:posts')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-                const newPost = payload.new as any;
-
-                if (communityId) {
-                    if (newPost.community_id !== communityId) return;
-                } else {
-                    if (newPost.community_id && !newPost.shared_to_feed) return;
-                }
-
-                fetchSinglePost(newPost.id);
-                if (!communityId) setLatestFeedEvent({ type: 'post', userId: newPost.author_id });
-            })
-            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
-                removePost(payload.old.id);
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'likes' }, async (payload: any) => {
-                const postId = payload.new?.post_id || payload.old?.post_id;
-                const actorId = payload.new?.user_id || payload.old?.user_id;
-                if (!postId) return;
-                
-                // Get fresh user ID to avoid closure staleness
-                const { data: authData } = await supabase.auth.getUser();
-                const sessionUserId = authData.user?.id;
-                
-                if (actorId && sessionUserId && actorId === sessionUserId) {
-                    return; // Ignore own likes: Optimistic UI already handled this instantly
-                }
-
-                // Optimistic counter update for others' likes
-                const post = useFeedStore.getState().posts.find(p => p.id === postId);
-                if (post) {
-                    const delta = payload.eventType === 'INSERT' ? 1 : -1;
-                    updatePost({ ...post, likes_count: Math.max(0, (post.likes_count || 0) + delta) });
-                }
-                if (actorId && !communityId) setLatestFeedEvent({ type: 'like', userId: actorId });
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, (payload: any) => {
-                const postId = payload.new?.post_id || payload.old?.post_id;
-                const actorId = payload.new?.author_id;
-                if (!postId) return;
-                // Optimistic counter update — avoids a DB fetch per comment event
-                const post = useFeedStore.getState().posts.find(p => p.id === postId);
-                if (post) {
-                    const delta = payload.eventType === 'INSERT' ? 1 : -1;
-                    updatePost({ ...post, comments_count: Math.max(0, (post.comments_count || 0) + delta) });
-                }
-                if (actorId && !communityId) setLatestFeedEvent({ type: 'comment', userId: actorId });
-            })
-            .subscribe();
+        // Replaced expensive Realtime WebSockets with simple 30s polling
+        let pollInterval: any;
+        const startPolling = (userId: string | null) => {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(() => {
+                fetchPosts(userId || undefined, false);
+            }, 30000);
+        };
+        startPolling(currentUserId);
 
         return () => {
             subscription.unsubscribe();
-            if (channel) {
-                channel.unsubscribe();
-                supabase.removeChannel(channel);
-            }
+            if (pollInterval) clearInterval(pollInterval);
         };
     }, [communityId]);
 
-    // ── Realtime: live comment updates for the currently-open comment section ──
+    // ── Polling: live comment updates for the currently-open comment section ──
     useEffect(() => {
         if (!activeCommentPostId) return;
 
-        const commentChannel = supabase
-            .channel(`comments:${activeCommentPostId}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'comments', filter: `post_id=eq.${activeCommentPostId}` },
-                async (payload) => {
-                    const newComment = payload.new as any;
-                    // Skip optimistic own comments — already added instantly in postComment()
-                    setComments(prev => {
-                        const existing = prev[activeCommentPostId] || [];
-                        if (existing.some(c => c.id === newComment.id)) return prev;
-                        // Fetch full comment with profile join
-                        supabase
-                            .from('comments')
-                            .select('*, profiles:author_id(*)')
-                            .eq('id', newComment.id)
-                            .single()
-                            .then(({ data }) => {
-                                if (data) {
-                                    setComments(p => {
-                                        const list = p[activeCommentPostId] || [];
-                                        if (list.some(c => c.id === data.id)) return p;
-                                        return { ...p, [activeCommentPostId]: [...list, data] };
-                                    });
-                                }
-                            });
-                        return prev; // return unchanged; actual update happens in the async .then()
-                    });
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'DELETE', schema: 'public', table: 'comments', filter: `post_id=eq.${activeCommentPostId}` },
-                (payload) => {
-                    setComments(prev => {
-                        const list = prev[activeCommentPostId] || [];
-                        return { ...prev, [activeCommentPostId]: list.filter(c => c.id !== payload.old.id) };
-                    });
-                }
-            )
-            .subscribe();
+        const pollInterval = setInterval(() => {
+            supabase
+                .from('comments')
+                .select(`*, profiles: author_id(*)`)
+                .eq('post_id', activeCommentPostId)
+                .order('created_at', { ascending: true })
+                .then(({ data }) => {
+                    if (data) setComments(prev => ({ 
+                        ...prev, 
+                        [activeCommentPostId]: data.map((c: any) => ({
+                            ...c,
+                            sticker_url: getOptimizedMediaUrl(c.sticker_url),
+                            profiles: c.profiles ? {
+                                ...c.profiles,
+                                avatar_url: getOptimizedMediaUrl(c.profiles.avatar_url)
+                            } : null
+                        }))
+                    }));
+                });
+        }, 15000);
 
-        return () => {
-            commentChannel.unsubscribe();
-            supabase.removeChannel(commentChannel);
-        };
+        return () => clearInterval(pollInterval);
     }, [activeCommentPostId]);
 
     const fetchPosts = async (userId?: string, isLoadMore = false) => {
@@ -348,7 +279,8 @@ export function useFeed(communityId?: string) {
         }
 
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
         let dbQuery = supabase
             .from('posts')
@@ -439,7 +371,8 @@ export function useFeed(communityId?: string) {
     };
 
     const fetchSinglePost = async (postId: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         const { data } = await supabase
             .from('posts')
             .select(`
@@ -488,7 +421,8 @@ export function useFeed(communityId?: string) {
 
     const createPost = async (content: string, imageFiles: File[], videoFile: File | null, targetCommunityId?: string, pollOptions?: string[]) => {
         if (!content.trim() && imageFiles.length === 0 && !videoFile) return;
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) {
             useAuthModalStore.getState().openAuthModal('Sign in to create a post');
             return;
@@ -620,7 +554,8 @@ export function useFeed(communityId?: string) {
     };
 
     const toggleLike = async (post: Post) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) {
             useAuthModalStore.getState().openAuthModal('Sign in to like this post');
             return;
@@ -651,7 +586,8 @@ export function useFeed(communityId?: string) {
     };
 
     const toggleRepost = async (post: Post, comment?: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) {
             useAuthModalStore.getState().openAuthModal('Sign in to repost');
             return;
@@ -796,7 +732,8 @@ export function useFeed(communityId?: string) {
 
     const postComment = async (postId: string, content: string | null, stickerUrl?: string, type: 'text' | 'sticker' | 'image' = 'text', parentId?: string) => {
         if (!content?.trim() && !stickerUrl) return;
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) {
             useAuthModalStore.getState().openAuthModal('Sign in to comment');
             return;
@@ -863,7 +800,8 @@ export function useFeed(communityId?: string) {
     };
 
     const reportPost = async (postId: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
         if (!user) {
             useAuthModalStore.getState().openAuthModal('Sign in to report a post');
             return;
@@ -965,6 +903,6 @@ export function useFeed(communityId?: string) {
         hasMore,
         loadingMore,
         loadMorePosts,
-        latestFeedEvent,
+        latestFeedEvent, setLatestFeedEvent, 
     };
 }

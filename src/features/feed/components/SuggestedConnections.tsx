@@ -25,20 +25,21 @@ export default function SuggestedConnections() {
 
     const fetchSuggestions = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Get current user's profile
             const { data: currentProfile } = await supabase
                 .from('profiles')
-                .select('university')
+                .select('university').limit(50)
                 .eq('id', user.id)
                 .single();
 
             // Get existing connections
             const { data: connections } = await supabase
                 .from('connections')
-                .select('requester_id, recipient_id')
+                .select('requester_id, recipient_id').limit(50)
                 .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
                 .in('status', ['accepted', 'pending']);
 
@@ -50,7 +51,7 @@ export default function SuggestedConnections() {
             // Fetch suggested users (same university, not connected)
             const { data: profiles } = await supabase
                 .from('profiles')
-                .select('id, name, username, avatar_url, university, headline, is_verified')
+                .select('id, name, username, avatar_url, university, headline, is_verified').limit(50)
                 .eq('university', currentProfile?.university)
                 .not('id', 'in', `(${Array.from(connectedIds).join(',')})`)
                 .limit(10);
@@ -69,7 +70,8 @@ export default function SuggestedConnections() {
 
     const handleConnect = async (profileId: string) => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             await supabase.from('connections').insert({

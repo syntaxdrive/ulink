@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     ArrowLeft, Mic2, CheckCircle, Clock, XCircle, AlertCircle,
-    Upload, Plus, Loader2, Trash2, Pencil,
+    Upload, Plus, Loader2, Trash2, Pencil, ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { cloudinaryService } from '../../services/cloudinaryService';
-import { fetchMyPodcast, fetchMyEpisodes, applyForPodcast, uploadEpisode } from './hooks/usePodcasts';
+import { fetchMyPodcasts, fetchMyEpisodes, applyForPodcast, uploadEpisode } from './hooks/usePodcasts';
 import EpisodeItem from './components/EpisodeItem';
 import type { Podcast, PodcastEpisode } from '../../types';
 
@@ -39,11 +39,14 @@ export default function PodcastManagePage() {
     const navigate = useNavigate();
     const audioInputRef = useRef<HTMLInputElement>(null);
     const epCoverInputRef = useRef<HTMLInputElement>(null);
-    const editCoverInputRef = useRef<HTMLInputElement>(null);
-
-    // undefined = loading, null = no podcast
-    const [podcast, setPodcast] = useState<Podcast | null | undefined>(undefined);
+    
+    // undefined = loading, array = loaded
+    const [podcasts, setPodcasts] = useState<Podcast[] | undefined>(undefined);
+    const [selectedPodcastId, setSelectedPodcastId] = useState<string | null>(null);
     const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
+    
+    // UI state
+    const [showAppForm, setShowAppForm] = useState(false);
     const [showUploadForm, setShowUploadForm] = useState(false);
 
     // Application form
@@ -71,16 +74,30 @@ export default function PodcastManagePage() {
     const [editError, setEditError] = useState('');
 
     useEffect(() => {
-        fetchMyPodcast()
-            .then(async p => {
-                setPodcast(p);
-                if (p?.status === 'approved') {
-                    const eps = await fetchMyEpisodes(p.id);
-                    setEpisodes(eps);
+        fetchMyPodcasts()
+            .then(async (ps: Podcast[]) => {
+                setPodcasts(ps);
+                if (ps.length === 0) {
+                    setShowAppForm(true);
+                } else if (ps.length === 1 && ps[0].status === 'approved') {
+                    // Auto-select if they only have one approved podcast
+                    handleSelectPodcast(ps[0].id);
                 }
             })
             .catch(console.error);
     }, []);
+
+    const handleSelectPodcast = async (id: string) => {
+        setSelectedPodcastId(id);
+        setShowAppForm(false);
+        const p = podcasts?.find(p => p.id === id);
+        if (p?.status === 'approved') {
+            const eps = await fetchMyEpisodes(id);
+            setEpisodes(eps);
+        } else {
+            setEpisodes([]);
+        }
+    };
 
     /* ── Application submit ── */
     const handleApply = async (e: React.FormEvent) => {
@@ -95,10 +112,14 @@ export default function PodcastManagePage() {
                 category: appForm.category,
                 cover_url: appForm.cover_url || undefined,
             });
-            setPodcast(result);
+            setPodcasts(prev => [...(prev || []), result]);
+            setShowAppForm(false);
+            if (!selectedPodcastId) {
+                handleSelectPodcast(result.id);
+            }
         } catch (err: any) {
             if (err?.code === '23505') {
-                setAppError('You already have a podcast application.');
+                setAppError('You already have a podcast application with this name.');
             } else if (err?.code === '42501') {
                 setAppError('Permission denied. You need at least 100 points to apply for a podcast channel.');
             } else if (err?.message?.includes('points')) {
@@ -150,14 +171,16 @@ export default function PodcastManagePage() {
         }
     };
 
+    const selectedPodcast = podcasts?.find(p => p.id === selectedPodcastId);
+
     /* ── Start editing podcast ── */
     const startEdit = () => {
-        if (!podcast) return;
+        if (!selectedPodcast) return;
         setEditForm({
-            title: podcast.title,
-            description: podcast.description ?? '',
-            category: podcast.category,
-            cover_url: podcast.cover_url ?? '',
+            title: selectedPodcast.title,
+            description: selectedPodcast.description ?? '',
+            category: selectedPodcast.category,
+            cover_url: selectedPodcast.cover_url ?? '',
         });
         setEditMode(true);
         setEditError('');
@@ -167,7 +190,7 @@ export default function PodcastManagePage() {
     const handleUpdatePodcast = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editForm.title.trim()) { setEditError('Podcast name is required.'); return; }
-        if (!podcast?.id) return;
+        if (!selectedPodcast?.id) return;
         setEditSubmitting(true);
         setEditError('');
         try {
@@ -179,11 +202,11 @@ export default function PodcastManagePage() {
                     category: editForm.category,
                     cover_url: editForm.cover_url || null,
                 })
-                .eq('id', podcast.id)
+                .eq('id', selectedPodcast.id)
                 .select()
                 .single();
             if (error) throw error;
-            setPodcast(data as Podcast);
+            setPodcasts(prev => prev?.map(p => p.id === selectedPodcast.id ? (data as Podcast) : p));
             setEditMode(false);
         } catch (err: any) {
             setEditError(err?.message ?? 'Failed to save changes.');
@@ -248,12 +271,12 @@ export default function PodcastManagePage() {
         e.preventDefault();
         if (!epForm.title.trim()) { setEpError('Episode title is required.'); return; }
         if (!epForm.audio_url) { setEpError('Please upload an audio file first.'); return; }
-        if (!podcast?.id) return;
+        if (!selectedPodcast?.id) return;
 
         setEpSubmitting(true);
         setEpError('');
         try {
-            const ep = await uploadEpisode(podcast.id, {
+            const ep = await uploadEpisode(selectedPodcast.id, {
                 title: epForm.title.trim(),
                 description: epForm.description.trim() || undefined,
                 audio_url: epForm.audio_url,
@@ -262,7 +285,7 @@ export default function PodcastManagePage() {
                 episode_number: epForm.episode_number ? parseInt(epForm.episode_number, 10) : undefined,
             });
             setEpisodes(prev => [ep, ...prev]);
-            setPodcast(p => p ? { ...p, episodes_count: p.episodes_count + 1 } : p);
+            setPodcasts(prev => prev?.map(p => p.id === selectedPodcast.id ? { ...p, episodes_count: p.episodes_count + 1 } : p));
             setEpForm({ title: '', description: '', episode_number: '', audio_url: '', duration_seconds: 0, cover_url: '' });
             setShowUploadForm(false);
         } catch (err: any) {
@@ -281,7 +304,7 @@ export default function PodcastManagePage() {
     };
 
     /* ── Loading state ── */
-    if (podcast === undefined) {
+    if (podcasts === undefined) {
         return (
             <div className="flex items-center justify-center min-h-64">
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
@@ -289,22 +312,99 @@ export default function PodcastManagePage() {
         );
     }
 
+    // LIST VIEW
+    if (selectedPodcastId === null && !showAppForm) {
+        return (
+            <div className="max-w-2xl mx-auto pb-32">
+                <button
+                    onClick={() => navigate('/app/podcasts')}
+                    className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 mb-6 transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Discover Podcasts
+                </button>
+
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                        <Mic2 className="w-5 h-5 text-emerald-600" />
+                        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Your Podcasts</h1>
+                    </div>
+                    <button
+                        onClick={() => setShowAppForm(true)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                    >
+                        <Plus className="w-4 h-4" /> Create Another
+                    </button>
+                </div>
+
+                {podcasts.length === 0 ? (
+                    <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                        <Mic2 className="w-12 h-12 text-emerald-600/50 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No Podcasts Yet</h3>
+                        <p className="text-slate-500 dark:text-zinc-400 mb-6">Start your own podcast channel and share your voice.</p>
+                        <button
+                            onClick={() => setShowAppForm(true)}
+                            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
+                        >
+                            Apply for a Podcast
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {podcasts.map(p => (
+                            <div 
+                                key={p.id}
+                                onClick={() => handleSelectPodcast(p.id)}
+                                className="bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-800 rounded-2xl p-5 flex items-center gap-4 cursor-pointer transition-all hover:shadow-md group"
+                            >
+                                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0">
+                                    {p.cover_url ? (
+                                        <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
+                                            <Mic2 className="w-6 h-6 text-white/80" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-bold text-slate-900 dark:text-white truncate">{p.title}</h3>
+                                        <StatusBadge status={p.status} />
+                                    </div>
+                                    <p className="text-sm text-slate-500 dark:text-zinc-400 truncate">{p.category}</p>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-slate-300 dark:text-zinc-600 group-hover:text-emerald-500 transition-colors" />
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-2xl mx-auto pb-32">
             <button
-                onClick={() => navigate('/app/podcasts')}
+                onClick={() => {
+                    if (showAppForm && podcasts && podcasts.length > 0) {
+                        setShowAppForm(false);
+                    } else if (selectedPodcastId) {
+                        setSelectedPodcastId(null);
+                    } else {
+                        navigate('/app/podcasts');
+                    }
+                }}
                 className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 mb-6 transition-colors"
             >
-                <ArrowLeft className="w-4 h-4" /> Podcasts
+                <ArrowLeft className="w-4 h-4" /> {selectedPodcastId || showAppForm ? 'Back to Podcasts' : 'Podcasts'}
             </button>
 
             <div className="flex items-center gap-2 mb-6">
                 <Mic2 className="w-5 h-5 text-emerald-600" />
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white">Your Podcast</h1>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white">{showAppForm ? 'Create Podcast' : 'Manage Podcast'}</h1>
             </div>
 
-            {/* ── No podcast yet: application form ── */}
-            {!podcast && (
+            {/* ── Application form ── */}
+            {showAppForm && (
                 <div>
                     <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 mb-6">
                         <h2 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2">How it works</h2>
@@ -400,14 +500,14 @@ export default function PodcastManagePage() {
                 </div>
             )}
 
-            {/* ── Podcast exists ── */}
-            {podcast && (
+            {/* ── Podcast Management View ── */}
+            {selectedPodcast && (
                 <div>
                     {/* Channel card */}
                     <div className="bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl p-5 mb-6 flex gap-4 items-start">
                         <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0">
-                            {podcast.cover_url ? (
-                                <img src={podcast.cover_url} alt={podcast.title} className="w-full h-full object-cover" />
+                            {selectedPodcast.cover_url ? (
+                                <img src={selectedPodcast.cover_url} alt={selectedPodcast.title} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
                                     <Mic2 className="w-8 h-8 text-white/80" />
@@ -416,7 +516,7 @@ export default function PodcastManagePage() {
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                                <h2 className="font-bold text-slate-900 dark:text-white truncate">{podcast.title}</h2>
+                                <h2 className="font-bold text-slate-900 dark:text-white truncate">{selectedPodcast.title}</h2>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         onClick={startEdit}
@@ -425,15 +525,15 @@ export default function PodcastManagePage() {
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
-                                    <StatusBadge status={podcast.status} />
+                                    <StatusBadge status={selectedPodcast.status} />
                                 </div>
                             </div>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">{podcast.category}</p>
-                            {podcast.status === 'approved' && (
+                            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">{selectedPodcast.category}</p>
+                            {selectedPodcast.status === 'approved' && (
                                 <div className="flex gap-3 mt-2 text-xs text-slate-400 dark:text-zinc-500">
-                                    <span>{podcast.episodes_count} episodes</span>
+                                    <span>{selectedPodcast.episodes_count} episodes</span>
                                     <span>·</span>
-                                    <span>{podcast.followers_count} followers</span>
+                                    <span>{selectedPodcast.followers_count} followers</span>
                                 </div>
                             )}
                         </div>
@@ -448,25 +548,22 @@ export default function PodcastManagePage() {
                             <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Edit Podcast</h3>
 
                             {/* Cover art */}
-                            <div className="flex items-center gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-2">Cover Art</label>
                                 <div
-                                    onClick={() => editCoverInputRef.current?.click()}
-                                    className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 cursor-pointer hover:border-emerald-400 transition-colors flex items-center justify-center shrink-0"
+                                    onClick={() => document.getElementById('edit-cover-input')?.click()}
+                                    className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 dark:bg-zinc-800 border-2 border-dashed border-slate-300 dark:border-zinc-600 cursor-pointer hover:border-emerald-400 transition-colors flex items-center justify-center"
                                 >
                                     {editForm.cover_url ? (
                                         <img src={editForm.cover_url} alt="Cover" className="w-full h-full object-cover" />
                                     ) : editCoverUploading ? (
-                                        <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                                        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                                     ) : (
-                                        <Upload className="w-5 h-5 text-slate-400" />
+                                        <Upload className="w-6 h-6 text-slate-400" />
                                     )}
                                 </div>
-                                <div className="text-xs text-slate-500 dark:text-zinc-400">
-                                    <p className="font-semibold">Cover Art</p>
-                                    <p>Click to change · Max 5 MB</p>
-                                </div>
                                 <input
-                                    ref={editCoverInputRef}
+                                    id="edit-cover-input"
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
@@ -475,316 +572,220 @@ export default function PodcastManagePage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                    Podcast Name <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Podcast Name</label>
                                 <input
                                     type="text"
                                     value={editForm.title}
                                     onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                                    maxLength={80}
-                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl"
                                 />
                             </div>
-
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Category</label>
+                                <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Category</label>
                                 <select
                                     value={editForm.category}
                                     onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl"
                                 >
                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
-
                             <div>
-                                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Description</label>
+                                <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Description</label>
                                 <textarea
                                     value={editForm.description}
                                     onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                                    rows={3}
-                                    maxLength={500}
-                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
+                                    rows={2}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl resize-none"
                                 />
                             </div>
 
-                            {editError && <p className="text-sm text-red-600 dark:text-red-400 font-medium">{editError}</p>}
+                            {editError && <p className="text-xs text-red-500">{editError}</p>}
 
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setEditMode(false)}
-                                    className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                                    className="flex-1 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium rounded-xl transition-colors text-sm"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={editSubmitting || editCoverUploading}
-                                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    disabled={editSubmitting}
+                                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors text-sm flex justify-center items-center"
                                 >
-                                    {editSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Save Changes
+                                    {editSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}
                                 </button>
                             </div>
                         </form>
                     )}
 
-                    {/* Status-specific banners */}
-                    {podcast.status === 'pending' && (
-                        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 mb-6">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                                <h3 className="text-sm font-bold text-amber-800 dark:text-amber-300">Application Under Review</h3>
-                            </div>
-                            <p className="text-sm text-amber-700 dark:text-amber-400">
-                                Your podcast is being reviewed. You'll get a notification once it's approved or if we need more info.
-                            </p>
-                        </div>
-                    )}
-
-                    {podcast.status === 'rejected' && (
-                        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
-                            <div className="flex items-center gap-2 mb-1">
-                                <XCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                                <h3 className="text-sm font-bold text-red-800 dark:text-red-300">Application Not Approved</h3>
-                            </div>
-                            {podcast.rejection_reason && (
-                                <p className="text-sm text-red-700 dark:text-red-400 mb-1">
-                                    Reason: {podcast.rejection_reason}
-                                </p>
-                            )}
-                            <p className="text-xs text-red-600/70 dark:text-red-500/70">
-                                Contact support if you believe this was a mistake.
-                            </p>
-                        </div>
-                    )}
-
-                    {podcast.status === 'suspended' && (
-                        <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 mb-6">
-                            <div className="flex items-center gap-2 mb-1">
-                                <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0" />
-                                <h3 className="text-sm font-bold text-orange-800 dark:text-orange-300">Podcast Suspended</h3>
-                            </div>
-                            <p className="text-sm text-orange-700 dark:text-orange-400">
-                                Your podcast has been suspended. Please contact support for more information.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* ── Approved: episode management ── */}
-                    {podcast.status === 'approved' && (
-                        <div>
+                    {/* ── Actions / New Episode ── */}
+                    {selectedPodcast.status === 'approved' && (
+                        <div className="mb-8">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                                    Episodes
-                                </h2>
-                                <button
-                                    onClick={() => setShowUploadForm(v => !v)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors"
-                                >
-                                    <Plus className="w-3.5 h-3.5" /> New Episode
-                                </button>
+                                <h3 className="font-bold text-slate-900 dark:text-white">Episodes</h3>
+                                {!showUploadForm && (
+                                    <button
+                                        onClick={() => setShowUploadForm(true)}
+                                        className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-100 text-white dark:text-slate-900 text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        New Episode
+                                    </button>
+                                )}
                             </div>
 
-                            {/* Episode upload form */}
+                            {/* ── Upload Form ── */}
                             {showUploadForm && (
-                                <form
-                                    onSubmit={handlePublishEpisode}
-                                    className="bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl p-5 mb-5 space-y-4"
-                                >
-                                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Upload New Episode</h3>
+                                <form onSubmit={handlePublishEpisode} className="bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/50 rounded-2xl p-5 mb-6 space-y-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-bold text-slate-800 dark:text-zinc-100">Upload New Episode</h4>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowUploadForm(false);
+                                                setEpForm({ title: '', description: '', episode_number: '', audio_url: '', duration_seconds: 0, cover_url: '' });
+                                                setEpError('');
+                                            }}
+                                            className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
 
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                            Episode Title <span className="text-red-500">*</span>
+                                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                                            Audio File <span className="text-red-500">*</span>
                                         </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="file"
+                                                accept="audio/*"
+                                                ref={audioInputRef}
+                                                className="hidden"
+                                                onChange={e => { if (e.target.files?.[0]) handleAudioFile(e.target.files[0]); }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => audioInputRef.current?.click()}
+                                                disabled={epAudioUploading}
+                                                className="flex-1 px-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 hover:border-emerald-400 flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {epAudioUploading ? (
+                                                    <><Loader2 className="w-4 h-4 animate-spin" /> Uploading {epAudioProgress}%</>
+                                                ) : epForm.audio_url ? (
+                                                    <><CheckCircle className="w-4 h-4 text-emerald-500" /> Audio Ready</>
+                                                ) : (
+                                                    <><Upload className="w-4 h-4" /> Choose Audio File</>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">MP3, M4A, OGG, WAV (Max 200MB, min 2 mins)</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-2">
+                                            Episode Cover Art (Optional)
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                onClick={() => epCoverInputRef.current?.click()}
+                                                className="w-16 h-16 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 border-2 border-dashed border-slate-200 dark:border-zinc-700 cursor-pointer hover:border-emerald-400 transition-colors flex items-center justify-center shrink-0"
+                                            >
+                                                {epForm.cover_url ? (
+                                                    <img src={epForm.cover_url} alt="Cover" className="w-full h-full object-cover" />
+                                                ) : epCoverUploading ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                                                ) : (
+                                                    <Upload className="w-5 h-5 text-slate-400" />
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                Unique cover for this episode. If skipped, the podcast cover is used.
+                                            </p>
+                                        </div>
                                         <input
-                                            type="text"
-                                            value={epForm.title}
-                                            onChange={e => setEpForm(f => ({ ...f, title: e.target.value }))}
-                                            placeholder="e.g. Episode 1: Getting Started"
-                                            maxLength={120}
-                                            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                            ref={epCoverInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0], 'ep'); }}
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                                Episode #
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="col-span-3">
+                                            <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                                                Episode Title <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={epForm.title}
+                                                onChange={e => setEpForm(f => ({ ...f, title: e.target.value }))}
+                                                placeholder="e.g. #1: Getting Started"
+                                                maxLength={100}
+                                                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-emerald-500/30"
+                                            />
+                                        </div>
+                                        <div className="col-span-1">
+                                            <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+                                                Ep. #
                                             </label>
                                             <input
                                                 type="number"
-                                                min={1}
                                                 value={epForm.episode_number}
                                                 onChange={e => setEpForm(f => ({ ...f, episode_number: e.target.value }))}
-                                                placeholder="Optional"
-                                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                                Episode Art
-                                            </label>
-                                            <div
-                                                onClick={() => epCoverInputRef.current?.click()}
-                                                className="w-full h-10 rounded-xl overflow-hidden bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 cursor-pointer hover:border-emerald-400 transition-colors flex items-center gap-2 px-2"
-                                            >
-                                                {epForm.cover_url ? (
-                                                    <>
-                                                        <img
-                                                            src={epForm.cover_url}
-                                                            alt="Episode cover"
-                                                            className="w-7 h-7 rounded-lg object-cover shrink-0"
-                                                        />
-                                                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium truncate flex-1">
-                                                            Image selected
-                                                        </span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={e => { e.stopPropagation(); setEpForm(f => ({ ...f, cover_url: '' })); }}
-                                                            className="text-slate-400 hover:text-red-500 transition-colors shrink-0"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </>
-                                                ) : epCoverUploading ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500 mx-auto" />
-                                                ) : (
-                                                    <span className="text-xs text-slate-400 dark:text-zinc-500 mx-auto">
-                                                        Choose image
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <input
-                                                ref={epCoverInputRef}
-                                                type="file"
-                                                accept="image/*"
-                                                className="hidden"
-                                                onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0], 'ep'); }}
+                                                placeholder="1"
+                                                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-emerald-500/30"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
+                                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
                                             Description
                                         </label>
                                         <textarea
                                             value={epForm.description}
                                             onChange={e => setEpForm(f => ({ ...f, description: e.target.value }))}
-                                            placeholder="What's this episode about?"
+                                            placeholder="What is this episode about?"
                                             rows={2}
                                             maxLength={500}
-                                            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
+                                            className="w-full px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl resize-none focus:ring-2 focus:ring-emerald-500/30"
                                         />
                                     </div>
 
-                                    {/* Audio upload */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                            Audio File <span className="text-red-500">*</span>
-                                            <span className="font-normal text-slate-400 ml-1">
-                                                (MP3, M4A, WAV · min 1 min · max {MAX_FILE_MB} MB)
-                                            </span>
-                                        </label>
+                                    {epError && <p className="text-sm text-red-600 dark:text-red-400 font-medium">{epError}</p>}
 
-                                        {epForm.audio_url ? (
-                                            <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                                                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                                <span className="text-sm text-emerald-700 dark:text-emerald-400 font-medium flex-1 truncate">
-                                                    Audio uploaded successfully
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setEpForm(f => ({ ...f, audio_url: '', duration_seconds: 0 }))}
-                                                    className="text-red-400 hover:text-red-600 transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ) : epAudioUploading ? (
-                                            <div className="px-3 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl">
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" />
-                                                    <span className="text-sm text-slate-600 dark:text-zinc-400">
-                                                        Uploading... {epAudioProgress}%
-                                                    </span>
-                                                </div>
-                                                <div className="h-1 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-emerald-500 transition-all duration-300"
-                                                        style={{ width: `${epAudioProgress}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                onClick={() => audioInputRef.current?.click()}
-                                                className="w-full px-3 py-3 bg-slate-50 dark:bg-zinc-800 border-2 border-dashed border-slate-200 dark:border-zinc-600 rounded-xl text-sm text-slate-500 dark:text-zinc-400 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <Upload className="w-4 h-4" /> Choose audio file
-                                            </button>
-                                        )}
-
-                                        <input
-                                            ref={audioInputRef}
-                                            type="file"
-                                            accept="audio/*"
-                                            className="hidden"
-                                            onChange={e => { if (e.target.files?.[0]) handleAudioFile(e.target.files[0]); }}
-                                        />
-                                    </div>
-
-                                    {epError && (
-                                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">{epError}</p>
-                                    )}
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setShowUploadForm(false); setEpError(''); }}
-                                            className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-sm font-semibold text-slate-600 dark:text-zinc-300 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={epSubmitting || epAudioUploading || !epForm.audio_url}
-                                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            {epSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                                            Publish Episode
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={epSubmitting || epAudioUploading}
+                                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                                    >
+                                        {epSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                        Publish Episode
+                                    </button>
                                 </form>
                             )}
 
-                            {/* Episodes list */}
+                            {/* ── List of Episodes ── */}
                             {episodes.length === 0 && !showUploadForm ? (
-                                <div className="text-center py-12">
-                                    <Mic2 className="w-10 h-10 text-slate-300 dark:text-zinc-700 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-3">No episodes yet.</p>
-                                    <button
-                                        onClick={() => setShowUploadForm(true)}
-                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors"
-                                    >
-                                        Upload your first episode
-                                    </button>
+                                <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                                    <Mic2 className="w-12 h-12 text-slate-300 dark:text-zinc-700 mx-auto mb-3" />
+                                    <p className="text-slate-500 dark:text-zinc-400">No episodes yet.</p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
-                                    {episodes.map((ep, i) => (
+                                <div className="space-y-3">
+                                    {episodes.map(ep => (
                                         <EpisodeItem
                                             key={ep.id}
                                             episode={ep}
-                                            podcastTitle={podcast.title}
-                                            podcastCover={podcast.cover_url}
+                                            podcastTitle={selectedPodcast.title}
+                                            podcastCover={selectedPodcast.cover_url}
                                             queue={episodes}
-                                            queueIndex={i}
+                                            queueIndex={episodes.findIndex(e => e.id === ep.id)}
                                         />
                                     ))}
                                 </div>

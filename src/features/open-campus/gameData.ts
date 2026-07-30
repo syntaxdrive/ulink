@@ -22,7 +22,7 @@ export const ZONE_CONFIG: Record<ZoneName, { emoji: string; color: string; gradi
   Lab:        { emoji: '🔬', color: '#546E7A', gradient: 'from-slate-500 to-slate-700',   icon: '💻' },
   Cafeteria:  { emoji: '🍚', color: '#E67E22', gradient: 'from-orange-500 to-red-600',    icon: '🍽️' },
   Gym:        { emoji: '🏋️', color: '#5D4037', gradient: 'from-red-600 to-red-800',       icon: '💪' },
-  Dorm:       { emoji: '🏠', color: '#7B68EE', gradient: 'from-indigo-500 to-purple-700', icon: '🛏️' },
+  Dorm:       { emoji: '🏠', color: '#7B68EE', gradient: 'from-indigo-500 to-emerald-700', icon: '🛏️' },
 };
 
 export const ZONES: ZoneName[] = ['Library', 'Lab', 'Cafeteria', 'Gym', 'Dorm'];

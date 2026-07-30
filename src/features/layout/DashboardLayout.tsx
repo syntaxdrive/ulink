@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus, BookOpen } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { type Session } from '@supabase/supabase-js';
 
@@ -113,7 +113,8 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 });
             }
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
 
             // Upsert subscription so refreshed endpoints are always current
@@ -199,11 +200,11 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
     }, []);
 
     useEffect(() => {
-        let channel: any;
         let cancelled = false;
 
         const setupRealtime = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (cancelled) return;
 
             if (!user) {
@@ -236,57 +237,17 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
                 // No row found at all — genuinely new user
                 navigate('/onboarding');
             }
-            // Any other DB error — stay put, don't disrupt the user
-
-            // 1. Fetch Initial Unread Message Count
+            // 1. Fetch Initial Messages Count once
             const fetchMessageCount = async () => {
-                if (!user?.id) return;
                 const { count } = await supabase
                     .from('messages')
-                    .select('id', { count: 'exact', head: true })
+                    .select('*', { count: 'exact', head: true })
                     .eq('recipient_id', user.id)
                     .is('read_at', null);
-
                 if (count !== null) setUnreadMessages(count);
             };
             fetchMessageCount();
-            const messagePollTimer = setInterval(fetchMessageCount, 12000);
-
-            // 2. Subscribe to Messenger Events
-            channel = supabase.channel('dashboard-alerts')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
-                    async (payload) => {
-                        fetchMessageCount();
-
-                        if (payload.eventType === 'INSERT' && payload.new) {
-                            const currentParams = new URLSearchParams(window.location.search);
-                            const currentChatId = currentParams.get('chat');
-                            const isViewingThatChat = window.location.pathname.startsWith('/app/messages') && currentChatId === payload.new.sender_id;
-
-                            if (isViewingThatChat) return;
-
-                            let senderName = 'Someone';
-                            if (payload.new.sender_id) {
-                                const { data: sender } = await supabase
-                                    .from('profiles')
-                                    .select('name')
-                                    .eq('id', payload.new.sender_id)
-                                    .single();
-                                if (sender) senderName = sender.name;
-                            }
-
-                            playNotificationSound();
-                            handleNotification(
-                                `New message from ${senderName}`,
-                                payload.new.content || 'Sent an attachment',
-                                () => navigate(`/app/messages?chat=${payload.new.sender_id}`)
-                            );
-                        }
-                    }
-                )
-                .subscribe();
+            // Polling and global subscriptions removed to prevent connection limit exhaustion
 
             const SEEN_TOAST_IDS = new Set<string>();
             let initialBatch = useNotificationStore.getState().generalNotifications;
@@ -330,20 +291,15 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             });
 
             // Store cleanup fn for unsubbing the store watcher
-            (channel as any)._unsubNotifStore = unsubNotifStore;
-            (channel as any)._messagePollTimer = messagePollTimer;
+            let cleanupNotifStore = unsubNotifStore;
+            return cleanupNotifStore;
         };
 
-        setupRealtime();
+        const cleanup = setupRealtime();
 
         return () => {
             cancelled = true;
-            if (channel) {
-                (channel as any)._unsubNotifStore?.();
-                if ((channel as any)._messagePollTimer) clearInterval((channel as any)._messagePollTimer);
-                channel.unsubscribe();
-                supabase.removeChannel(channel);
-            }
+            cleanup.then(unsub => unsub && unsub());
         };
     }, [session?.user?.id]);
 
@@ -382,7 +338,8 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         if (!('serviceWorker' in navigator)) return;
         const handleMessage = async (event: MessageEvent) => {
             if (event.data?.type !== 'PUSH_SUBSCRIPTION_RENEWED') return;
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (!user) return;
             const sub = event.data.subscription;
             await supabase.from('push_subscriptions').upsert({
@@ -415,7 +372,6 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
         { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
         { icon: GraduationCap, label: 'Courses', path: '/app/learn'},
-        { icon: BookOpen, label: 'Story Mode', path: '/app/story'},
         { icon: Library, label: 'Study Rooms', path: '/app/study'},
         ...(!Capacitor.isNativePlatform() ? [{ icon: Download, label: 'Download App', path: '/download' }] : []),
         ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),

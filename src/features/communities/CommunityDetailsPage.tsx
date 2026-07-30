@@ -61,7 +61,7 @@ export default function CommunityDetailsPage() {
             // Get Community Info
             const { data: comm, error } = await supabase
                 .from('communities')
-                .select('*')
+                .select('*').limit(50)
                 .eq('slug', slug)
                 .single();
 
@@ -70,12 +70,13 @@ export default function CommunityDetailsPage() {
             setCommunity(comm);
 
             // Check Membership
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
             if (user) {
                 // Use maybeSingle to avoid throw on 0 rows, and handle potential missing status column gracefully via separate query if needed, or catch error
                 const { data: member } = await supabase
                     .from('community_members')
-                    .select('*') // Get everything to avoid column missing errors breaking the whole page if possible, or just standard fields
+                    .select('*').limit(50) // Get everything to avoid column missing errors breaking the whole page if possible, or just standard fields
                     .eq('community_id', comm.id)
                     .eq('user_id', user.id)
                     .maybeSingle();
@@ -103,7 +104,7 @@ export default function CommunityDetailsPage() {
     const fetchPendingRequests = async (communityId: string) => {
         const { data, error } = await supabase
             .from('community_members')
-            .select('id, user_id, profiles(name, avatar_url, university, role)')
+            .select('id, user_id, profiles(name, avatar_url, university, role')
             .eq('community_id', communityId)
             .eq('status', 'pending');
 

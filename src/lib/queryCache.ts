@@ -1,10 +1,24 @@
 /**
- * Lightweight in-memory query cache for Supabase calls.
- * Prevents duplicate fetches for the same data within a session.
- * 
+ * Lightweight two-level query cache for Supabase calls.
+ *
+ * Level 1: In-memory (fast, lost on page refresh)
+ * Level 2: localStorage (survives page refreshes, cleared on expiry)
+ *
+ * This prevents duplicate fetches for the same data both within a session
+ * AND across page reloads — dramatically reducing Supabase API calls.
+ *
  * Usage:
- *   const profile = await queryCache.get('profile:userId', () => supabase.from('profiles')..., 5 * 60_000);
+ *   const data = await queryCache.get(
+ *     'stories:list',
+ *     () => supabase.from('stories').select('*').limit(50),
+ *     5 * 60_000  // 5 minute TTL
+ *   );
+ *
+ *   // Invalidate when data changes:
+ *   queryCache.invalidate('stories:');
  */
+
+const STORAGE_PREFIX = 'ulink_qc_';
 
 interface CacheEntry<T> {
     data: T;
@@ -12,33 +26,94 @@ interface CacheEntry<T> {
 }
 
 class QueryCache {
-    private cache = new Map<string, CacheEntry<any>>();
+    private memory = new Map<string, CacheEntry<any>>();
 
     async get<T>(
         key: string,
         fetcher: () => Promise<T>,
         ttlMs: number = 5 * 60_000 // 5 minutes default
     ): Promise<T> {
-        const entry = this.cache.get(key);
-        if (entry && Date.now() < entry.expiresAt) {
-            return entry.data as T;
+        // 1. Check in-memory cache first
+        const memEntry = this.memory.get(key);
+        if (memEntry && Date.now() < memEntry.expiresAt) {
+            return memEntry.data as T;
         }
 
+        // 2. Check localStorage cache
+        try {
+            const stored = localStorage.getItem(STORAGE_PREFIX + key);
+            if (stored) {
+                const parsed: CacheEntry<T> = JSON.parse(stored);
+                if (Date.now() < parsed.expiresAt) {
+                    // Warm the in-memory cache too
+                    this.memory.set(key, parsed);
+                    return parsed.data;
+                } else {
+                    // Expired — clean up
+                    localStorage.removeItem(STORAGE_PREFIX + key);
+                }
+            }
+        } catch {
+            // localStorage unavailable or JSON parse error — continue to fetch
+        }
+
+        // 3. Fetch fresh data
         const data = await fetcher();
-        this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+        const entry: CacheEntry<T> = { data, expiresAt: Date.now() + ttlMs };
+
+        // Store in both levels
+        this.memory.set(key, entry);
+        try {
+            localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(entry));
+        } catch {
+            // localStorage full or unavailable — in-memory only is fine
+        }
+
         return data;
     }
 
-    invalidate(keyOrPrefix: string) {
-        for (const key of this.cache.keys()) {
-            if (key.startsWith(keyOrPrefix)) {
-                this.cache.delete(key);
-            }
-        }
+    /** Set a value directly without fetching (e.g. after a mutation) */
+    set<T>(key: string, data: T, ttlMs: number = 5 * 60_000): void {
+        const entry: CacheEntry<T> = { data, expiresAt: Date.now() + ttlMs };
+        this.memory.set(key, entry);
+        try {
+            localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(entry));
+        } catch {}
     }
 
-    clear() {
-        this.cache.clear();
+    /** Invalidate all cache entries whose key starts with the given prefix */
+    invalidate(keyOrPrefix: string): void {
+        // Clear from memory
+        for (const key of this.memory.keys()) {
+            if (key.startsWith(keyOrPrefix)) {
+                this.memory.delete(key);
+            }
+        }
+        // Clear from localStorage
+        try {
+            const toRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const lsKey = localStorage.key(i);
+                if (lsKey && lsKey.startsWith(STORAGE_PREFIX + keyOrPrefix)) {
+                    toRemove.push(lsKey);
+                }
+            }
+            toRemove.forEach(k => localStorage.removeItem(k));
+        } catch {}
+    }
+
+    clear(): void {
+        this.memory.clear();
+        try {
+            const toRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const lsKey = localStorage.key(i);
+                if (lsKey && lsKey.startsWith(STORAGE_PREFIX)) {
+                    toRemove.push(lsKey);
+                }
+            }
+            toRemove.forEach(k => localStorage.removeItem(k));
+        } catch {}
     }
 }
 

@@ -72,9 +72,9 @@ const CATEGORY_STYLES: Record<string, { border: string; badge: string; dot: stri
         dot: 'bg-amber-400',
     },
     'Mental Health': {
-        border: 'border-l-purple-400',
-        badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-        dot: 'bg-purple-400',
+        border: 'border-l-emerald-400',
+        badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        dot: 'bg-emerald-400',
     },
     NYSC: {
         border: 'border-l-emerald-400',
@@ -172,7 +172,7 @@ function ConfessionReplies({
         setLoadingReplies(true);
         const { data, error } = await supabase
             .from('confession_replies')
-            .select('id, content, created_at, confession_id')
+            .select('id, content, created_at, confession_id').limit(50)
             .eq('confession_id', confessionId)
             .order('created_at', { ascending: true });
 
@@ -244,7 +244,7 @@ function ConfessionReplies({
                                     key={reply.id}
                                     className="flex gap-2.5"
                                 >
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-rose-200 to-purple-200 dark:from-rose-900/50 dark:to-purple-900/50 flex items-center justify-center">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-rose-200 to-emerald-200 dark:from-rose-900/50 dark:to-emerald-900/50 flex items-center justify-center">
                                         <Ghost className="w-3 h-3 text-rose-500 dark:text-rose-400" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -267,7 +267,7 @@ function ConfessionReplies({
 
                     {/* Reply input */}
                     <div className="flex gap-2 items-end pt-1">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-rose-200 to-purple-200 dark:from-rose-900/50 dark:to-purple-900/50 flex items-center justify-center">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-rose-200 to-emerald-200 dark:from-rose-900/50 dark:to-emerald-900/50 flex items-center justify-center">
                             <Ghost className="w-3 h-3 text-rose-400" />
                         </div>
                         <div className="flex-1 flex gap-2 items-end bg-zinc-50 dark:bg-zinc-800/60 rounded-xl px-3 py-2">
@@ -351,7 +351,7 @@ function ConfessionCard({
             {/* Card header */}
             <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-100 to-purple-100 dark:from-rose-900/40 dark:to-purple-900/40 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-100 to-emerald-100 dark:from-rose-900/40 dark:to-emerald-900/40 flex items-center justify-center flex-shrink-0">
                         <Ghost className="w-4 h-4 text-rose-500 dark:text-rose-400" />
                     </div>
                     <div>
@@ -487,7 +487,7 @@ function CreateConfessionModal({
                 {/* Header */}
                 <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-100 to-purple-100 dark:from-rose-900/40 dark:to-purple-900/40 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-100 to-emerald-100 dark:from-rose-900/40 dark:to-emerald-900/40 flex items-center justify-center">
                             <Ghost className="w-5 h-5 text-rose-500" />
                         </div>
                         <div>
@@ -612,7 +612,7 @@ function CreateConfessionModal({
 function EmptyState({ category, onPost }: { category: Category; onPost: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-rose-100 to-purple-100 dark:from-rose-900/30 dark:to-purple-900/30 flex items-center justify-center mb-5">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-rose-100 to-emerald-100 dark:from-rose-900/30 dark:to-emerald-900/30 flex items-center justify-center mb-5">
                 <Ghost className="w-10 h-10 text-rose-400" />
             </div>
             <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200 mb-2">
@@ -666,7 +666,7 @@ export default function ConfessionsPage() {
         // 1. Fetch all confessions
         const { data: confessionsData, error: confErr } = await supabase
             .from('confessions')
-            .select('*')
+            .select('*').limit(50)
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -681,13 +681,13 @@ export default function ConfessionsPage() {
         // 2. Batch-fetch all reactions for these confessions
         const { data: allReactions } = await supabase
             .from('confession_reactions')
-            .select('confession_id, emoji, user_id')
+            .select('confession_id, emoji, user_id').limit(50)
             .in('confession_id', ids);
 
         // 3. Batch-fetch reply counts
         const { data: allReplies } = await supabase
             .from('confession_replies')
-            .select('confession_id')
+            .select('confession_id').limit(50)
             .in('confession_id', ids);
 
         // 4. Merge in JS
@@ -837,7 +837,7 @@ export default function ConfessionsPage() {
                 <div className="max-w-2xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-400 to-purple-500 flex items-center justify-center shadow-md shadow-rose-200 dark:shadow-rose-900/30">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-400 to-emerald-500 flex items-center justify-center shadow-md shadow-rose-200 dark:shadow-rose-900/30">
                                 <Ghost className="w-5 h-5 text-white" />
                             </div>
                             <div>
