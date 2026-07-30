@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Plus, Search, BookOpen, Users, Heart, Upload, Hash, AlertCircle, FileText, Download, Library, X, ExternalLink, Film, File, Play, Trash2, Sparkles, Brain } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Plus, Search, BookOpen, Users, Heart, Upload, Hash, AlertCircle, FileText, Download, Library, X, ExternalLink, Film, File, Play, Trash2, Sparkles, Brain, Minimize2, Maximize2 } from 'lucide-react';
 import { useCourses } from '../../hooks/useCourses';
 import type { CourseCategory, CourseLevel, UserDocumentDownload } from '../../types/courses';
 import { COURSE_CATEGORIES, COURSE_LEVELS, ACCEPTED_DOC_TYPES, ACCEPTED_DOC_ATTR, MAX_DOC_SIZE_MB, MAX_DOC_SIZE_BYTES, getDocIcon, formatFileSize, resolveDocMimeType } from '../../types/courses';
@@ -65,6 +65,44 @@ export default function CoursesPage() {
     const [libraryLoaded, setLibraryLoaded] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [watchingCourse, setWatchingCourse] = useState<{ id: string; youtubeId: string; title: string } | null>(null);
+    const [videoExpanded, setVideoExpanded] = useState(false);
+    const [videoPos, setVideoPos] = useState({ x: 24, y: 80 });
+    const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+    // Close video player on Escape key
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setWatchingCourse(null); setVideoExpanded(false); } };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+    // Dragging logic for floating player
+    const onDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+        if (videoExpanded) return; // no drag when expanded
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        dragRef.current = { startX: clientX, startY: clientY, origX: videoPos.x, origY: videoPos.y };
+
+        const onMove = (ev: MouseEvent | TouchEvent) => {
+            if (!dragRef.current) return;
+            const cx = 'touches' in ev ? (ev as TouchEvent).touches[0].clientX : (ev as MouseEvent).clientX;
+            const cy = 'touches' in ev ? (ev as TouchEvent).touches[0].clientY : (ev as MouseEvent).clientY;
+            const nx = dragRef.current.origX + (cx - dragRef.current.startX);
+            const ny = dragRef.current.origY + (cy - dragRef.current.startY);
+            setVideoPos({ x: Math.max(0, Math.min(nx, window.innerWidth - 380)), y: Math.max(0, Math.min(ny, window.innerHeight - 220)) });
+        };
+        const onUp = () => {
+            dragRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchend', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchend', onUp);
+    }, [videoExpanded, videoPos]);
     const [aiCourse, setAiCourse] = useState<Course | null>(null);
     const [viewingDoc, setViewingDoc] = useState<{ doc: CourseDocument; course: Course } | null>(null);
 
@@ -566,42 +604,115 @@ export default function CoursesPage() {
                 />
             )}
 
-            {/* Video Player Modal */}
+            {/* Floating Video Player */}
             {watchingCourse && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-black">
-                    {/* Top bar */}
-                    <div className="flex items-center gap-3 px-4 py-3 bg-black/80 backdrop-blur-sm flex-shrink-0">
-                        <button
-                            onClick={() => setWatchingCourse(null)}
-                            className="p-2 rounded-xl text-white hover:bg-white/10 transition-colors"
-                            aria-label="Close"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                        <h2 className="text-white font-semibold text-sm flex-1 truncate">{watchingCourse.title}</h2>
-                        <a
-                            href={`https://www.youtube.com/watch?v=${watchingCourse.youtubeId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
-                            title="Open on YouTube"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                        </a>
+                videoExpanded ? (
+                    // ── Fullscreen expanded overlay ──
+                    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+                        {/* Top bar */}
+                        <div className="flex items-center gap-3 px-4 py-3 bg-black/90 backdrop-blur-sm shrink-0">
+                            <button
+                                onClick={() => { setWatchingCourse(null); setVideoExpanded(false); }}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-all active:scale-95"
+                                aria-label="Close video"
+                            >
+                                <X className="w-4 h-4" />
+                                Close
+                            </button>
+                            <h2 className="text-white font-semibold text-sm flex-1 truncate">{watchingCourse.title}</h2>
+                            <button
+                                onClick={() => setVideoExpanded(false)}
+                                className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                title="Float as mini player"
+                            >
+                                <Minimize2 className="w-4 h-4" />
+                            </button>
+                            <a
+                                href={`https://www.youtube.com/watch?v=${watchingCourse.youtubeId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                title="Open on YouTube"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                            </a>
+                        </div>
+                        {/* Embed */}
+                        <div className="flex-1 flex items-center justify-center bg-black min-h-0 p-4">
+                            <div className="w-full max-w-6xl" style={{ aspectRatio: '16/9', maxHeight: '100%' }}>
+                                <iframe
+                                    className="w-full h-full rounded-xl"
+                                    src={`https://www.youtube.com/embed/${watchingCourse.youtubeId}?autoplay=1&rel=0`}
+                                    title={watchingCourse.title}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                />
+                            </div>
+                        </div>
+                        {/* ESC hint */}
+                        <p className="text-center text-white/30 text-xs pb-3">Press <kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white/50">Esc</kbd> to close</p>
                     </div>
-                    {/* Embed — preserves 16:9, fills remaining height on desktop */}
-                    <div className="flex-1 flex items-center justify-center bg-black min-h-0">
-                        <div className="w-full max-w-5xl" style={{ aspectRatio: '16/9', maxHeight: '100%' }}>
+                ) : (
+                    // ── Floating mini player (draggable) ──
+                    <div
+                        className="fixed z-50 bg-zinc-900 rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+                        style={{
+                            left: videoPos.x,
+                            top: videoPos.y,
+                            width: 'min(380px, calc(100vw - 32px))'
+                        }}
+                    >
+                        {/* Drag handle / title bar */}
+                        <div
+                            className="flex items-center gap-2 px-3 py-2 bg-zinc-800 cursor-grab active:cursor-grabbing select-none"
+                            onMouseDown={onDragStart}
+                            onTouchStart={onDragStart}
+                        >
+                            {/* Visible close button — large and easy to tap */}
+                            <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={() => { setWatchingCourse(null); setVideoExpanded(false); }}
+                                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors active:scale-95 shrink-0"
+                                aria-label="Close video"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                                Close
+                            </button>
+                            <p className="text-white/80 text-xs font-medium truncate flex-1">{watchingCourse.title}</p>
+                            <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={() => setVideoExpanded(true)}
+                                className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0"
+                                title="Expand to fullscreen"
+                            >
+                                <Maximize2 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        {/* Video iframe */}
+                        <div style={{ aspectRatio: '16/9' }}>
                             <iframe
-                                className="w-full h-full"
+                                className="w-full h-full block"
                                 src={`https://www.youtube.com/embed/${watchingCourse.youtubeId}?autoplay=1&rel=0`}
                                 title={watchingCourse.title}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                 allowFullScreen
                             />
                         </div>
+                        {/* Bottom action row */}
+                        <div className="flex items-center justify-between px-3 py-2 bg-zinc-800/80">
+                            <p className="text-white/40 text-[10px]">Drag to reposition</p>
+                            <a
+                                href={`https://www.youtube.com/watch?v=${watchingCourse.youtubeId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-white/50 hover:text-white text-[10px] font-medium transition-colors"
+                            >
+                                <ExternalLink className="w-3 h-3" />
+                                YouTube
+                            </a>
+                        </div>
                     </div>
-                </div>
+                )
             )}
 
             {/* Create Course Modal */}
