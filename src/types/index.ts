@@ -177,6 +177,7 @@ export interface Message {
     audio_url?: string;
     created_at: string;
     read_at?: string;
+    is_deleted?: boolean;
 }
 
 export interface Job {

@@ -4,8 +4,30 @@ import type { Profile, Message } from '../../../types';
 import { useChatStore } from '../../../stores/useChatStore';
 import { useAuth } from '../../../contexts/AuthContext';
 
+// Helper for persistent "Delete for me" storage
+const getDeletedForMeSet = (uid: string | null): Set<string> => {
+    if (!uid) return new Set();
+    try {
+        const raw = localStorage.getItem(`ulink_deleted_for_me_${uid}`);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+        return new Set();
+    }
+};
+
+const addDeletedForMe = (uid: string | null, messageId: string) => {
+    if (!uid) return;
+    try {
+        const set = getDeletedForMeSet(uid);
+        set.add(messageId);
+        localStorage.setItem(`ulink_deleted_for_me_${uid}`, JSON.stringify(Array.from(set)));
+    } catch (e) {
+        console.error('Failed to save deleted for me:', e);
+    }
+};
+
 export function useChat() {
-    const { userId: authUserId } = useAuth(); // ✅ No network call — reads from context
+    const { userId: authUserId } = useAuth();
     const {
         conversations,
         setConversations: storeSetConversations,
@@ -24,7 +46,7 @@ export function useChat() {
     const [onlineUsers] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
 
-    // Sync activeChat state with store's activeChatId
+    // Sync activeChat state with store's activeChatId (filtering out deleted for me)
     useEffect(() => {
         if (!activeChatId) {
             setActiveChatState(null);
@@ -32,9 +54,11 @@ export function useChat() {
         } else {
             const conv = conversations.find(c => c.id === activeChatId);
             if (conv) setActiveChatState(conv);
-            setMessages(storeMessages[activeChatId] || []);
+            const rawMsgs = storeMessages[activeChatId] || [];
+            const deletedSet = getDeletedForMeSet(authUserId);
+            setMessages(rawMsgs.filter(m => !deletedSet.has(m.id)));
         }
-    }, [activeChatId, conversations, storeMessages]);
+    }, [activeChatId, conversations, storeMessages, authUserId]);
 
     const setActiveChat = useCallback((chat: Profile | null) => {
         setActiveChatId(chat?.id || null);
@@ -79,7 +103,6 @@ export function useChat() {
     const markAsRead = useCallback(async (senderId: string) => {
         if (!userId) return;
 
-        // Optimistic update in store
         const chatId = senderId;
         const currentMsgs = useChatStore.getState().messages[chatId] || [];
         storeSetMessages(chatId, currentMsgs.map(m =>
@@ -98,7 +121,6 @@ export function useChat() {
         clearUnread(senderId);
     }, [userId, storeSetMessages, clearUnread]);
 
-    // Initial load — use auth context user id, no extra getSession() call
     useEffect(() => {
         if (!authUserId) {
             setLoading(false);
@@ -110,7 +132,6 @@ export function useChat() {
     }, [authUserId, fetchConversations, fetchUnreadCounts]);
 
     // Active Chat Messages & Realtime Subscription
-    // ✅ Removed 60s polling interval — Realtime channel handles all live message delivery
     useEffect(() => {
         if (!activeChat || !userId) return;
 
@@ -118,17 +139,19 @@ export function useChat() {
             const chatId = activeChat.id;
             const cache = useChatStore.getState().messages[chatId];
 
-            // Only fetch from network if cache is empty
             if (!cache || cache.length === 0) {
                 const { data } = await supabase
                     .from('messages')
-                    // ✅ Specific columns only — no select('*')
                     .select('id, sender_id, recipient_id, content, image_url, audio_url, created_at, read_at')
                     .or(`and(sender_id.eq.${userId},recipient_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},recipient_id.eq.${userId})`)
                     .order('created_at', { ascending: true })
                     .limit(50);
 
-                if (data) storeSetMessages(chatId, data);
+                if (data) {
+                    const deletedSet = getDeletedForMeSet(userId);
+                    const filtered = data.filter((m: Message) => !deletedSet.has(m.id));
+                    storeSetMessages(chatId, filtered);
+                }
             }
             markAsRead(activeChat.id);
         };
@@ -145,6 +168,9 @@ export function useChat() {
                         (newMsg.sender_id === activeChat.id && newMsg.recipient_id === userId) ||
                         (newMsg.sender_id === userId && newMsg.recipient_id === activeChat.id)
                     ) {
+                        const deletedSet = getDeletedForMeSet(userId);
+                        if (deletedSet.has(newMsg.id)) return;
+
                         setMessages((prev) => {
                             if (prev.some(m => m.id === newMsg.id)) return prev;
 
@@ -230,7 +256,6 @@ export function useChat() {
             audio_url: audioUrl
         };
 
-        // Optimistic update in both local state and store
         setMessages((prev) => {
             const next = [...prev, tempMsg];
             storeSetMessages(chatId, next);
@@ -265,11 +290,38 @@ export function useChat() {
         }
     };
 
-    const deleteMessage = async (messageId: string) => {
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-        const { error } = await supabase.from('messages').delete().eq('id', messageId);
-        if (error) {
-            console.error('Error deleting message:', error);
+    // ✅ Supports both 'me' (delete for me only) and 'everyone' (delete for everyone)
+    const deleteMessage = async (messageId: string, mode: 'me' | 'everyone' = 'me') => {
+        if (!userId) return;
+
+        if (mode === 'me') {
+            addDeletedForMe(userId, messageId);
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+            if (activeChat) {
+                const currentMsgs = useChatStore.getState().messages[activeChat.id] || [];
+                storeSetMessages(activeChat.id, currentMsgs.filter(m => m.id !== messageId));
+            }
+        } else {
+            // Delete for everyone — update message content in DB
+            const patch = { content: 'This message was deleted', image_url: undefined, audio_url: undefined };
+            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...patch } : m));
+            if (activeChat) {
+                const currentMsgs = useChatStore.getState().messages[activeChat.id] || [];
+                storeSetMessages(activeChat.id, currentMsgs.map(m => m.id === messageId ? { ...m, ...patch } : m));
+            }
+
+            const { error } = await supabase
+                .from('messages')
+                .update({
+                    content: 'This message was deleted',
+                    image_url: null,
+                    audio_url: null
+                })
+                .eq('id', messageId);
+
+            if (error) {
+                console.error('Error deleting message for everyone:', error);
+            }
         }
     };
 

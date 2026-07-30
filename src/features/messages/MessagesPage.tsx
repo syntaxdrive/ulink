@@ -89,7 +89,7 @@ export default function MessagesPage() {
     }
 
     return (
-        <div className="fixed inset-0 top-[64px] md:top-0 left-0 md:left-[280px] right-0 bottom-[60px] md:bottom-0 bg-white dark:bg-black z-20 flex">
+        <div className="fixed inset-0 top-[64px] md:top-0 left-0 md:left-[280px] right-0 bottom-[60px] md:bottom-0 bg-white dark:bg-black z-[100] flex">
             {/* Sidebar: Visible on mobile if no active chat, always on desktop */}
             <ChatSidebar
                 conversations={conversations}

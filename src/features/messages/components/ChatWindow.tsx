@@ -15,7 +15,7 @@ interface ChatWindowProps {
     onlineUsers: Set<string>;
     onBack: () => void;
     onSendMessage: (content: string, imageUrl: string | null, replyTo?: Message, audioUrl?: string | null) => Promise<void>;
-    onDeleteMessage: (id: string) => Promise<void>;
+    onDeleteMessage: (id: string, mode?: 'me' | 'everyone') => Promise<void>;
 }
 
 export default function ChatWindow({ activeChat, messages, userId, onlineUsers, onBack, onSendMessage, onDeleteMessage }: ChatWindowProps) {
