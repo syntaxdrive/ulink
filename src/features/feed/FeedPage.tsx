@@ -553,7 +553,7 @@ export default function FeedPage() {
                     <div className="mb-2">
                         {searchQuery && (
                             <div className="px-5 mb-3 flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-emerald-500" />
+                                <TrendingUp className="w-4 h-4 text-emerald-500" />
                                 <h3 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-widest">Recommended News</h3>
                             </div>
                         )}

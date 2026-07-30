@@ -7,7 +7,7 @@ import { Camera } from '@capacitor/camera';
 import { Filesystem } from '@capacitor/filesystem';
 import {
     Building2, GraduationCap, ArrowRight, Loader2, AtSign,
-    UserPlus, CheckCircle2, Users, ChevronRight, Sparkles,
+    UserPlus, CheckCircle2, Users, ChevronRight,
     ShieldCheck, Bell, Camera as CameraIcon, Mic, User,
     BookOpen, CalendarDays, MapPin, Globe, FileText, Briefcase
 } from 'lucide-react';
@@ -370,8 +370,7 @@ export default function OnboardingPage() {
             <div className="min-h-screen w-full bg-slate-50 dark:bg-zinc-950 flex flex-col font-sans">
                 <div className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-6 py-6 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold mb-3">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Profile Ready!
+                        Profile Setup Complete
                     </div>
                     <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white">People You May Know</h1>
                     <p className="text-slate-500 dark:text-zinc-400 text-sm max-w-md mx-auto mt-1">
@@ -448,7 +447,7 @@ export default function OnboardingPage() {
                     <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
                         <div className="text-sm text-slate-500 dark:text-zinc-400">
                             {connected.size > 0
-                                ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">🎉 {connected.size} connection{connected.size > 1 ? 's' : ''} made!</span>
+                                ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{connected.size} connection{connected.size > 1 ? 's' : ''} made</span>
                                 : 'Connect with classmates to see their updates'}
                         </div>
                         <button
@@ -476,7 +475,6 @@ export default function OnboardingPage() {
 
                 <div className="my-10 max-w-md">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4">
-                        <Sparkles className="w-3.5 h-3.5" />
                         Student Profile Setup
                     </div>
                     <h1 className="text-3xl lg:text-4xl font-display font-bold text-white tracking-tight mb-3">

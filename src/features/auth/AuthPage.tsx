@@ -35,8 +35,7 @@ export default function AuthPage() {
                 {/* Hero Content */}
                 <div className="relative z-10 my-12 max-w-lg">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-6">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        The #1 Student Network in Nigeria
+                        Student Network in Nigeria
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-display font-bold text-white tracking-tight leading-tight mb-6">
                         Connect, collaborate & build your campus legacy.
