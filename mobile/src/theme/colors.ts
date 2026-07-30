@@ -1,26 +1,25 @@
 export const colors = {
-  // WhatsApp-inspired green theme
-  primary: '#25D366',       // Main brand color (WhatsApp green)
-  primaryDark: '#128C7E',   // Darker shade for headers/accents
-  primaryLight: '#DCF8C6',  // Very light green (like WhatsApp chat bubbles)
-  
-  // Backgrounds
+  // Base (Apple-style)
   background: '#FFFFFF',
-  backgroundDark: '#111B21', // WhatsApp dark mode bg
-  surface: '#F0F2F5',       // Light gray for chat backgrounds/surfaces
-  surfaceDark: '#202C33',   // Dark mode surface
+  surface: '#F2F2F2',
+  surfaceElevated: '#FFFFFF',
+  border: '#DBDBDB',
   
   // Text
-  text: '#111B21',
-  textSecondary: '#667781',
-  textLight: '#FFFFFF',
+  text: '#000000',
+  textSecondary: '#8E8E8E',
+  textTertiary: '#C7C7CC',
+
+  // Brand (used sparingly)
+  primary: '#10B981',         // Emerald — active tab, CTA buttons only
+  primaryLight: '#D1FAE5',    // Subtle tint
+
+  // Semantic
+  danger: '#FF3B30',
+  warning: '#FF9500',
+  info: '#007AFF',
   
-  // Borders & Dividers
-  border: '#E9EDEF',
-  borderDark: '#222D34',
-  
-  // System
-  error: '#EF4444',
-  success: '#22C55E',
-  warning: '#F59E0B',
-};
+  // Tab bar
+  tabActive: '#000000',       // Active tab icon is BLACK (Instagram style)
+  tabInactive: '#8E8E8E',
+} as const;

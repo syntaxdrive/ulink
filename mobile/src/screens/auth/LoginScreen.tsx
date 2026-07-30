@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, SafeAreaView } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
-
-const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+import { apiClient } from '../../api/client';
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,21 +23,8 @@ export default function LoginScreen() {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       const body = isLogin ? { email, password } : { email, password, name };
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || (isLogin ? 'Login failed' : 'Registration failed'));
-      }
-
-      await setToken(data.access_token);
+      const response = await apiClient.post(endpoint, body);
+      await setToken(response.data.access_token);
     } catch (error: any) {
       Alert.alert('Authentication Failed', error.message || 'Check your network connection and credentials.');
     } finally {
@@ -47,74 +33,80 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.logo}>UniLink</Text>
-          <Text style={styles.subtitle}>{isLogin ? 'Connect with your campus.' : 'Join the student network.'}</Text>
-        </View>
-        
-        <View style={styles.formContainer}>
-          {!isLogin && (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.container}
+      >
+        <View style={styles.content}>
+          <View style={styles.headerContainer}>
+            <Text style={styles.logo}>UniLink</Text>
+          </View>
+          
+          <View style={styles.formContainer}>
+            {!isLogin && (
+              <TextInput 
+                style={styles.input} 
+                placeholder="Full Name" 
+                placeholderTextColor={colors.textSecondary}
+                value={name} 
+                onChangeText={setName} 
+              />
+            )}
             <TextInput 
               style={styles.input} 
-              placeholder="Full Name" 
+              placeholder="Email" 
               placeholderTextColor={colors.textSecondary}
-              value={name} 
-              onChangeText={setName} 
+              value={email} 
+              onChangeText={setEmail} 
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
-          )}
-          <TextInput 
-            style={styles.input} 
-            placeholder="Email Address" 
-            placeholderTextColor={colors.textSecondary}
-            value={email} 
-            onChangeText={setEmail} 
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <TextInput 
-            style={styles.input} 
-            placeholder="Password" 
-            placeholderTextColor={colors.textSecondary}
-            value={password} 
-            onChangeText={setPassword} 
-            secureTextEntry 
-          />
-          
-          <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled]} 
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={styles.buttonText}>{isLogin ? 'Log In' : 'Sign Up'}</Text>
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.linkButton} 
-            onPress={() => setIsLogin(!isLogin)}
-          >
-            <Text style={styles.linkText}>
-              {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
-            </Text>
-          </TouchableOpacity>
+            <TextInput 
+              style={styles.input} 
+              placeholder="Password" 
+              placeholderTextColor={colors.textSecondary}
+              value={password} 
+              onChangeText={setPassword} 
+              secureTextEntry 
+            />
+            
+            <TouchableOpacity 
+              style={[styles.button, loading && styles.buttonDisabled]} 
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>{isLogin ? 'Log in' : 'Sign up'}</Text>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+              </Text>
+              <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+                <Text style={styles.linkText}>
+                  {isLogin ? "Sign up" : "Log in"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -126,50 +118,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 40,
+    fontWeight: '700',
+    color: colors.text,
   },
   formContainer: {
     width: '100%',
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 8,
     marginBottom: 16,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.text, // Black background (Apple style)
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: {
-    backgroundColor: colors.primaryLight,
+    opacity: 0.7,
   },
   buttonText: {
-    color: colors.background,
+    color: colors.background, // White text
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  linkButton: {
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 24,
-    alignItems: 'center',
+  },
+  footerText: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   linkText: {
-    color: colors.primaryDark,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   }

@@ -5,7 +5,7 @@ import { Reply, FileText, Download, CheckCheck, Check, Trash2, Play, Pause, Cloc
 import { type Message, type Profile } from '../../../types';
 import { getOptimizedMediaUrl } from '../../../services/cloudinaryService';
 
-export const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
+const isImage = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
 
 interface MessageItemProps {
     msg: Message;
