@@ -66,6 +66,8 @@ model User {
   following                 Follow[]                 @relation("Following")
   coursesAuthored           Course[]                 @relation("CourseAuthor")
   courseDocuments           CourseDocument[]         @relation("UploaderDocs")
+  courseLikes               CourseLike[]             @relation("UserCourseLikes")
+  documentDownloads         UserDocumentDownload[]   @relation("UserDocDownloads")
   podcastsCreated           Podcast[]                @relation("PodcastCreator")
   podcastFollows            PodcastFollow[]          @relation("UserPodcastFollows")
   studyRoomsCreated         StudyRoom[]              @relation("RoomHost")
@@ -205,9 +207,24 @@ model Course {
 
   author            User             @relation("CourseAuthor", fields: [author_id], references: [id], onDelete: Cascade)
   documents         CourseDocument[]
+  courseLikes       CourseLike[]
 
   @@index([category])
   @@index([created_at(sort: Desc)])
+}
+
+/// Tracks which users have saved (liked) a course — their personal library
+model CourseLike {
+  id         String   @id @default(uuid())
+  course_id  String
+  user_id    String
+  created_at DateTime @default(now())
+
+  course     Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  user       User     @relation("UserCourseLikes", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([course_id, user_id])
+  @@index([user_id])
 }
 
 model CourseDocument {
@@ -222,10 +239,24 @@ model CourseDocument {
   downloads_count Int      @default(0)
   created_at      DateTime @default(now())
 
-  course          Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
-  uploader        User     @relation("UploaderDocs", fields: [uploader_id], references: [id], onDelete: Cascade)
+  course          Course                 @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  uploader        User                   @relation("UploaderDocs", fields: [uploader_id], references: [id], onDelete: Cascade)
+  downloads       UserDocumentDownload[]
 
   @@index([course_id])
+}
+
+/// Tracks which users have downloaded each document to prevent duplicate download counts
+model UserDocumentDownload {
+  id          String         @id @default(uuid())
+  user_id     String
+  document_id String
+  created_at  DateTime       @default(now())
+
+  user        User           @relation("UserDocDownloads", fields: [user_id], references: [id], onDelete: Cascade)
+  document    CourseDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, document_id])
 }
 
 model Podcast {
