@@ -246,8 +246,10 @@ export function useNotifications() {
 
         const init = async () => {
             try {
-                // Request browser notification permission on first load
                 requestNotifPermission();
+                const { data: { session } } = await supabase.auth.getSession();
+                const user = session?.user;
+                if (!user) { setLoading(false); return; }
 
                 // 80/20 Rule: use cached session from fetchNotifications
                 if (needsRefresh() || (requests.length === 0 && generalNotifications.length === 0)) {

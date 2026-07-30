@@ -22,22 +22,10 @@ import { useUIStore } from '../../stores/useUIStore';
 
 
 
-// Module-level caches — survive navigation, reset on hard refresh
-const _nameCache = new Map<string, string>();
-
 const _podcastSidebarCache: { data: any[]; ts: number } = { data: [], ts: 0 };
 const _podcastStripCache: { data: any[]; ts: number } = { data: [], ts: 0 };
 const _activeUsersCache: { data: any[]; ts: number } = { data: [], ts: 0 };
 const WIDGET_TTL = 10 * 60 * 1000; // 10 minutes
-async function resolveName(userId: string): Promise<string> {
-    if (_nameCache.has(userId)) return _nameCache.get(userId)!;
-    const { data } = await supabase.from('profiles').select('name').eq('id', userId).single();
-    const name = data?.name?.split(' ')[0] || 'Someone';
-    _nameCache.set(userId, name);
-    return name;
-}
-
-type FeedEvent = { type: 'post' | 'like' | 'comment'; userId: string };
 
 
 function PodcastSidebarWidget() {
@@ -208,7 +196,6 @@ export default function FeedPage() {
         hasMore,
         loadingMore,
         loadMorePosts,
-        latestFeedEvent,
     } = useFeed();
 
     const { posts: sponsoredPosts } = useSponsoredPosts();
@@ -441,7 +428,7 @@ export default function FeedPage() {
                         <div className="px-4 lg:px-0">
                             <GettingStartedChecklist 
                                 user={currentUserProfile} 
-                                userPostCount={posts.filter(p => p.user_id === currentUserId).length}
+                                userPostCount={posts.filter(p => p.author_id === currentUserId).length}
                             />
                         </div>
                     )}

@@ -12,8 +12,6 @@ import {
     Share2,
     MessageCircle,
     ArrowLeft,
-    Globe,
-    BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAudioStore } from '../../stores/useAudioStore';

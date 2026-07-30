@@ -105,8 +105,7 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
             onTouchMove={handleTouchMove}
             onContextMenu={(e) => {
                 e.preventDefault(); // Prevent native browser menu
-                // Also trigger menu on right click for desktop consistency if desired
-                // setShowMenu(true); 
+                setShowMenu(true); // Trigger menu on right click for desktop
             }}
         >
             {/* Avatar for received messages */}
@@ -317,14 +316,25 @@ function MessageItem({ msg, isMe, onReply, activeChat, onImageClick, onDelete, o
                 )}
             </div>
 
-            {/* Desktop Reply Button (Keep for desktop hover) */}
-            <button
-                onClick={() => onReply(msg)}
-                className={`p-2 text-stone-300 hover:text-stone-500 transition-opacity ${isMe ? 'mr-1' : 'ml-1'} opacity-0 group-hover:opacity-100 hidden md:block`}
-                title="Reply"
-            >
-                <Reply className="w-4 h-4" />
-            </button>
+            {/* Desktop Quick Actions (visible on hover for desktop) */}
+            <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 hidden md:flex transition-opacity ${isMe ? 'mr-1' : 'ml-1'}`}>
+                <button
+                    onClick={() => onReply(msg)}
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Reply"
+                >
+                    <Reply className="w-4 h-4" />
+                </button>
+                {isMe && onDelete && (
+                    <button
+                        onClick={() => onDelete(msg.id)}
+                        className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete message"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

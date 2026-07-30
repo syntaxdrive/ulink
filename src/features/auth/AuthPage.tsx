@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Users, ShieldCheck, Sparkles, GraduationCap } from 'lucide-react';
+import { Loader2, Users, ShieldCheck, GraduationCap } from 'lucide-react';
 import { signInWithGoogle } from '../../lib/auth-helpers';
 
 export default function AuthPage() {

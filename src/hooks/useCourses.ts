@@ -255,7 +255,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
         const { data, error } = await supabase
             .from('user_document_downloads')
             .select(`
-                id, downloaded_at,
+                id, user_id, document_id, downloaded_at,
                 course_documents (
                     id, name, public_url, file_type, file_size, downloads_count, created_at,
                     courses ( id, title, category )
@@ -265,7 +265,7 @@ export function useCourses(category?: CourseCategory, searchQuery?: string) {
             .limit(20); // ✅ Paginated — previously fetched ALL rows
 
         if (error) throw error;
-        return data || [];
+        return (data as unknown as UserDocumentDownload[]) || [];
     };
 
     // Delete course
