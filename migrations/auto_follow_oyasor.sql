@@ -1,22 +1,27 @@
 -- Migration: Auto-follow oyasordaniel@gmail.com for all current and future users
--- This makes the account an "Official/Admin" account followed by everyone by default.
+-- Fixes PL/pgSQL variable shadow bug where target_user_id was confused with a profiles column.
 
 DO $$
 DECLARE
-    target_user_id UUID;
+    v_admin_id UUID;
 BEGIN
     -- 1. Get the ID for oyasordaniel@gmail.com
-    SELECT id INTO target_user_id FROM profiles WHERE email = 'oyasordaniel@gmail.com' LIMIT 1;
+    SELECT id INTO v_admin_id FROM public.profiles WHERE email = 'oyasordaniel@gmail.com' LIMIT 1;
 
-    IF target_user_id IS NOT NULL THEN
+    IF v_admin_id IS NOT NULL THEN
         -- 2. Create the auto-follow trigger function
         CREATE OR REPLACE FUNCTION public.handle_auto_follow_oyasor()
         RETURNS TRIGGER AS $trigger$
+        DECLARE
+            v_target UUID;
         BEGIN
-            -- Make the new user follow Daniel
-            INSERT INTO public.follows (follower_id, following_id)
-            VALUES (NEW.id, target_user_id)
-            ON CONFLICT (follower_id, following_id) DO NOTHING;
+            SELECT id INTO v_target FROM public.profiles WHERE email = 'oyasordaniel@gmail.com' LIMIT 1;
+            IF v_target IS NOT NULL AND NEW.id != v_target THEN
+                -- Make the new user follow Daniel
+                INSERT INTO public.follows (follower_id, following_id)
+                VALUES (NEW.id, v_target)
+                ON CONFLICT (follower_id, following_id) DO NOTHING;
+            END IF;
             
             RETURN NEW;
         END;
@@ -31,11 +36,12 @@ BEGIN
 
         -- 4. One-time follow for all existing users
         INSERT INTO public.follows (follower_id, following_id)
-        SELECT id, target_user_id FROM public.profiles
-        WHERE id != target_user_id
+        SELECT p.id, v_admin_id
+        FROM public.profiles p
+        WHERE p.id != v_admin_id
         ON CONFLICT (follower_id, following_id) DO NOTHING;
 
-        RAISE NOTICE 'Auto-follow system established for Daniel (ID: %)', target_user_id;
+        RAISE NOTICE 'Auto-follow system established for Daniel (ID: %)', v_admin_id;
     ELSE
         RAISE NOTICE 'User oyasordaniel@gmail.com not found. Trigger not created.';
     END IF;
