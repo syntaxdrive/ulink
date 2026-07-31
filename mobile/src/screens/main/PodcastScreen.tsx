@@ -17,7 +17,7 @@ import { colors } from '../../theme/colors';
 export default function PodcastScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { podcastId } = route.params as { podcastId: string };
+  const { podcastId } = (route.params || {}) as { podcastId: string };
 
   const [podcast, setPodcast] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);

@@ -16,7 +16,7 @@ import { colors } from '../../theme/colors';
 export default function StudyRoomScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { roomId } = route.params as { roomId: string };
+  const { roomId } = (route.params || {}) as { roomId: string };
 
   const [room, setRoom] = useState<any>(null);
   const [user, setUser] = useState<any>(null);

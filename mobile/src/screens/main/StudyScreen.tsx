@@ -10,11 +10,13 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { BookOpen, Users, Radio, ThumbsUp, Download, Plus } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
 
 export default function StudyScreen() {
+  const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'courses' | 'study-rooms' | 'communities'>('courses');
   const [courses, setCourses] = useState<any[]>([]);
   const [studyRooms, setStudyRooms] = useState<any[]>([]);

@@ -29,6 +29,7 @@ import {
   Radio,
   Volume2,
 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
 
@@ -75,7 +76,9 @@ interface CommentItem {
   };
 }
 
-export default function FeedScreen({ navigation }: any) {
+
+export default function FeedScreen() {
+  const navigation = useNavigation<any>();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [podcasts, setPodcasts] = useState<PodcastStory[]>([]);
   const [loading, setLoading] = useState(true);
