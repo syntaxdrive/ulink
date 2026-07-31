@@ -29,7 +29,7 @@ export interface DashboardLayoutProps {
 function isOnboardingComplete(profile: Profile) {
     if (!profile.name?.trim() || profile.name === 'null') return false;
     if (!profile.username?.trim() || profile.username === 'null') return false;
-    if (!profile.role || profile.role === 'null') return false;
+    if (!profile.role || (profile.role as string) === 'null') return false;
     if (profile.role === 'student' && (!profile.university?.trim() || profile.university === 'null')) return false;
     return true;
 }

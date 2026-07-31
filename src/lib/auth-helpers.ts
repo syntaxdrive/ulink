@@ -53,6 +53,7 @@ export const signInWithGoogle = async () => {
             provider: 'google',
             options: {
                 redirectTo,
+                skipBrowserRedirect: true,
                 queryParams: {
                     prompt: 'select_account',
                     access_type: 'offline',
@@ -68,6 +69,7 @@ export const signInWithGoogle = async () => {
 
         if (data?.url) {
             console.log('[Auth] Redirecting to:', data.url);
+            window.location.href = data.url;
         }
     }
 };
