@@ -8,6 +8,8 @@ import { colors } from '../theme/colors';
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
 import MessagesScreen from '../screens/main/MessagesScreen';
+import PodcastScreen from '../screens/main/PodcastScreen';
+import StudyRoomScreen from '../screens/main/StudyRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,6 +18,8 @@ function MainNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="Messages" component={MessagesScreen} />
+      <Stack.Screen name="Podcast" component={PodcastScreen} />
+      <Stack.Screen name="StudyRoom" component={StudyRoomScreen} />
     </Stack.Navigator>
   );
 }

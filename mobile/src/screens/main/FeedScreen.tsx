@@ -16,6 +16,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import {
   Heart,
@@ -156,6 +157,18 @@ export default function FeedScreen({ navigation }: any) {
     ]);
   };
 
+  const handleShare = async (post: any) => {
+    try {
+      const message = `Check out this post on UniLink by @${post.author?.username || 'student'}:\n\n"${post.content || ''}"`;
+      await Share.share({
+        message,
+        title: 'Share Post',
+      });
+    } catch (error: any) {
+      console.warn('Error sharing post:', error.message);
+    }
+  };
+
   const openCommentsModal = async (postId: string) => {
     setActivePostId(postId);
     setLoadingComments(true);
@@ -231,9 +244,7 @@ export default function FeedScreen({ navigation }: any) {
                 <TouchableOpacity
                   key={pod.id}
                   style={styles.storyBubbleItem}
-                  onPress={() =>
-                    Alert.alert(pod.title, `Episode: ${pod.latestEpisodeTitle}\nCreator: ${pod.creatorName}`)
-                  }
+                  onPress={() => navigation.navigate('Podcast' as never, { podcastId: pod.id } as never)}
                 >
                   <View style={styles.storyAvatarBorder}>
                     {pod.coverUrl ? (
@@ -272,7 +283,7 @@ export default function FeedScreen({ navigation }: any) {
               {/* Repost Badge */}
               {post.is_repost && (
                 <View style={styles.repostHeaderBadge}>
-                  <Repeat2 size={13} color={colors.textSecondary} />
+                  <Repeat2 size={13} color={colors.primary} />
                   <Text style={styles.repostHeaderText}>Reposted on Campus Feed</Text>
                 </View>
               )}
@@ -340,7 +351,7 @@ export default function FeedScreen({ navigation }: any) {
                   <Repeat2 size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleShare(post)}>
                   <Share2 size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -574,9 +585,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   repostHeaderText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '700',
   },
   postHeader: {
     flexDirection: 'row',

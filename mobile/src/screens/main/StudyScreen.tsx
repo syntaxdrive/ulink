@@ -55,10 +55,13 @@ export default function StudyScreen() {
   const handleJoinStudyRoom = async (roomId: string) => {
     try {
       await apiClient.post(`/study-rooms/${roomId}/join`);
-      Alert.alert('Study Room', 'You have joined the study room!');
-      fetchData();
+      navigation.navigate('StudyRoom' as never, { roomId } as never);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.message || 'Unable to join study room');
+      if (err.response?.data?.message?.includes('already joined')) {
+        navigation.navigate('StudyRoom' as never, { roomId } as never);
+      } else {
+        Alert.alert('Error', err.response?.data?.message || 'Unable to join study room');
+      }
     }
   };
 
