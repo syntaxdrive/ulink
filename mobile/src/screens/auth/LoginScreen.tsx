@@ -28,9 +28,15 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const setToken = useAuthStore((state) => state.setToken);
 
-  // Initialize Google Auth Session with Google OAuth 2.0 compliant settings
+  const googleClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+    '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
+
+  // Initialize Google Auth Session for Web, Android & iOS
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com',
+    webClientId: googleClientId,
+    androidClientId: googleClientId,
+    iosClientId: googleClientId,
   });
 
   // Handle Google OAuth response
