@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "tsx src/main.ts",
+    "start:dev": "tsx watch src/main.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate:data": "ts-node migrate_supabase_to_prisma.ts"
   },
   "keywords": [],
   "author": "",

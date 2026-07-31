@@ -1,9 +1,39 @@
-import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { Heart, MessageCircle, MoreHorizontal, Bookmark, Send } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
+import { apiClient } from '../../api/client';
 
 const { width } = Dimensions.get('window');
+
+interface FeedPost {
+  id: string;
+  content: string | null;
+  image_url: string | null;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  user_has_liked?: boolean;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+    is_verified: boolean;
+    university: string | null;
+  };
+}
 
 const MOCK_STORIES = [
   { id: '1', author: 'Your Story', isUser: true },
@@ -13,15 +43,60 @@ const MOCK_STORIES = [
   { id: '5', author: 'uni_news', isUser: false },
 ];
 
-const MOCK_POSTS = [
-  { id: '1', author: 'alex_j', university: 'Stanford University', content: 'Just started using the new mobile app. Looks clean!', likes: 42, time: '2 hours ago', comments: 12 },
-  { id: '2', author: 'sarah_w', university: 'MIT', content: 'Anyone forming a study group for CS301 tonight?', likes: 128, time: '5 hours ago', comments: 45 },
-  { id: '3', author: 'uni_news', university: 'Harvard', content: 'Welcome to the UniLink React Native Beta! Exciting things coming up for the student community.', likes: 892, time: '1 day ago', comments: 104 },
-];
-
 export default function FeedScreen() {
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchFeed = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/feed');
+      if (response.data?.posts) {
+        setPosts(response.data.posts);
+      }
+    } catch (error) {
+      console.log('Using initial feed layout:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFeed();
+  }, [fetchFeed]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchFeed();
+  };
+
+  const handleLike = async (postId: string) => {
+    try {
+      // Optimistic update
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id === postId) {
+            const hasLiked = post.user_has_liked;
+            return {
+              ...post,
+              user_has_liked: !hasLiked,
+              likes_count: hasLiked ? post.likes_count - 1 : post.likes_count + 1,
+            };
+          }
+          return post;
+        })
+      );
+
+      await apiClient.post(`/posts/${postId}/like`);
+    } catch (error) {
+      console.log('Error liking post:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Instagram-Style Top Bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>UniLink</Text>
         <View style={styles.headerIcons}>
@@ -33,9 +108,14 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Stories */}
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
+        {/* Instagram-Style Stories Row */}
         <View style={styles.storiesContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesList}>
             {MOCK_STORIES.map((story) => (
@@ -47,65 +127,107 @@ export default function FeedScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={styles.storyText} numberOfLines={1}>{story.author}</Text>
+                <Text style={styles.storyText} numberOfLines={1}>
+                  {story.author}
+                </Text>
               </View>
             ))}
           </ScrollView>
         </View>
         <View style={styles.divider} />
 
-        {/* Feed */}
-        {MOCK_POSTS.map((post) => (
-          <View key={post.id} style={styles.postContainer}>
-            {/* Post Header */}
-            <View style={styles.postHeader}>
-              <View style={styles.postHeaderLeft}>
-                <View style={styles.avatarSmall} />
-                <View>
-                  <Text style={styles.postAuthor}>{post.author}</Text>
-                  <Text style={styles.postUniversity}>{post.university}</Text>
+        {/* Loading Indicator */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.text} />
+          </View>
+        )}
+
+        {/* Post List */}
+        {!loading && posts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No posts yet. Follow people to see their posts!</Text>
+          </View>
+        ) : (
+          posts.map((post) => (
+            <View key={post.id} style={styles.postContainer}>
+              {/* Post Header */}
+              <View style={styles.postHeader}>
+                <View style={styles.postHeaderLeft}>
+                  {post.author.avatar_url ? (
+                    <Image source={{ uri: post.author.avatar_url }} style={styles.avatarSmallImage} />
+                  ) : (
+                    <View style={styles.avatarSmall} />
+                  )}
+                  <View>
+                    <Text style={styles.postAuthor}>
+                      {post.author.username || post.author.name || 'Student'}
+                    </Text>
+                    {post.author.university && (
+                      <Text style={styles.postUniversity}>{post.author.university}</Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-              <TouchableOpacity>
-                <MoreHorizontal color={colors.text} size={20} />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Post Image */}
-            <View style={styles.postImage} />
-            
-            {/* Post Actions */}
-            <View style={styles.postActions}>
-              <View style={styles.postActionsLeft}>
-                <TouchableOpacity style={styles.actionIcon}>
-                  <Heart color={colors.text} size={24} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionIcon}>
-                  <MessageCircle color={colors.text} size={24} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionIcon}>
-                  <Send color={colors.text} size={24} />
+                <TouchableOpacity>
+                  <MoreHorizontal color={colors.text} size={20} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity>
-                <Bookmark color={colors.text} size={24} />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Post Details */}
-            <View style={styles.postDetails}>
-              <Text style={styles.likesText}>{post.likes} likes</Text>
-              <View style={styles.captionContainer}>
-                <Text style={styles.captionText}>
-                  <Text style={styles.captionAuthor}>{post.author} </Text>
-                  {post.content}
+
+              {/* Post Image (if present) */}
+              {post.image_url ? (
+                <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" />
+              ) : null}
+
+              {/* Action Buttons Row */}
+              <View style={styles.postActions}>
+                <View style={styles.postActionsLeft}>
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleLike(post.id)}>
+                    <Heart
+                      color={post.user_has_liked ? '#FF3B30' : colors.text}
+                      fill={post.user_has_liked ? '#FF3B30' : 'none'}
+                      size={24}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionIcon}>
+                    <MessageCircle color={colors.text} size={24} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionIcon}>
+                    <Send color={colors.text} size={24} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity>
+                  <Bookmark color={colors.text} size={24} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Post Details (Likes, Caption, Comments count) */}
+              <View style={styles.postDetails}>
+                <Text style={styles.likesText}>{post.likes_count} likes</Text>
+
+                {post.content && (
+                  <View style={styles.captionContainer}>
+                    <Text style={styles.captionText}>
+                      <Text style={styles.captionAuthor}>
+                        {post.author.username || post.author.name || 'Student'}{' '}
+                      </Text>
+                      {post.content}
+                    </Text>
+                  </View>
+                )}
+
+                {post.comments_count > 0 && (
+                  <Text style={styles.commentsText}>
+                    View all {post.comments_count} comments
+                  </Text>
+                )}
+
+                <Text style={styles.timeText}>
+                  {new Date(post.created_at).toLocaleDateString()}
                 </Text>
               </View>
-              <Text style={styles.commentsText}>View all {post.comments} comments</Text>
-              <Text style={styles.timeText}>{post.time}</Text>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -166,7 +288,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: colors.info,
+    backgroundColor: colors.primary,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -189,6 +311,19 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
   },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   postContainer: {
     marginBottom: 16,
   },
@@ -207,6 +342,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.surface,
+    marginRight: 10,
+  },
+  avatarSmallImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     marginRight: 10,
   },
   postAuthor: {
