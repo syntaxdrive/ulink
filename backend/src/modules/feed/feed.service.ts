@@ -6,10 +6,10 @@ import { CreatePostDto } from './dto/create-post.dto';
 export class FeedService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getFeed(userId?: string, cursor?: string, limit = 20) {
+  async getFeed(userId?: string, cursor?: string, limit = 50) {
     const validUserId = userId ? String(userId).trim() : null;
 
-    // Fetch all campus posts ordered by newest first
+    // Fetch all campus posts ordered by engagement and recency
     const posts = await this.prisma.post.findMany({
       take: limit + 1,
       ...(cursor
@@ -18,7 +18,10 @@ export class FeedService {
             skip: 1,
           }
         : {}),
-      orderBy: { created_at: 'desc' },
+      orderBy: [
+        { likes_count: 'desc' },
+        { created_at: 'desc' },
+      ],
       include: {
         author: {
           select: {
