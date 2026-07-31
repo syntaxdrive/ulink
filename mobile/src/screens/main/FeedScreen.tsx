@@ -95,14 +95,14 @@ export default function FeedScreen() {
     try {
       const [feedRes, podcastRes] = await Promise.allSettled([
         apiClient.get('/feed'),
-        apiClient.get('/feed/podcasts'),
+        apiClient.get('/podcasts'),
       ]);
 
       if (feedRes.status === 'fulfilled' && feedRes.value.data?.posts) {
         setPosts(feedRes.value.data.posts);
       }
-      if (podcastRes.status === 'fulfilled' && Array.isArray(podcastRes.value.data)) {
-        setPodcasts(podcastRes.value.data);
+      if (podcastRes.status === 'fulfilled' && podcastRes.value.data?.podcasts) {
+        setPodcasts(podcastRes.value.data.podcasts);
       }
     } catch (error) {
       console.warn('Error fetching feed data:', error);
