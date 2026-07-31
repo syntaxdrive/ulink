@@ -114,7 +114,7 @@ export default function AuthPage() {
                                             fill="#EA4335"
                                         />
                                     </svg>
-                                    <span>Continue with Google</span>
+                                    <span>Sign Up / Sign In</span>
                                 </>
                             )}
                         </button>
