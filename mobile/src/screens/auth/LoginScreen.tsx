@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, SafeAreaView } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  SafeAreaView,
+} from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
@@ -14,7 +25,7 @@ export default function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!email || !password || (!isLogin && !name)) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Error', 'Please fill in all required fields.');
       return;
     }
 
@@ -29,54 +40,63 @@ export default function LoginScreen() {
       const serverMessage = Array.isArray(error.response?.data?.message)
         ? error.response?.data?.message.join('\n')
         : error.response?.data?.message;
-      const errorMessage = serverMessage || error.message || 'Unable to connect to NestJS server. Check network connection.';
+      const errorMessage =
+        serverMessage || error.message || 'Unable to connect to NestJS server. Check network connection.';
       Alert.alert('Authentication Failed', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    Alert.alert(
+      'Google Sign-In',
+      'Please sign in with your Google account. Your migrated posts and profile will be linked automatically.',
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
         <View style={styles.content}>
           <View style={styles.headerContainer}>
             <Text style={styles.logo}>UniLink</Text>
+            <Text style={styles.subtitle}>University Social Network</Text>
           </View>
-          
+
           <View style={styles.formContainer}>
             {!isLogin && (
-              <TextInput 
-                style={styles.input} 
-                placeholder="Full Name" 
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
                 placeholderTextColor={colors.textSecondary}
-                value={name} 
-                onChangeText={setName} 
+                value={name}
+                onChangeText={setName}
               />
             )}
-            <TextInput 
-              style={styles.input} 
-              placeholder="Email" 
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
               placeholderTextColor={colors.textSecondary}
-              value={email} 
-              onChangeText={setEmail} 
+              value={email}
+              onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
-            <TextInput 
-              style={styles.input} 
-              placeholder="Password" 
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
               placeholderTextColor={colors.textSecondary}
-              value={password} 
-              onChangeText={setPassword} 
-              secureTextEntry 
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
             />
-            
-            <TouchableOpacity 
-              style={[styles.button, loading && styles.buttonDisabled]} 
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleSubmit}
               disabled={loading}
             >
@@ -86,15 +106,25 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>{isLogin ? 'Log in' : 'Sign up'}</Text>
               )}
             </TouchableOpacity>
-            
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Continue with Google Button (Apple Aesthetic) */}
+            <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                {isLogin ? "Don't have an account? " : 'Already have an account? '}
               </Text>
               <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-                <Text style={styles.linkText}>
-                  {isLogin ? "Sign up" : "Log in"}
-                </Text>
+                <Text style={styles.linkText}>{isLogin ? 'Sign up' : 'Log in'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -118,13 +148,18 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   headerContainer: {
-    marginBottom: 48,
+    marginBottom: 40,
     alignItems: 'center',
   },
   logo: {
     fontSize: 40,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.text,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   formContainer: {
     width: '100%',
@@ -154,6 +189,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  googleButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  googleButtonText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -167,5 +231,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',
-  }
+  },
 });
