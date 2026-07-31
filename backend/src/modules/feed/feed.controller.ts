@@ -57,6 +57,22 @@ export class FeedController {
     return this.feedService.addComment(userId, id, content);
   }
 
+  @Get('feed/podcasts')
+  getPodcastStories() {
+    return this.feedService.getPodcastStories();
+  }
+
+  @Post('posts/:id/repost')
+  @HttpCode(HttpStatus.CREATED)
+  repostPost(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('comment') comment?: string,
+  ) {
+    const userId = req.user?.id || req.user?.userId;
+    return this.feedService.repostPost(userId, id, comment);
+  }
+
   @Delete('posts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deletePost(@Request() req: any, @Param('id') id: string) {

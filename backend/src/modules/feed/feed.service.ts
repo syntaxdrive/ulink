@@ -220,6 +220,29 @@ export class FeedService {
     });
   }
 
+  async repostPost(userId: string, postId: string, comment?: string) {
+    const originalPost = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!originalPost) {
+      throw new NotFoundException('Original post not found');
+    }
+
+    return this.prisma.post.create({
+      data: {
+        author_id: userId,
+        content: originalPost.content,
+        image_url: originalPost.image_url,
+        image_urls: originalPost.image_urls,
+        video_url: originalPost.video_url,
+        is_repost: true,
+        original_post_id: postId,
+        repost_comment: comment || null,
+      },
+    });
+  }
+
   async deletePost(userId: string, postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -236,5 +259,40 @@ export class FeedService {
     return this.prisma.post.delete({
       where: { id: postId },
     });
+  }
+
+  async getPodcastStories() {
+    try {
+      const podcasts = await this.prisma.podcast.findMany({
+        take: 10,
+        orderBy: { created_at: 'desc' },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+              university: true,
+            },
+          },
+          episodes: {
+            take: 1,
+            orderBy: { created_at: 'desc' },
+          },
+        },
+      });
+
+      return podcasts.map((pod) => ({
+        id: pod.id,
+        title: pod.title,
+        coverUrl: pod.cover_url || pod.creator?.avatar_url,
+        creatorName: pod.creator?.name || pod.creator?.username || 'Student Podcaster',
+        latestEpisodeTitle: pod.episodes[0]?.title || pod.title,
+        latestEpisodeAudioUrl: pod.episodes[0]?.audio_url || null,
+      }));
+    } catch {
+      return [];
+    }
   }
 }
