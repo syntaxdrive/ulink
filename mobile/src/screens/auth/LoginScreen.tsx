@@ -32,12 +32,14 @@ export default function LoginScreen() {
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
     '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
 
-  // Initialize Google Auth Session with HTTPS Expo Proxy redirect for Google policy compliance
+  // Hardcoded Expo Auth Proxy URI — required for Google Web Client ID compliance in Expo Go
+  // Must match exactly what is registered in Google Cloud Console → Authorized redirect URIs
+  const proxyRedirectUri = 'https://auth.expo.io/@syntaxdrive/unilink';
+
+  // Initialize Google Auth Session using the Expo proxy as redirect URI
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: googleClientId,
-    androidClientId: googleClientId,
-    iosClientId: googleClientId,
-    redirectUri: makeRedirectUri({ useProxy: true }),
+    redirectUri: proxyRedirectUri,
   });
 
   // Handle Google OAuth response
@@ -88,6 +90,9 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  // Log the actual redirect URI being used (for debugging)
+  console.log('[Google OAuth] proxyRedirectUri:', proxyRedirectUri);
 
   const handleGoogleSignIn = () => {
     if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
