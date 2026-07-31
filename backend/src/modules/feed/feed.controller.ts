@@ -17,20 +17,23 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: number,
   ) {
+    const userId = req.user?.id || req.user?.userId;
     const parsedLimit = limit ? parseInt(limit as any, 10) : 20;
-    return this.feedService.getFeed(req.user.id, cursor, parsedLimit);
+    return this.feedService.getFeed(userId, cursor, parsedLimit);
   }
 
   @Post('posts')
   @HttpCode(HttpStatus.CREATED)
   createPost(@Request() req: any, @Body() dto: CreatePostDto) {
-    return this.feedService.createPost(req.user.id, dto);
+    const userId = req.user?.id || req.user?.userId;
+    return this.feedService.createPost(userId, dto);
   }
 
   @Post('posts/:id/like')
   @HttpCode(HttpStatus.OK)
   likePost(@Request() req: any, @Param('id') id: string) {
-    return this.feedService.likePost(req.user.id, id);
+    const userId = req.user?.id || req.user?.userId;
+    return this.feedService.likePost(userId, id);
   }
 
   @Get('posts/:id/comments')
@@ -50,12 +53,14 @@ export class FeedController {
     @Param('id') id: string,
     @Body('content') content: string,
   ) {
-    return this.feedService.addComment(req.user.id, id, content);
+    const userId = req.user?.id || req.user?.userId;
+    return this.feedService.addComment(userId, id, content);
   }
 
   @Delete('posts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deletePost(@Request() req: any, @Param('id') id: string) {
-    return this.feedService.deletePost(req.user.id, id);
+    const userId = req.user?.id || req.user?.userId;
+    return this.feedService.deletePost(userId, id);
   }
 }

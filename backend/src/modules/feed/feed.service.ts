@@ -6,46 +6,91 @@ import { CreatePostDto } from './dto/create-post.dto';
 export class FeedService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getFeed(userId: string, cursor?: string, limit = 20) {
-    // Get users that this user follows
-    const following = await this.prisma.follow.findMany({
-      where: { follower_id: userId },
-      select: { following_id: true },
-    });
+  async getFeed(userId?: string, cursor?: string, limit = 20) {
+    const validUserId = userId ? String(userId).trim() : null;
 
-    const followingIds = following.map((f) => f.following_id);
-    followingIds.push(userId); // Include user's own posts
+    // 1. Get users that this user follows if validUserId is provided
+    let followingIds: string[] = [];
+    if (validUserId) {
+      const following = await this.prisma.follow.findMany({
+        where: { follower_id: validUserId },
+        select: { following_id: true },
+      });
+      followingIds = following.map((f) => f.following_id).filter(Boolean);
+      followingIds.push(validUserId);
+    }
 
-    const posts = await this.prisma.post.findMany({
-      where: {
-        author_id: { in: followingIds },
-        shared_to_feed: true,
-      },
-      take: limit + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1, // Skip the cursor itself
-          }
-        : {}),
-      orderBy: { created_at: 'desc' },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar_url: true,
-            is_verified: true,
-            university: true,
+    // Fetch posts from followed users first
+    let posts =
+      validUserId && followingIds.length > 0
+        ? await this.prisma.post.findMany({
+            where: {
+              author_id: { in: followingIds },
+            },
+            take: limit + 1,
+            ...(cursor
+              ? {
+                  cursor: { id: cursor },
+                  skip: 1,
+                }
+              : {}),
+            orderBy: { created_at: 'desc' },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  avatar_url: true,
+                  is_verified: true,
+                  university: true,
+                },
+              },
+              ...(validUserId
+                ? {
+                    likes: {
+                      where: { user_id: validUserId },
+                      take: 1,
+                    },
+                  }
+                : {}),
+            },
+          })
+        : [];
+
+    // Fallback: Return public discovery feed if followed posts are empty
+    if (posts.length === 0) {
+      posts = await this.prisma.post.findMany({
+        take: limit + 1,
+        ...(cursor
+          ? {
+              cursor: { id: cursor },
+              skip: 1,
+            }
+          : {}),
+        orderBy: { created_at: 'desc' },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+              is_verified: true,
+              university: true,
+            },
           },
+          ...(validUserId
+            ? {
+                likes: {
+                  where: { user_id: validUserId },
+                  take: 1,
+                },
+              }
+            : {}),
         },
-        likes: {
-          where: { user_id: userId },
-          take: 1,
-        },
-      },
-    });
+      });
+    }
 
     let nextCursor: typeof cursor | undefined = undefined;
     if (posts.length > limit) {
@@ -54,10 +99,10 @@ export class FeedService {
     }
 
     const mappedPosts = posts.map((post) => {
-      const { likes, ...rest } = post;
+      const { likes, ...rest } = post as any;
       return {
         ...rest,
-        user_has_liked: likes.length > 0,
+        user_has_liked: Array.isArray(likes) && likes.length > 0,
       };
     });
 
