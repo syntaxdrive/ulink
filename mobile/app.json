@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "unilink",
+    "slug": "unilink",
+    "owner": "syntaxdrive",
     "scheme": "unilink",
     "version": "1.0.0",
     "orientation": "portrait",

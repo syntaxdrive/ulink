@@ -32,11 +32,12 @@ export default function LoginScreen() {
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
     '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
 
-  // Initialize Google Auth Session for Web, Android & iOS
+  // Initialize Google Auth Session with HTTPS Expo Proxy redirect for Google policy compliance
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: googleClientId,
     androidClientId: googleClientId,
     iosClientId: googleClientId,
+    redirectUri: makeRedirectUri({ useProxy: true }),
   });
 
   // Handle Google OAuth response
@@ -95,6 +96,10 @@ export default function LoginScreen() {
         'Please enter your Google Web Client ID from Google Cloud Console into mobile/.env under EXPO_PUBLIC_GOOGLE_CLIENT_ID.',
       );
       return;
+    }
+
+    if (request) {
+      console.log('Google OAuth Redirect URI:', request.redirectUri);
     }
 
     if (request && promptAsync) {
