@@ -9,88 +9,37 @@ export class FeedService {
   async getFeed(userId?: string, cursor?: string, limit = 20) {
     const validUserId = userId ? String(userId).trim() : null;
 
-    // 1. Get users that this user follows if validUserId is provided
-    let followingIds: string[] = [];
-    if (validUserId) {
-      const following = await this.prisma.follow.findMany({
-        where: { follower_id: validUserId },
-        select: { following_id: true },
-      });
-      followingIds = following.map((f) => f.following_id).filter(Boolean);
-      followingIds.push(validUserId);
-    }
-
-    // Fetch posts from followed users first
-    let posts =
-      validUserId && followingIds.length > 0
-        ? await this.prisma.post.findMany({
-            where: {
-              author_id: { in: followingIds },
-            },
-            take: limit + 1,
-            ...(cursor
-              ? {
-                  cursor: { id: cursor },
-                  skip: 1,
-                }
-              : {}),
-            orderBy: { created_at: 'desc' },
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  avatar_url: true,
-                  is_verified: true,
-                  university: true,
-                },
-              },
-              ...(validUserId
-                ? {
-                    likes: {
-                      where: { user_id: validUserId },
-                      take: 1,
-                    },
-                  }
-                : {}),
-            },
-          })
-        : [];
-
-    // Fallback: Return public discovery feed if followed posts are empty
-    if (posts.length === 0) {
-      posts = await this.prisma.post.findMany({
-        take: limit + 1,
-        ...(cursor
+    // Fetch all campus posts ordered by newest first
+    const posts = await this.prisma.post.findMany({
+      take: limit + 1,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
+      orderBy: { created_at: 'desc' },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar_url: true,
+            is_verified: true,
+            university: true,
+          },
+        },
+        ...(validUserId
           ? {
-              cursor: { id: cursor },
-              skip: 1,
+              likes: {
+                where: { user_id: validUserId },
+                take: 1,
+              },
             }
           : {}),
-        orderBy: { created_at: 'desc' },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              avatar_url: true,
-              is_verified: true,
-              university: true,
-            },
-          },
-          ...(validUserId
-            ? {
-                likes: {
-                  where: { user_id: validUserId },
-                  take: 1,
-                },
-              }
-            : {}),
-        },
-      });
-    }
+      },
+    });
 
     let nextCursor: typeof cursor | undefined = undefined;
     if (posts.length > limit) {
