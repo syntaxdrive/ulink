@@ -26,7 +26,11 @@ export default function LoginScreen() {
       const response = await apiClient.post(endpoint, body);
       await setToken(response.data.access_token);
     } catch (error: any) {
-      Alert.alert('Authentication Failed', error.message || 'Check your network connection and credentials.');
+      const serverMessage = Array.isArray(error.response?.data?.message)
+        ? error.response?.data?.message.join('\n')
+        : error.response?.data?.message;
+      const errorMessage = serverMessage || error.message || 'Unable to connect to NestJS server. Check network connection.';
+      Alert.alert('Authentication Failed', errorMessage);
     } finally {
       setLoading(false);
     }
