@@ -105,10 +105,7 @@ export default function LoginScreen() {
     }
   };
 
-  // Log the actual redirect URI being used (for debugging)
-  console.log('[Google OAuth] proxyRedirectUri:', proxyRedirectUri);
-
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
       Alert.alert(
         'Google Client ID Required',
@@ -117,12 +114,36 @@ export default function LoginScreen() {
       return;
     }
 
-    if (request) {
-      console.log('Google OAuth Redirect URI:', request.redirectUri);
-    }
+    try {
+      if (promptAsync) {
+        console.log('[Google Auth] Prompting user sign in...');
+        const res = await promptAsync();
+        console.log('[Google Auth] Prompt result:', JSON.stringify(res));
 
-    if (request && promptAsync) {
-      promptAsync();
+        if (res.type === 'success') {
+          const idToken =
+            res.authentication?.idToken ||
+            res.params?.id_token ||
+            res.params?.access_token;
+
+          if (idToken) {
+            setLoading(true);
+            const apiRes = await apiClient.post('/auth/google', { idToken });
+            console.log('[Google Auth] NestJS auth successful:', apiRes.data);
+            await setToken(apiRes.data.access_token);
+            setLoading(false);
+          } else {
+            Alert.alert('Google Sign-In Error', 'No ID Token received from Google.');
+          }
+        } else if (res.type === 'error') {
+          Alert.alert('Google Sign-In Error', res.error?.message || 'Authentication error');
+        }
+      }
+    } catch (err: any) {
+      console.error('[Google Auth] Exception:', err);
+      Alert.alert('Google Sign-In Error', err.message || 'Failed to complete Google Sign-In');
+    } finally {
+      setLoading(false);
     }
   };
 
