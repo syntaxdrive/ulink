@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,9 +11,13 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,6 +26,35 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const setToken = useAuthStore((state) => state.setToken);
+
+  // Initialize Google Auth Session
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '1058293740201-unilink.apps.googleusercontent.com',
+  });
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      if (id_token) {
+        setLoading(true);
+        apiClient
+          .post('/auth/google', { idToken: id_token })
+          .then(async (res) => {
+            await setToken(res.data.access_token);
+          })
+          .catch((err) => {
+            const serverMsg = Array.isArray(err.response?.data?.message)
+              ? err.response?.data?.message.join('\n')
+              : err.response?.data?.message;
+            Alert.alert('Google Auth Failed', serverMsg || err.message || 'Unable to authenticate with Google');
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    }
+  }, [response]);
 
   const handleSubmit = async () => {
     if (!email || !password || (!isLogin && !name)) {
@@ -48,11 +81,12 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    Alert.alert(
-      'Google Sign-In',
-      'Please sign in with your Google account. Your migrated posts and profile will be linked automatically.',
-    );
+  const handleGoogleSignIn = () => {
+    if (request && promptAsync) {
+      promptAsync();
+    } else {
+      Alert.alert('Google Sign-In', 'Google Authentication session is preparing. Please try again in a moment.');
+    }
   };
 
   return (
@@ -114,7 +148,7 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Continue with Google Button (Apple Aesthetic) */}
+            {/* Continue with Google Button */}
             <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
