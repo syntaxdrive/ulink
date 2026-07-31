@@ -1,11 +1,24 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../theme/colors';
 
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
+import MessagesScreen from '../screens/main/MessagesScreen';
+
+const Stack = createNativeStackNavigator();
+
+function MainNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Messages" component={MessagesScreen} />
+    </Stack.Navigator>
+  );
+}
 
 export default function AppNavigator() {
   const { token, isLoading, checkToken } = useAuthStore();
@@ -24,7 +37,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      {token ? <TabNavigator /> : <AuthNavigator />}
+      {token ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }
@@ -35,5 +48,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
-  }
+  },
 });

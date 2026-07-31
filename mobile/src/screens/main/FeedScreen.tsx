@@ -11,7 +11,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Heart, MessageCircle, MoreHorizontal, Bookmark, Send } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, CheckCircle2, BookOpen } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
 
@@ -35,15 +35,7 @@ interface FeedPost {
   };
 }
 
-const MOCK_STORIES = [
-  { id: '1', author: 'Your Story', isUser: true },
-  { id: '2', author: 'alex_j', isUser: false },
-  { id: '3', author: 'sarah_w', isUser: false },
-  { id: '4', author: 'cs_squad', isUser: false },
-  { id: '5', author: 'uni_news', isUser: false },
-];
-
-export default function FeedScreen() {
+export default function FeedScreen({ navigation }: any) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +47,7 @@ export default function FeedScreen() {
         setPosts(response.data.posts);
       }
     } catch (error) {
-      console.log('Using initial feed layout:', error);
+      console.warn('Error fetching feed:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -90,140 +82,105 @@ export default function FeedScreen() {
 
       await apiClient.post(`/posts/${postId}/like`);
     } catch (error) {
-      console.log('Error liking post:', error);
+      console.warn('Error liking post:', error);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Instagram-Style Top Bar */}
+      {/* Top Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>UniLink</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Heart color={colors.text} size={24} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <MessageCircle color={colors.text} size={24} />
-          </TouchableOpacity>
+        <View style={styles.brandRow}>
+          <Text style={styles.headerTitle}>UniLink</Text>
+          <View style={styles.activeBadgeDot} />
         </View>
+
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation?.navigate('Messages')}>
+          <MessageCircle color={colors.text} size={22} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Instagram-Style Stories Row */}
-        <View style={styles.storiesContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesList}>
-            {MOCK_STORIES.map((story) => (
-              <View key={story.id} style={styles.storyItem}>
-                <View style={[styles.storyAvatar, story.isUser ? styles.storyAvatarUser : styles.storyAvatarOther]}>
-                  {story.isUser && (
-                    <View style={styles.storyAddBadge}>
-                      <Text style={styles.storyAddText}>+</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.storyText} numberOfLines={1}>
-                  {story.author}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-        <View style={styles.divider} />
-
-        {/* Loading Indicator */}
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.text} />
+        {loading && !refreshing ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
-        )}
-
-        {/* Post List */}
-        {!loading && posts.length === 0 ? (
+        ) : posts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No posts yet. Follow people to see their posts!</Text>
+            <Text style={styles.emptyTitle}>No posts yet</Text>
+            <Text style={styles.emptySubtitle}>Be the first student to publish a post on campus!</Text>
           </View>
         ) : (
           posts.map((post) => (
-            <View key={post.id} style={styles.postContainer}>
+            <View key={post.id} style={styles.postCard}>
               {/* Post Header */}
               <View style={styles.postHeader}>
-                <View style={styles.postHeaderLeft}>
-                  {post.author.avatar_url ? (
-                    <Image source={{ uri: post.author.avatar_url }} style={styles.avatarSmallImage} />
-                  ) : (
-                    <View style={styles.avatarSmall} />
-                  )}
-                  <View>
-                    <Text style={styles.postAuthor}>
-                      {post.author.username || post.author.name || 'Student'}
+                {post.author.avatar_url ? (
+                  <Image source={{ uri: post.author.avatar_url }} style={styles.authorAvatar} />
+                ) : (
+                  <View style={styles.authorAvatarPlaceholder}>
+                    <Text style={styles.authorAvatarInitials}>
+                      {(post.author.name || post.author.username || 'U')[0].toUpperCase()}
                     </Text>
+                  </View>
+                )}
+
+                <View style={styles.authorDetails}>
+                  <View style={styles.authorNameRow}>
+                    <Text style={styles.authorName}>
+                      {post.author.name || post.author.username || 'Campus Student'}
+                    </Text>
+                    {post.author.is_verified && (
+                      <CheckCircle2 size={14} color={colors.primary} style={styles.verifiedIcon} />
+                    )}
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.usernameText}>@{post.author.username || 'student'}</Text>
                     {post.author.university && (
-                      <Text style={styles.postUniversity}>{post.author.university}</Text>
+                      <>
+                        <Text style={styles.dotSeparator}>•</Text>
+                        <Text style={styles.universityText}>{post.author.university}</Text>
+                      </>
                     )}
                   </View>
                 </View>
-                <TouchableOpacity>
-                  <MoreHorizontal color={colors.text} size={20} />
-                </TouchableOpacity>
               </View>
 
-              {/* Post Image (if present) */}
+              {/* Post Content */}
+              {post.content ? <Text style={styles.postContent}>{post.content}</Text> : null}
+
+              {/* Post Image */}
               {post.image_url ? (
                 <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" />
               ) : null}
 
-              {/* Action Buttons Row */}
-              <View style={styles.postActions}>
-                <View style={styles.postActionsLeft}>
-                  <TouchableOpacity style={styles.actionIcon} onPress={() => handleLike(post.id)}>
-                    <Heart
-                      color={post.user_has_liked ? '#FF3B30' : colors.text}
-                      fill={post.user_has_liked ? '#FF3B30' : 'none'}
-                      size={24}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionIcon}>
-                    <MessageCircle color={colors.text} size={24} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionIcon}>
-                    <Send color={colors.text} size={24} />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity>
-                  <Bookmark color={colors.text} size={24} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Post Details (Likes, Caption, Comments count) */}
-              <View style={styles.postDetails}>
-                <Text style={styles.likesText}>{post.likes_count} likes</Text>
-
-                {post.content && (
-                  <View style={styles.captionContainer}>
-                    <Text style={styles.captionText}>
-                      <Text style={styles.captionAuthor}>
-                        {post.author.username || post.author.name || 'Student'}{' '}
-                      </Text>
-                      {post.content}
-                    </Text>
-                  </View>
-                )}
-
-                {post.comments_count > 0 && (
-                  <Text style={styles.commentsText}>
-                    View all {post.comments_count} comments
+              {/* Action Bar */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleLike(post.id)}>
+                  <Heart
+                    size={20}
+                    color={post.user_has_liked ? colors.danger : colors.textSecondary}
+                    fill={post.user_has_liked ? colors.danger : 'none'}
+                  />
+                  <Text style={[styles.actionCount, post.user_has_liked && styles.likedCount]}>
+                    {post.likes_count}
                   </Text>
-                )}
+                </TouchableOpacity>
 
-                <Text style={styles.timeText}>
-                  {new Date(post.created_at).toLocaleDateString()}
-                </Text>
+                <TouchableOpacity style={styles.actionButton}>
+                  <MessageCircle size={20} color={colors.textSecondary} />
+                  <Text style={styles.actionCount}>{post.comments_count}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton}>
+                  <Share2 size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
             </View>
           ))
@@ -242,169 +199,155 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: colors.text,
+    letterSpacing: -0.5,
   },
-  headerIcons: {
-    flexDirection: 'row',
+  activeBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginLeft: 4,
+    marginBottom: 10,
   },
   iconButton: {
-    marginLeft: 16,
+    padding: 6,
   },
-  storiesContainer: {
-    paddingVertical: 12,
+  scrollContent: {
+    padding: 16,
   },
-  storiesList: {
-    paddingHorizontal: 12,
-  },
-  storyItem: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-    width: 64,
-  },
-  storyAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.surface,
-    marginBottom: 4,
-    position: 'relative',
-  },
-  storyAvatarUser: {
-    borderWidth: 0,
-  },
-  storyAvatarOther: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    padding: 2,
-  },
-  storyAddBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storyAddText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: -1,
-  },
-  storyText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  loadingContainer: {
-    padding: 32,
+  centerContainer: {
+    padding: 40,
     alignItems: 'center',
   },
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  emptyText: {
-    fontSize: 14,
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emptySubtitle: {
+    fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginTop: 4,
   },
-  postContainer: {
+  postCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
     marginBottom: 16,
   },
   postHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    marginBottom: 12,
   },
-  postHeaderLeft: {
+  authorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  authorAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.text,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorAvatarInitials: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  authorDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  authorNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    marginRight: 10,
-  },
-  avatarSmallImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 10,
-  },
-  postAuthor: {
-    fontSize: 14,
-    fontWeight: '600',
+  authorName: {
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
   },
-  postUniversity: {
+  verifiedIcon: {
+    marginLeft: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  usernameText: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  dotSeparator: {
+    marginHorizontal: 4,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  universityText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  postContent: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   postImage: {
-    width: width,
-    height: width,
-    backgroundColor: colors.surface,
+    width: '100%',
+    height: 240,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  postActions: {
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  postActionsLeft: {
+  actionButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  actionIcon: {
-    marginRight: 16,
-  },
-  postDetails: {
-    paddingHorizontal: 12,
-  },
-  likesText: {
+  actionCount: {
+    fontSize: 13,
     fontWeight: '600',
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  captionContainer: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  captionAuthor: {
-    fontWeight: '600',
-    color: colors.text,
-  },
-  captionText: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 18,
-  },
-  commentsText: {
-    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 4,
   },
-  timeText: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  likedCount: {
+    color: colors.danger,
   },
 });
