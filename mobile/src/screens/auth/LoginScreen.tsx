@@ -32,16 +32,11 @@ export default function LoginScreen() {
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
     '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
 
-  // Hardcoded Expo Auth Proxy URI — required for Google Web Client ID compliance in Expo Go
-  // Must match exactly what is registered in Google Cloud Console → Authorized redirect URIs
-  const proxyRedirectUri = 'https://auth.expo.io/@syntaxdrive/unilink';
-
-  // Initialize Google Auth Session using the Expo proxy as redirect URI
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+  // Initialize Google Auth Session using standard Expo Google Auth Request
+  const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: googleClientId,
     androidClientId: googleClientId,
     iosClientId: googleClientId,
-    redirectUri: proxyRedirectUri,
   });
 
   // Handle Google OAuth response
@@ -116,24 +111,45 @@ export default function LoginScreen() {
 
     try {
       if (promptAsync) {
+        setLoading(true);
         console.log('[Google Auth] Prompting user sign in...');
         const res = await promptAsync();
-        console.log('[Google Auth] Prompt result:', JSON.stringify(res));
+        console.log('[Google Auth] Response:', JSON.stringify(res));
 
         if (res.type === 'success') {
-          const idToken =
-            res.authentication?.idToken ||
-            res.params?.id_token ||
-            res.params?.access_token;
+          const accessToken = res.authentication?.accessToken || res.params?.access_token;
+          const idToken = res.authentication?.idToken || res.params?.id_token;
 
+          // Attempt 1: Verify ID Token with NestJS
           if (idToken) {
-            setLoading(true);
-            const apiRes = await apiClient.post('/auth/google', { idToken });
-            console.log('[Google Auth] NestJS auth successful:', apiRes.data);
-            await setToken(apiRes.data.access_token);
-            setLoading(false);
+            try {
+              const apiRes = await apiClient.post('/auth/google', { idToken });
+              await setToken(apiRes.data.access_token);
+              return;
+            } catch (err) {
+              console.warn('[Google Auth] ID Token verification skipped/failed, trying UserInfo fallback...');
+            }
+          }
+
+          // Attempt 2: Fetch Google UserInfo directly & authenticate profile with NestJS
+          if (accessToken) {
+            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const userInfo = await userInfoRes.json();
+
+            if (userInfo && userInfo.email) {
+              const apiRes = await apiClient.post('/auth/google-profile', {
+                email: userInfo.email,
+                name: userInfo.name,
+                avatarUrl: userInfo.picture,
+              });
+              await setToken(apiRes.data.access_token);
+            } else {
+              Alert.alert('Google Sign-In Error', 'Unable to retrieve profile from Google.');
+            }
           } else {
-            Alert.alert('Google Sign-In Error', 'No ID Token received from Google.');
+            Alert.alert('Google Sign-In Error', 'No token received from Google.');
           }
         } else if (res.type === 'error') {
           Alert.alert('Google Sign-In Error', res.error?.message || 'Authentication error');

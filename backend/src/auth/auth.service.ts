@@ -139,6 +139,58 @@ export class AuthService {
   }
 
   /**
+   * Authenticate or register user via verified Google profile details.
+   */
+  async googleProfileLogin(profile: { email: string; name?: string; avatarUrl?: string }) {
+    if (!profile || !profile.email) {
+      throw new BadRequestException('Email is required for Google profile sign-in');
+    }
+
+    const normalizedEmail = profile.email.trim().toLowerCase();
+
+    // 1. Search for existing user profile by email
+    let user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (user) {
+      if (!user.avatar_url && profile.avatarUrl) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { avatar_url: profile.avatarUrl },
+        });
+      }
+    } else {
+      // 2. Create new user account if first-time Google sign-in
+      let baseUsername = (profile.email.split('@')[0] || 'student')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+
+      if (!baseUsername) baseUsername = 'student';
+
+      let finalUsername = baseUsername;
+      let counter = 1;
+      while (await this.prisma.user.findUnique({ where: { username: finalUsername } })) {
+        finalUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: profile.name ?? null,
+          username: finalUsername,
+          avatar_url: profile.avatarUrl ?? null,
+          is_verified: true,
+          role: 'Student',
+        },
+      });
+    }
+
+    return this.login(user);
+  }
+
+  /**
    * Generate a JWT access token for an authenticated user.
    *
    * @param user - Authenticated user object

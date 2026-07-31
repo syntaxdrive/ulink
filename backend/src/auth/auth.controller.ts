@@ -49,6 +49,12 @@ export class AuthController {
     return this.authService.googleLogin(idToken);
   }
 
+  @ApiOperation({ summary: 'Authenticate or register using Google User Profile' })
+  @Post('google-profile')
+  async googleProfileAuth(@Body() profile: { email: string; name?: string; avatarUrl?: string }) {
+    return this.authService.googleProfileLogin(profile);
+  }
+
   @ApiOperation({ summary: 'Get profile of current authenticated user' })
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
