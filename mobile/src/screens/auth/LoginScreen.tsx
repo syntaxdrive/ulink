@@ -28,10 +28,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const setToken = useAuthStore((state) => state.setToken);
 
-  // Initialize Google Auth Session with deep link redirect URI for Expo Go
+  // Initialize Google Auth Session with Google OAuth 2.0 compliant settings
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '1058293740201-unilink.apps.googleusercontent.com',
-    redirectUri: makeRedirectUri({ scheme: 'unilink' }),
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com',
   });
 
   // Handle Google OAuth response
