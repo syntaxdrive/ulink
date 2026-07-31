@@ -12,12 +12,12 @@ import {
   SafeAreaView,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
 
+// Required for Expo web auth session completion
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
@@ -28,53 +28,88 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const setToken = useAuthStore((state) => state.setToken);
 
-  const googleClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
-    '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
-
-  // Initialize Google Auth Session using standard Expo Google Auth Request
+  /**
+   * Google Sign-In using Android Client ID (package: host.exp.exponent).
+   * Android Client IDs authenticate via package name + SHA-1 fingerprint —
+   * no redirect URI configuration needed, works natively in Expo Go.
+   */
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: googleClientId,
-    androidClientId: googleClientId,
-    iosClientId: googleClientId,
+    androidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+      '565981659026-q80que64vph4p593d7f8mo7ev3uu6jk8.apps.googleusercontent.com',
+    webClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+      '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com',
   });
 
-  // Handle Google OAuth response
+  // Handle Google Auth response when it changes
   useEffect(() => {
     if (response?.type === 'success') {
-      console.log('[Google Auth] Success response received:', JSON.stringify(response));
-      const idToken =
-        response.authentication?.idToken ||
-        response.params?.id_token ||
-        response.params?.access_token;
+      const accessToken = response.authentication?.accessToken || response.params?.access_token;
+      const idToken = response.authentication?.idToken || response.params?.id_token;
 
-      if (idToken) {
-        setLoading(true);
-        apiClient
-          .post('/auth/google', { idToken })
-          .then(async (res) => {
-            await setToken(res.data.access_token);
-          })
-          .catch((err) => {
-            const serverMsg = Array.isArray(err.response?.data?.message)
-              ? err.response?.data?.message.join('\n')
-              : err.response?.data?.message;
-            Alert.alert(
-              'Google Auth Failed',
-              serverMsg || err.message || 'Unable to authenticate with Google',
-            );
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      } else {
-        Alert.alert('Google Auth Failed', 'No ID token received from Google.');
-      }
+      console.log('[Google Auth] Success. Has idToken:', !!idToken, 'Has accessToken:', !!accessToken);
+      handleGoogleToken({ accessToken, idToken });
     } else if (response?.type === 'error') {
-      Alert.alert('Google Auth Error', response.error?.message || 'Authentication error');
+      Alert.alert('Google Sign-In Error', response.error?.message || 'Authentication failed.');
     }
   }, [response]);
 
+  /**
+   * Exchange Google token for a UniLink JWT via NestJS backend.
+   */
+  const handleGoogleToken = async ({
+    accessToken,
+    idToken,
+  }: {
+    accessToken?: string | null;
+    idToken?: string | null;
+  }) => {
+    setLoading(true);
+    try {
+      // Attempt 1: Verify ID Token on NestJS backend
+      if (idToken) {
+        try {
+          const res = await apiClient.post('/auth/google', { idToken });
+          await setToken(res.data.access_token);
+          return;
+        } catch {
+          console.warn('[Google Auth] ID token verification failed, trying UserInfo fallback...');
+        }
+      }
+
+      // Attempt 2: Fetch Google UserInfo with Access Token and authenticate profile
+      if (accessToken) {
+        const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const userInfo = await userInfoRes.json();
+
+        if (userInfo?.email) {
+          const res = await apiClient.post('/auth/google-profile', {
+            email: userInfo.email,
+            name: userInfo.name,
+            avatarUrl: userInfo.picture,
+          });
+          await setToken(res.data.access_token);
+          return;
+        }
+      }
+
+      Alert.alert('Google Sign-In Error', 'Could not retrieve profile from Google. Please try again.');
+    } catch (err: any) {
+      const serverMsg = Array.isArray(err.response?.data?.message)
+        ? err.response?.data?.message.join('\n')
+        : err.response?.data?.message;
+      Alert.alert('Google Sign-In Error', serverMsg || err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Email / password sign-in or registration via NestJS backend.
+   */
   const handleSubmit = async () => {
     if (!email || !password || (!isLogin && !name)) {
       Alert.alert('Error', 'Please fill in all required fields.');
@@ -85,91 +120,16 @@ export default function LoginScreen() {
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       const body = isLogin ? { email, password } : { email, password, name };
-
-      const response = await apiClient.post(endpoint, body);
-      await setToken(response.data.access_token);
+      const res = await apiClient.post(endpoint, body);
+      await setToken(res.data.access_token);
     } catch (error: any) {
       const serverMessage = Array.isArray(error.response?.data?.message)
         ? error.response?.data?.message.join('\n')
         : error.response?.data?.message;
-      const errorMessage =
-        serverMessage || error.message || 'Unable to connect to NestJS server. Check network connection.';
-      Alert.alert('Authentication Failed', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    const clientId =
-      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
-      '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
-
-    const redirectUri = 'https://auth.expo.io/@syntaxdrive/unilink';
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-      clientId,
-    )}&redirect_uri=${encodeURIComponent(
-      redirectUri,
-    )}&response_type=token%20id_token&scope=${encodeURIComponent(
-      'openid profile email',
-    )}&nonce=${Math.random().toString(36).substring(2)}`;
-
-    try {
-      setLoading(true);
-      console.log('[Google Web Auth] Opening auth session with URL:', authUrl);
-
-      const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      console.log('[Google Web Auth] Session result:', JSON.stringify(res));
-
-      if (res.type === 'success' && res.url) {
-        const urlObj = res.url;
-        const hashParams = new URLSearchParams(
-          urlObj.includes('#') ? urlObj.split('#')[1] : urlObj.split('?')[1] || '',
-        );
-
-        const accessToken = hashParams.get('access_token');
-        const idToken = hashParams.get('id_token');
-
-        console.log('[Google Web Auth] Parsed tokens:', { accessToken: !!accessToken, idToken: !!idToken });
-
-        // Attempt 1: Verify ID Token with NestJS
-        if (idToken) {
-          try {
-            const apiRes = await apiClient.post('/auth/google', { idToken });
-            await setToken(apiRes.data.access_token);
-            return;
-          } catch (err) {
-            console.warn('[Google Web Auth] ID token verification skipped, using UserInfo fallback...');
-          }
-        }
-
-        // Attempt 2: Fetch UserInfo with Access Token
-        if (accessToken) {
-          const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          const userInfo = await userInfoRes.json();
-
-          if (userInfo && userInfo.email) {
-            const apiRes = await apiClient.post('/auth/google-profile', {
-              email: userInfo.email,
-              name: userInfo.name,
-              avatarUrl: userInfo.picture,
-            });
-            await setToken(apiRes.data.access_token);
-            return;
-          }
-        }
-
-        Alert.alert('Google Sign-In Error', 'Unable to complete sign-in from Google response.');
-      } else if (res.type === 'cancel' || res.type === 'dismiss') {
-        console.log('[Google Web Auth] User cancelled sign-in session.');
-      } else {
-        Alert.alert('Google Sign-In Error', 'Authentication session failed.');
-      }
-    } catch (err: any) {
-      console.error('[Google Web Auth] Exception:', err);
-      Alert.alert('Google Sign-In Error', err.message || 'Failed to complete Google Sign-In');
+      Alert.alert(
+        'Authentication Failed',
+        serverMessage || error.message || 'Unable to connect. Check your network.',
+      );
     } finally {
       setLoading(false);
     }
@@ -235,7 +195,11 @@ export default function LoginScreen() {
             </View>
 
             {/* Continue with Google Button */}
-            <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
+            <TouchableOpacity
+              style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
+              onPress={() => promptAsync()}
+              disabled={!request || loading}
+            >
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
@@ -295,17 +259,17 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   button: {
-    backgroundColor: colors.text, // Black background (Apple style)
+    backgroundColor: colors.text,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   buttonText: {
-    color: colors.background, // White text
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },
