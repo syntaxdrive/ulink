@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,14 +11,9 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
-
-// Required for Expo web auth session completion
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,90 +24,15 @@ export default function LoginScreen() {
   const setToken = useAuthStore((state) => state.setToken);
 
   /**
-   * Google Sign-In using Android Client ID (package: host.exp.exponent).
-   * Android Client IDs authenticate via package name + SHA-1 fingerprint —
-   * no redirect URI configuration needed, works natively in Expo Go.
-   */
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
-      '565981659026-q80que64vph4p593d7f8mo7ev3uu6jk8.apps.googleusercontent.com',
-    webClientId:
-      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
-      '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com',
-  });
-
-  // Handle Google Auth response when it changes
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const accessToken = response.authentication?.accessToken || response.params?.access_token;
-      const idToken = response.authentication?.idToken || response.params?.id_token;
-
-      console.log('[Google Auth] Success. Has idToken:', !!idToken, 'Has accessToken:', !!accessToken);
-      handleGoogleToken({ accessToken, idToken });
-    } else if (response?.type === 'error') {
-      Alert.alert('Google Sign-In Error', response.error?.message || 'Authentication failed.');
-    }
-  }, [response]);
-
-  /**
-   * Exchange Google token for a UniLink JWT via NestJS backend.
-   */
-  const handleGoogleToken = async ({
-    accessToken,
-    idToken,
-  }: {
-    accessToken?: string | null;
-    idToken?: string | null;
-  }) => {
-    setLoading(true);
-    try {
-      // Attempt 1: Verify ID Token on NestJS backend
-      if (idToken) {
-        try {
-          const res = await apiClient.post('/auth/google', { idToken });
-          await setToken(res.data.access_token);
-          return;
-        } catch {
-          console.warn('[Google Auth] ID token verification failed, trying UserInfo fallback...');
-        }
-      }
-
-      // Attempt 2: Fetch Google UserInfo with Access Token and authenticate profile
-      if (accessToken) {
-        const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const userInfo = await userInfoRes.json();
-
-        if (userInfo?.email) {
-          const res = await apiClient.post('/auth/google-profile', {
-            email: userInfo.email,
-            name: userInfo.name,
-            avatarUrl: userInfo.picture,
-          });
-          await setToken(res.data.access_token);
-          return;
-        }
-      }
-
-      Alert.alert('Google Sign-In Error', 'Could not retrieve profile from Google. Please try again.');
-    } catch (err: any) {
-      const serverMsg = Array.isArray(err.response?.data?.message)
-        ? err.response?.data?.message.join('\n')
-        : err.response?.data?.message;
-      Alert.alert('Google Sign-In Error', serverMsg || err.message || 'Authentication failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Email / password sign-in or registration via NestJS backend.
+   * Sign in or register via email + password through the NestJS backend.
    */
   const handleSubmit = async () => {
-    if (!email || !password || (!isLogin && !name)) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      return;
+    }
+    if (!isLogin && !name.trim()) {
+      Alert.alert('Missing Fields', 'Please enter your full name.');
       return;
     }
 
@@ -127,8 +47,8 @@ export default function LoginScreen() {
         ? error.response?.data?.message.join('\n')
         : error.response?.data?.message;
       Alert.alert(
-        'Authentication Failed',
-        serverMessage || error.message || 'Unable to connect. Check your network.',
+        isLogin ? 'Login Failed' : 'Registration Failed',
+        serverMessage || error.message || 'Unable to connect. Please check your network.',
       );
     } finally {
       setLoading(false);
@@ -142,11 +62,13 @@ export default function LoginScreen() {
         style={styles.container}
       >
         <View style={styles.content}>
+          {/* Header */}
           <View style={styles.headerContainer}>
             <Text style={styles.logo}>UniLink</Text>
             <Text style={styles.subtitle}>University Social Network</Text>
           </View>
 
+          {/* Form */}
           <View style={styles.formContainer}>
             {!isLogin && (
               <TextInput
@@ -155,8 +77,10 @@ export default function LoginScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={name}
                 onChangeText={setName}
+                autoCapitalize="words"
               />
             )}
+
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -165,7 +89,9 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              autoCorrect={false}
             />
+
             <TextInput
               style={styles.input}
               placeholder="Password"
@@ -187,22 +113,7 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Continue with Google Button */}
-            <TouchableOpacity
-              style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
-              onPress={() => promptAsync()}
-              disabled={!request || loading}
-            >
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
+            {/* Toggle login / signup */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 {isLogin ? "Don't have an account? " : 'Already have an account? '}
@@ -263,7 +174,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -271,35 +182,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.background,
     fontSize: 16,
-    fontWeight: '600',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  googleButton: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  googleButtonText: {
-    color: colors.text,
-    fontSize: 15,
     fontWeight: '600',
   },
   footer: {
