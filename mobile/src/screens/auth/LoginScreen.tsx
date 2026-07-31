@@ -39,6 +39,8 @@ export default function LoginScreen() {
   // Initialize Google Auth Session using the Expo proxy as redirect URI
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: googleClientId,
+    androidClientId: googleClientId,
+    iosClientId: googleClientId,
     redirectUri: proxyRedirectUri,
   });
 
