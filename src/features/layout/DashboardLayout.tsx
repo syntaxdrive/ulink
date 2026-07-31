@@ -27,10 +27,10 @@ export interface DashboardLayoutProps {
 }
 
 function isOnboardingComplete(profile: Profile) {
-    if (!profile.name?.trim()) return false;
-    if (!profile.username?.trim()) return false;
-    if (!profile.role) return false;
-    if (profile.role === 'student' && !profile.university?.trim()) return false;
+    if (!profile.name?.trim() || profile.name === 'null') return false;
+    if (!profile.username?.trim() || profile.username === 'null') return false;
+    if (!profile.role || profile.role === 'null') return false;
+    if (profile.role === 'student' && (!profile.university?.trim() || profile.university === 'null')) return false;
     return true;
 }
 
@@ -218,7 +218,7 @@ export default function DashboardLayout({ session }: DashboardLayoutProps) {
             // Fetch User Profile — specific columns only (no select('*'))
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
-                .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points, onboarding_complete')
+                .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points')
                 .eq('id', user.id)
                 .single();
 

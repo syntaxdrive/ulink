@@ -54,10 +54,10 @@ const inputCls = 'w-full px-4 py-3.5 bg-slate-50 dark:bg-zinc-800/60 border bord
 const labelCls = 'block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider';
 
 function isOnboardingComplete(profile: any) {
-    if (!profile?.name?.trim()) return false;
-    if (!profile?.username?.trim()) return false;
-    if (!profile?.role) return false;
-    if (profile.role === 'student' && !profile?.university?.trim()) return false;
+    if (!profile?.name?.trim() || profile.name === 'null') return false;
+    if (!profile?.username?.trim() || profile.username === 'null') return false;
+    if (!profile?.role || profile.role === 'null') return false;
+    if (profile.role === 'student' && (!profile?.university?.trim() || profile.university === 'null')) return false;
     return true;
 }
 
