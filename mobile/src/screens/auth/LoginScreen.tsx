@@ -47,11 +47,16 @@ export default function LoginScreen() {
   // Handle Google OAuth response
   useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
-      if (id_token) {
+      console.log('[Google Auth] Success response received:', JSON.stringify(response));
+      const idToken =
+        response.authentication?.idToken ||
+        response.params?.id_token ||
+        response.params?.access_token;
+
+      if (idToken) {
         setLoading(true);
         apiClient
-          .post('/auth/google', { idToken: id_token })
+          .post('/auth/google', { idToken })
           .then(async (res) => {
             await setToken(res.data.access_token);
           })
@@ -59,12 +64,19 @@ export default function LoginScreen() {
             const serverMsg = Array.isArray(err.response?.data?.message)
               ? err.response?.data?.message.join('\n')
               : err.response?.data?.message;
-            Alert.alert('Google Auth Failed', serverMsg || err.message || 'Unable to authenticate with Google');
+            Alert.alert(
+              'Google Auth Failed',
+              serverMsg || err.message || 'Unable to authenticate with Google',
+            );
           })
           .finally(() => {
             setLoading(false);
           });
+      } else {
+        Alert.alert('Google Auth Failed', 'No ID token received from Google.');
       }
+    } else if (response?.type === 'error') {
+      Alert.alert('Google Auth Error', response.error?.message || 'Authentication error');
     }
   }, [response]);
 
