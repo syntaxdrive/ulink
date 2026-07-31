@@ -101,62 +101,74 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
-      Alert.alert(
-        'Google Client ID Required',
-        'Please enter your Google Web Client ID from Google Cloud Console into mobile/.env under EXPO_PUBLIC_GOOGLE_CLIENT_ID.',
-      );
-      return;
-    }
+    const clientId =
+      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+      '565981659026-t7odr503s7pjj8c4jv0o09878lcukk01.apps.googleusercontent.com';
+
+    const redirectUri = 'https://auth.expo.io/@syntaxdrive/unilink';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+      clientId,
+    )}&redirect_uri=${encodeURIComponent(
+      redirectUri,
+    )}&response_type=token%20id_token&scope=${encodeURIComponent(
+      'openid profile email',
+    )}&nonce=${Math.random().toString(36).substring(2)}`;
 
     try {
-      if (promptAsync) {
-        setLoading(true);
-        console.log('[Google Auth] Prompting user sign in...');
-        const res = await promptAsync();
-        console.log('[Google Auth] Response:', JSON.stringify(res));
+      setLoading(true);
+      console.log('[Google Web Auth] Opening auth session with URL:', authUrl);
 
-        if (res.type === 'success') {
-          const accessToken = res.authentication?.accessToken || res.params?.access_token;
-          const idToken = res.authentication?.idToken || res.params?.id_token;
+      const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      console.log('[Google Web Auth] Session result:', JSON.stringify(res));
 
-          // Attempt 1: Verify ID Token with NestJS
-          if (idToken) {
-            try {
-              const apiRes = await apiClient.post('/auth/google', { idToken });
-              await setToken(apiRes.data.access_token);
-              return;
-            } catch (err) {
-              console.warn('[Google Auth] ID Token verification skipped/failed, trying UserInfo fallback...');
-            }
+      if (res.type === 'success' && res.url) {
+        const urlObj = res.url;
+        const hashParams = new URLSearchParams(
+          urlObj.includes('#') ? urlObj.split('#')[1] : urlObj.split('?')[1] || '',
+        );
+
+        const accessToken = hashParams.get('access_token');
+        const idToken = hashParams.get('id_token');
+
+        console.log('[Google Web Auth] Parsed tokens:', { accessToken: !!accessToken, idToken: !!idToken });
+
+        // Attempt 1: Verify ID Token with NestJS
+        if (idToken) {
+          try {
+            const apiRes = await apiClient.post('/auth/google', { idToken });
+            await setToken(apiRes.data.access_token);
+            return;
+          } catch (err) {
+            console.warn('[Google Web Auth] ID token verification skipped, using UserInfo fallback...');
           }
-
-          // Attempt 2: Fetch Google UserInfo directly & authenticate profile with NestJS
-          if (accessToken) {
-            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            const userInfo = await userInfoRes.json();
-
-            if (userInfo && userInfo.email) {
-              const apiRes = await apiClient.post('/auth/google-profile', {
-                email: userInfo.email,
-                name: userInfo.name,
-                avatarUrl: userInfo.picture,
-              });
-              await setToken(apiRes.data.access_token);
-            } else {
-              Alert.alert('Google Sign-In Error', 'Unable to retrieve profile from Google.');
-            }
-          } else {
-            Alert.alert('Google Sign-In Error', 'No token received from Google.');
-          }
-        } else if (res.type === 'error') {
-          Alert.alert('Google Sign-In Error', res.error?.message || 'Authentication error');
         }
+
+        // Attempt 2: Fetch UserInfo with Access Token
+        if (accessToken) {
+          const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          const userInfo = await userInfoRes.json();
+
+          if (userInfo && userInfo.email) {
+            const apiRes = await apiClient.post('/auth/google-profile', {
+              email: userInfo.email,
+              name: userInfo.name,
+              avatarUrl: userInfo.picture,
+            });
+            await setToken(apiRes.data.access_token);
+            return;
+          }
+        }
+
+        Alert.alert('Google Sign-In Error', 'Unable to complete sign-in from Google response.');
+      } else if (res.type === 'cancel' || res.type === 'dismiss') {
+        console.log('[Google Web Auth] User cancelled sign-in session.');
+      } else {
+        Alert.alert('Google Sign-In Error', 'Authentication session failed.');
       }
     } catch (err: any) {
-      console.error('[Google Auth] Exception:', err);
+      console.error('[Google Web Auth] Exception:', err);
       Alert.alert('Google Sign-In Error', err.message || 'Failed to complete Google Sign-In');
     } finally {
       setLoading(false);
