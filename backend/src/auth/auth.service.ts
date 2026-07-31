@@ -7,15 +7,18 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 
 /**
  * AuthService
  *
  * Handles authentication, password verification with bcrypt,
- * JWT token generation, and account registration.
+ * Google OAuth 2.0 ID Token verification, JWT token generation, and account registration.
  */
 @Injectable()
 export class AuthService {
+  private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -31,13 +34,11 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     if (!email || !pass) return null;
 
-    // Search user by email (case-insensitive trim)
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    // Verify password hash exists and matches
     if (user && typeof user.password_hash === 'string') {
       const isPasswordValid = await bcrypt.compare(pass, user.password_hash);
       if (isPasswordValid) {
@@ -47,6 +48,78 @@ export class AuthService {
     }
 
     return null;
+  }
+
+  /**
+   * Authenticate or register a user using a Google OAuth ID Token.
+   * Verifies the cryptographic token signature with Google's public keys.
+   * Matches existing migrated users by email address.
+   *
+   * @param idToken - Google OAuth ID Token passed from client (Mobile or Web)
+   */
+  async googleLogin(idToken: string) {
+    if (!idToken) {
+      throw new BadRequestException('Google idToken is required');
+    }
+
+    let payload;
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        ...(process.env.GOOGLE_CLIENT_ID ? { audience: process.env.GOOGLE_CLIENT_ID } : {}),
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw new UnauthorizedException('Invalid or expired Google ID token');
+    }
+
+    if (!payload || !payload.email) {
+      throw new UnauthorizedException('Google token missing email payload');
+    }
+
+    const normalizedEmail = payload.email.trim().toLowerCase();
+
+    // 1. Search for existing user profile by email
+    let user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (user) {
+      // Update avatar if not set yet
+      if (!user.avatar_url && payload.picture) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { avatar_url: payload.picture },
+        });
+      }
+    } else {
+      // 2. Create new user account if first-time Google sign-in
+      let baseUsername = (payload.email.split('@')[0] || 'student')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+
+      if (!baseUsername) baseUsername = 'student';
+
+      let finalUsername = baseUsername;
+      let counter = 1;
+      while (await this.prisma.user.findUnique({ where: { username: finalUsername } })) {
+        finalUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: payload.name ?? null,
+          username: finalUsername,
+          avatar_url: payload.picture ?? null,
+          is_verified: payload.email_verified ?? false,
+          role: 'Student',
+        },
+      });
+    }
+
+    return this.login(user);
   }
 
   /**
@@ -82,7 +155,6 @@ export class AuthService {
 
     const normalizedEmail = data.email.trim().toLowerCase();
 
-    // Check if email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
@@ -91,11 +163,10 @@ export class AuthService {
       throw new ConflictException('An account with this email already exists');
     }
 
-    // Generate unique username
     let baseUsername = (data.username || normalizedEmail.split('@')[0] || 'student')
       .toLowerCase()
       .replace(/[^a-z0-9_]/g, '');
-    
+
     if (!baseUsername) baseUsername = 'student';
 
     let finalUsername = baseUsername;
@@ -105,10 +176,8 @@ export class AuthService {
       counter++;
     }
 
-    // Hash password with bcrypt
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // Create user in database
     const user = await this.prisma.user.create({
       data: {
         email: normalizedEmail,

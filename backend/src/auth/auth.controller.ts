@@ -43,6 +43,12 @@ export class AuthController {
     return this.authService.register(body);
   }
 
+  @ApiOperation({ summary: 'Authenticate or register using Google OAuth ID Token' })
+  @Post('google')
+  async googleAuth(@Body('idToken') idToken: string) {
+    return this.authService.googleLogin(idToken);
+  }
+
   @ApiOperation({ summary: 'Get profile of current authenticated user' })
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
