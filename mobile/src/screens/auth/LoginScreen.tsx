@@ -84,10 +84,16 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = () => {
+    if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
+      Alert.alert(
+        'Google Client ID Required',
+        'Please enter your Google Web Client ID from Google Cloud Console into mobile/.env under EXPO_PUBLIC_GOOGLE_CLIENT_ID.',
+      );
+      return;
+    }
+
     if (request && promptAsync) {
       promptAsync();
-    } else {
-      Alert.alert('Google Sign-In', 'Google Authentication session is preparing. Please try again in a moment.');
     }
   };
 
