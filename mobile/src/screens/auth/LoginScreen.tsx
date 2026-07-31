@@ -12,6 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
@@ -27,9 +28,10 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const setToken = useAuthStore((state) => state.setToken);
 
-  // Initialize Google Auth Session
+  // Initialize Google Auth Session with deep link redirect URI for Expo Go
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '1058293740201-unilink.apps.googleusercontent.com',
+    redirectUri: makeRedirectUri({ scheme: 'unilink' }),
   });
 
   // Handle Google OAuth response
