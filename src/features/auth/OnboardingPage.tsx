@@ -266,6 +266,11 @@ export default function OnboardingPage() {
             const user = session?.user;
             if (!user) return;
 
+            await supabase
+                .from('connections')
+                .delete()
+                .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profileId}),and(requester_id.eq.${profileId},recipient_id.eq.${user.id})`);
+
             await supabase.from('connections').insert({
                 requester_id: user.id,
                 recipient_id: profileId,

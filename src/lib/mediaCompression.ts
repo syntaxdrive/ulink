@@ -93,7 +93,7 @@ export async function compressVideo(file: File): Promise<Blob> {
     // Browser-native video compression is not widely supported
 
     // Check file size - if it's already small enough, return as-is
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 100 * 1024 * 1024; // 100MB
     if (file.size <= maxSize) {
         return file;
     }

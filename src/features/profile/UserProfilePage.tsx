@@ -75,17 +75,22 @@ export default function UserProfilePage() {
         if (!user || !profile) return;
 
         if (connectionStatus === 'none' || connectionStatus === 'rejected') {
-            // Treat rejected as "can try again" or new request
+            // Delete prior connection record (if rejected/cancelled) to allow inserting a clean new request
+            await supabase
+                .from('connections')
+                .delete()
+                .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${user.id})`);
+
             const { error } = await supabase
                 .from('connections')
-                .upsert({
+                .insert({
                     requester_id: user.id,
                     recipient_id: profile.id,
                     status: 'pending'
-                }, { onConflict: 'requester_id,recipient_id' });
+                });
 
             if (error) {
-                alert(error.message);
+                alert(error.message || 'Failed to send connection request');
             } else {
                 setConnectionStatus('pending');
             }

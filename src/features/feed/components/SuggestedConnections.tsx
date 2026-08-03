@@ -1,23 +1,14 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { UserPlus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-interface Profile {
-    id: string;
-    name: string;
-    username: string | null;
-    avatar_url: string | null;
-    university: string | null;
-    headline: string | null;
-    is_verified: boolean;
-}
+import { UserPlus, Sparkles, X, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
+import type { Profile } from '../../../types';
 
 export default function SuggestedConnections() {
     const [suggestions, setSuggestions] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentIndex, setCurrentIndex] = useState(0);
     const [dismissed, setDismissed] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
         fetchSuggestions();
@@ -26,27 +17,29 @@ export default function SuggestedConnections() {
     const fetchSuggestions = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+            const user = session?.user;
             if (!user) return;
 
-            // Get current user's profile
+            // Fetch current user's profile to get university
             const { data: currentProfile } = await supabase
                 .from('profiles')
                 .select('university').limit(50)
                 .eq('id', user.id)
                 .single();
 
-            // Get existing connections
-            const { data: connections } = await supabase
+            // Fetch current user's existing connections
+            const { data: existingConnections } = await supabase
                 .from('connections')
                 .select('requester_id, recipient_id').limit(50)
-                .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
-                .in('status', ['accepted', 'pending']);
+                .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
 
-            const connectedIds = new Set(
-                connections?.flatMap(c => [c.requester_id, c.recipient_id]) || []
-            );
-            connectedIds.add(user.id); // Exclude self
+            const connectedIds = new Set<string>([user.id]);
+            if (existingConnections) {
+                existingConnections.forEach(c => {
+                    connectedIds.add(c.requester_id);
+                    connectedIds.add(c.recipient_id);
+                });
+            }
 
             // Fetch suggested users (same university, not connected)
             const { data: profiles } = await supabase
@@ -59,7 +52,7 @@ export default function SuggestedConnections() {
             if (profiles) {
                 // Shuffle for variety
                 const shuffled = profiles.sort(() => Math.random() - 0.5);
-                setSuggestions(shuffled.slice(0, 5));
+                setSuggestions((shuffled as any).slice(0, 5));
             }
         } catch (error) {
             console.error('Error fetching suggestions:', error);
@@ -71,8 +64,13 @@ export default function SuggestedConnections() {
     const handleConnect = async (profileId: string) => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+            const user = session?.user;
             if (!user) return;
+
+            await supabase
+                .from('connections')
+                .delete()
+                .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profileId}),and(requester_id.eq.${profileId},recipient_id.eq.${user.id})`);
 
             await supabase.from('connections').insert({
                 requester_id: user.id,
@@ -109,82 +107,90 @@ export default function SuggestedConnections() {
                 <X className="w-4 h-4" />
             </button>
 
-            <div className="mb-4">
-                <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-lg flex items-center gap-2">
-                    <UserPlus className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-                    People You May Know
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">From your university</p>
-            </div>
+            {/* Content */}
+            <div className="flex items-start gap-4">
+                <div className="p-3 bg-emerald-500 text-white rounded-xl shadow-md shrink-0">
+                    <Sparkles className="w-6 h-6" />
+                </div>
 
-            <div className="relative">
-                {/* Profile Card */}
-                <div className="bg-white dark:bg-bg-cardDark rounded-xl p-4 shadow-sm border border-slate-100 dark:border-zinc-800">
-                    <Link to={`/app/profile/${currentProfile.username || currentProfile.id}`} className="block">
-                        <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                            Suggested Connection
+                        </span>
+                        <span className="text-xs text-slate-400">•</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400">
+                            {currentIndex + 1} of {suggestions.length}
+                        </span>
+                    </div>
+
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug mb-1">
+                        Connect with peers from {currentProfile?.university || 'your campus'}
+                    </h3>
+
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 mb-4 line-clamp-2">
+                        Expand your academic & professional network by connecting with classmates.
+                    </p>
+
+                    {/* Profile Card */}
+                    {currentProfile && (
+                        <div className="bg-white dark:bg-zinc-900/80 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800/30 mb-4 flex items-center gap-3">
                             <img
-                                src={currentProfile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentProfile.name)}&background=10b981&color=fff`}
-                                alt={currentProfile.name}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-100"
+                                src={currentProfile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentProfile.username}`}
+                                alt={currentProfile.name || 'User'}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                                <p className="font-bold text-slate-900 dark:text-zinc-100 truncate flex items-center gap-1">
-                                    {currentProfile.name}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                                        {currentProfile.name || currentProfile.username}
+                                    </span>
                                     {currentProfile.is_verified && (
-                                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                        </svg>
+                                        <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                     )}
-                                </p>
-                                <p className="text-xs text-slate-500 dark:text-zinc-500 truncate">
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
                                     {currentProfile.headline || currentProfile.university}
                                 </p>
                             </div>
+                            <button
+                                onClick={() => handleConnect(currentProfile.id)}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 shadow-sm active:scale-95"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                Connect
+                            </button>
                         </div>
-                    </Link>
+                    )}
 
-                    <button
-                        onClick={() => handleConnect(currentProfile.id)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-                    >
-                        <UserPlus className="w-4 h-4" />
-                        Connect
-                    </button>
-                </div>
-
-                {/* Navigation */}
-                {suggestions.length > 1 && (
-                    <div className="flex items-center justify-between mt-4">
-                        <button
-                            onClick={prevSlide}
-                            className="p-2 hover:bg-white/50 rounded-full transition-colors"
-                            disabled={suggestions.length === 1}
+                    {/* Controls */}
+                    <div className="flex items-center justify-between">
+                        <Link
+                            to="/app/network"
+                            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-slate-600" />
-                        </button>
+                            View all suggestions
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
 
-                        <div className="flex gap-1.5">
-                            {suggestions.map((_, idx) => (
+                        {suggestions.length > 1 && (
+                            <div className="flex items-center gap-1">
                                 <button
-                                    key={idx}
-                                    onClick={() => setCurrentIndex(idx)}
-                                    className={`h-1.5 rounded-full transition-all ${idx === currentIndex
-                                        ? 'w-6 bg-emerald-600'
-                                        : 'w-1.5 bg-slate-300 hover:bg-slate-400'
-                                        }`}
-                                />
-                            ))}
-                        </div>
-
-                        <button
-                            onClick={nextSlide}
-                            className="p-2 hover:bg-white/50 rounded-full transition-colors"
-                            disabled={suggestions.length === 1}
-                        >
-                            <ChevronRight className="w-5 h-5 text-slate-600" />
-                        </button>
+                                    onClick={prevSlide}
+                                    className="p-1 text-slate-400 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-400 hover:bg-white/50 dark:hover:bg-zinc-800/50 rounded-lg transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={nextSlide}
+                                    className="p-1 text-slate-400 dark:text-zinc-600 hover:text-slate-600 dark:hover:text-zinc-400 hover:bg-white/50 dark:hover:bg-zinc-800/50 rounded-lg transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );

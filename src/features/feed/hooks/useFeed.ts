@@ -823,10 +823,13 @@ export function useFeed(communityId?: string) {
             return;
         }
 
-        // Optimistic Update
-        const newCounts = [...post.poll_counts];
         const oldVote = post.user_vote;
 
+        // If user clicks option they already voted for, do nothing
+        if (oldVote === optionIndex) return;
+
+        // Optimistic Update
+        const newCounts = [...post.poll_counts];
         if (oldVote !== null && oldVote !== undefined) {
             newCounts[oldVote] = Math.max(0, newCounts[oldVote] - 1);
         }
@@ -838,18 +841,24 @@ export function useFeed(communityId?: string) {
             user_vote: optionIndex
         });
 
-        // Database Update
-        const { error } = await supabase.from('poll_votes').upsert({
+        // Database Update — Delete previous vote if changing vote, then insert
+        if (oldVote !== null && oldVote !== undefined) {
+            await supabase.from('poll_votes')
+                .delete()
+                .eq('post_id', postId)
+                .eq('user_id', currentUserId);
+        }
+
+        const { error } = await supabase.from('poll_votes').insert({
             post_id: postId,
             user_id: currentUserId,
             option_index: optionIndex
-        }, { onConflict: 'post_id, user_id' });
+        });
 
         if (error) {
             console.error('Vote failed:', error);
-            // Revert on error (could actally fetchSinglePost to be safer)
             fetchSinglePost(postId);
-            alert('Failed to register vote');
+            alert('Failed to register vote. Please try again.');
         }
     };
 

@@ -19,7 +19,7 @@ export function useNetwork() {
 
     const fetchNetworkData = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+        const user = session?.user;
         if (!user) { setLoading(false); return; }
 
         // Fetch my profile
@@ -114,7 +114,7 @@ export function useNetwork() {
 
         setSearching(true);
         const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+        const user = session?.user;
         if (!user) return;
 
         try {
@@ -145,12 +145,18 @@ export function useNetwork() {
     const connect = async (targetUserId: string) => {
         setConnecting(targetUserId);
         const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+        const user = session?.user;
 
         if (user) {
             // Optimistic update — both local state and store
             setSentRequests(prev => new Set([...prev, targetUserId]));
             store.addSentRequest(targetUserId);
+
+            // Clean up any stale prior connection record (e.g. if rejected or in reverse direction)
+            await supabase
+                .from('connections')
+                .delete()
+                .or(`and(requester_id.eq.${user.id},recipient_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},recipient_id.eq.${user.id})`);
 
             const { error } = await supabase
                 .from('connections')

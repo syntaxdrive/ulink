@@ -138,8 +138,8 @@ export default function CreatePost({ onCreate, communityId, user, initialContent
                 if (videoInputRef.current) videoInputRef.current.value = '';
                 return;
             }
-            if (file.size > 50 * 1024 * 1024) { // 50MB Limit
-                alert('Video size must be less than 50MB.');
+            if (file.size > 100 * 1024 * 1024) { // 100MB Limit
+                alert('Video size must be less than 100MB.');
                 return;
             }
             if (!file.type.startsWith('video/')) {

@@ -139,38 +139,52 @@ export default function CampusChallengePage() {
     // ── Vote ──────────────────────────────────────────────────────────────────
     const vote = async (optionId: string) => {
         if (!ensureAuth()) return;
-        if (!currentPoll || !currentUserId || myVotes[currentPoll.id] || voting) return;
+        if (!currentPoll || !currentUserId || voting) return;
+
+        const currentVote = myVotes[currentPoll.id];
+        if (currentVote === optionId) return;
+
         setVoting(true);
 
-        // Get university for leaderboard
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('university').limit(50)
-            .eq('id', currentUserId)
-            .single();
+        try {
+            if (currentVote) {
+                await supabase.from('challenge_poll_votes')
+                    .delete()
+                    .eq('poll_id', currentPoll.id)
+                    .eq('user_id', currentUserId);
+            }
 
-        const { error } = await supabase.from('challenge_poll_votes').insert({
-            poll_id: currentPoll.id,
-            user_id: currentUserId,
-            option_id: optionId,
-            university: profile?.university ?? null,
-        });
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('university').limit(50)
+                .eq('id', currentUserId)
+                .single();
 
-        if (!error) {
-            setMyVotes(prev => ({ ...prev, [currentPoll.id]: optionId }));
+            const { error } = await supabase.from('challenge_poll_votes').insert({
+                poll_id: currentPoll.id,
+                user_id: currentUserId,
+                option_id: optionId,
+                university: profile?.university ?? null,
+            });
 
-            // Fetch fresh results
-            const { data: resultsData } = await supabase.rpc('get_poll_results', { p_poll_id: currentPoll.id });
-            if (resultsData) setResults(prev => ({ ...prev, [currentPoll.id]: resultsData }));
+            if (!error) {
+                setMyVotes(prev => ({ ...prev, [currentPoll.id]: optionId }));
 
-            // 🎉 Confetti!
-            confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'] });
-        } else {
-            console.error('Error voting:', error);
-            alert('Failed to cast vote: ' + (error.message || 'System error. You might have already voted.'));
+                // Fetch fresh results
+                const { data: resultsData } = await supabase.rpc('get_poll_results', { p_poll_id: currentPoll.id });
+                if (resultsData) setResults(prev => ({ ...prev, [currentPoll.id]: resultsData }));
+
+                // 🎉 Confetti!
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'] });
+            } else {
+                console.error('Error voting:', error);
+                alert('Failed to cast vote: ' + (error.message || 'System error. You might have already voted.'));
+            }
+        } catch (err) {
+            console.error('Error in vote:', err);
+        } finally {
+            setVoting(false);
         }
-
-        setVoting(false);
     };
 
     // ─────────────────────────────────────────────────────────────────────────
