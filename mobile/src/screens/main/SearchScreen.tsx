@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   TextInput,
   FlatList,
   Image,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Search as SearchIcon,
   CheckCircle2,
@@ -330,7 +330,7 @@ export default function SearchScreen() {
     <TouchableOpacity
       key={item.id}
       style={[styles.postResultCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-      onPress={() => navigation.navigate('Home')}
+      onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
       activeOpacity={0.7}
     >
       <View style={styles.nameRow}>
