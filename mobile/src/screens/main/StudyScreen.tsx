@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { BookOpen, Users, Radio, ThumbsUp, Download, Plus } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { apiClient } from '../../api/client';
+import { supabase } from '../../lib/supabase';
 
 export default function StudyScreen() {
   const navigation = useNavigation<any>();
@@ -28,14 +29,38 @@ export default function StudyScreen() {
     setLoading(true);
     try {
       if (activeTab === 'courses') {
-        const res = await apiClient.get('/courses');
-        setCourses(res.data?.courses || []);
+        try {
+          const { data } = await supabase.from('courses').select('*').limit(30);
+          if (data && data.length > 0) {
+            setCourses(data);
+          } else {
+            const res = await apiClient.get('/courses');
+            setCourses(res.data?.courses || []);
+          }
+        } catch {
+          const res = await apiClient.get('/courses');
+          setCourses(res.data?.courses || []);
+        }
       } else if (activeTab === 'study-rooms') {
         const res = await apiClient.get('/study-rooms');
         setStudyRooms(res.data?.studyRooms || []);
       } else if (activeTab === 'communities') {
-        const res = await apiClient.get('/communities');
-        setCommunities(res.data?.communities || []);
+        try {
+          const { data } = await supabase
+            .from('communities')
+            .select('*')
+            .order('members_count', { ascending: false })
+            .limit(30);
+          if (data && data.length > 0) {
+            setCommunities(data);
+          } else {
+            const res = await apiClient.get('/communities');
+            setCommunities(res.data?.communities || []);
+          }
+        } catch {
+          const res = await apiClient.get('/communities');
+          setCommunities(res.data?.communities || []);
+        }
       }
     } catch (err) {
       console.warn('Error fetching study data:', err);
@@ -192,7 +217,15 @@ export default function StudyScreen() {
             </View>
           ) : (
             communities.map((club) => (
-              <View key={club.id} style={styles.card}>
+              <TouchableOpacity
+                key={club.id}
+                style={styles.card}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('CommunityDetail', {
+                  communityId: club.id,
+                  communitySlug: club.slug,
+                })}
+              >
                 <View style={styles.cardHeader}>
                   <Text style={styles.clubCategory}>{club.category || 'Student Club'}</Text>
                   <Text style={styles.metaText}>{club.members_count || 0} Members</Text>
@@ -207,7 +240,7 @@ export default function StudyScreen() {
                     {club.is_member ? 'Member' : 'Join Club'}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             ))
           )
         )}

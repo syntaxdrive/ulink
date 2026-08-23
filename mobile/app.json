@@ -9,7 +9,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.syntaxdrive.unilink",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "UniLink needs access to your photos to let you upload and share pictures on your campus feed and community discussions.",
+        "NSCameraUsageDescription": "UniLink needs camera access so you can take and share photos directly on campus.",
+        "NSMicrophoneUsageDescription": "UniLink needs microphone access to record audio messages and podcasts."
+      }
     },
     "android": {
       "adaptiveIcon": {
