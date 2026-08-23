@@ -21,6 +21,8 @@ import {
   Film,
   CheckCircle2,
   Repeat2,
+  Play,
+  Pause,
 } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 import { FeedPost } from '../services/feedService';
@@ -38,6 +40,268 @@ interface ShortsViewerModalProps {
   onLikeToggle: (postId: string) => void;
   onOpenComments: (postId: string) => void;
 }
+
+interface ShortItemProps {
+  item: FeedPost;
+  isCurrent: boolean;
+  onLikeToggle: (postId: string) => void;
+  onOpenComments: (postId: string) => void;
+  onShare: (post: FeedPost) => void;
+}
+
+const ShortItem: React.FC<ShortItemProps> = ({
+  item,
+  isCurrent,
+  onLikeToggle,
+  onOpenComments,
+  onShare,
+}) => {
+  const orig = item.original_post;
+  const videoSource = (item.video_url || orig?.video_url || '').trim();
+  const rawContent = item.content || orig?.content || '';
+  const youtubeId = extractYouTubeId(videoSource) || extractYouTubeId(rawContent);
+  const cleanCaption = youtubeId ? cleanVideoUrlsFromText(rawContent) : rawContent;
+  const displayAuthor = orig && !item.content ? (orig.author || item.author) : item.author;
+
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [showIndicator, setShowIndicator] = useState<boolean>(false);
+  const webViewRef = useRef<any>(null);
+  const indicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-play when active, pause when scrolled away
+  useEffect(() => {
+    if (!isCurrent) {
+      setIsPaused(true);
+      if (youtubeId) {
+        webViewRef.current?.injectJavaScript?.(
+          `try { var iframes = document.getElementsByTagName('iframe'); for(var i=0; i<iframes.length; i++) iframes[i].contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e){} true;`
+        );
+      } else {
+        webViewRef.current?.injectJavaScript?.(
+          `try { var v = document.getElementById('shortVideo'); if(v) v.pause(); } catch(e){} true;`
+        );
+      }
+    } else {
+      setIsPaused(false);
+    }
+  }, [isCurrent, youtubeId]);
+
+  // 1-Click to Play / Pause
+  const togglePlayPause = () => {
+    const nextPaused = !isPaused;
+    setIsPaused(nextPaused);
+
+    // Show indicator
+    setShowIndicator(true);
+    if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
+    indicatorTimer.current = setTimeout(() => setShowIndicator(false), 900);
+
+    if (youtubeId) {
+      const script = nextPaused
+        ? `try { var iframes = document.getElementsByTagName('iframe'); for(var i=0; i<iframes.length; i++) iframes[i].contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*'); } catch(e){} true;`
+        : `try { var iframes = document.getElementsByTagName('iframe'); for(var i=0; i<iframes.length; i++) iframes[i].contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*'); } catch(e){} true;`;
+      webViewRef.current?.injectJavaScript?.(script);
+    } else {
+      const script = `try { var v = document.getElementById('shortVideo'); if(v) { if (${nextPaused}) v.pause(); else v.play(); } } catch(e){} true;`;
+      webViewRef.current?.injectJavaScript?.(script);
+    }
+  };
+
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'single_tap') {
+        togglePlayPause();
+      }
+    } catch {}
+  };
+
+  const embedHtml = youtubeId
+    ? `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; background: #000; }
+            body, html { width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+            iframe { width: 100%; height: 100%; border: none; }
+          </style>
+        </head>
+        <body>
+          <iframe
+            id="ytIframe"
+            src="https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&playsinline=1&controls=0&rel=0&modestbranding=1&fs=1"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowfullscreen>
+          </iframe>
+          <script>
+            document.addEventListener('touchend', function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'single_tap' }));
+              }
+            });
+          </script>
+        </body>
+      </html>
+    `
+    : `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; background: #000; }
+            body, html { width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+            video { width: 100%; height: 100%; object-fit: contain; }
+          </style>
+        </head>
+        <body>
+          <video
+            id="shortVideo"
+            src="${videoSource}"
+            autoplay
+            playsinline
+            webkit-playsinline
+            loop
+          ></video>
+          <script>
+            document.addEventListener('touchend', function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'single_tap' }));
+              }
+            });
+          </script>
+        </body>
+      </html>
+    `;
+
+  return (
+    <View style={styles.pageContainer}>
+      {/* Fullscreen Video */}
+      {isCurrent ? (
+        <WebViewComponent
+          ref={webViewRef}
+          style={styles.webView}
+          source={{ html: embedHtml }}
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled
+          domStorageEnabled
+          scalesPageToFit
+          scrollEnabled={false}
+          onMessage={handleMessage}
+        />
+      ) : (
+        <View style={styles.placeholderBlack} />
+      )}
+
+      {/* 1-Click Play / Pause Overlay Touch Layer */}
+      <TouchableOpacity
+        style={styles.touchOverlay}
+        activeOpacity={1}
+        onPress={togglePlayPause}
+      />
+
+      {/* Centered Play / Pause Badge Indicator */}
+      {(showIndicator || isPaused) && (
+        <View style={styles.centeredIndicatorWrap} pointerEvents="none">
+          <View style={styles.centeredIndicatorCircle}>
+            {isPaused ? (
+              <Play size={38} color="#ffffff" fill="#ffffff" style={{ marginLeft: 4 }} />
+            ) : (
+              <Pause size={38} color="#ffffff" fill="#ffffff" />
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Top Repost Badge */}
+      {orig && (
+        <View style={styles.repostTopBadge} pointerEvents="none">
+          <Repeat2 size={12} color="#ffffff" style={{ marginRight: 4 }} />
+          <Text style={styles.repostTopText}>
+            Reposted by @{item.author?.username || 'student'}
+          </Text>
+        </View>
+      )}
+
+      {/* Right Floating Actions */}
+      <View style={styles.rightActionsColumn}>
+        {/* Like */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => onLikeToggle(item.id)}
+        >
+          <View style={[styles.actionIconWrap, item.user_has_liked && styles.likedIconWrap]}>
+            <Heart
+              size={24}
+              color="#ffffff"
+              fill={item.user_has_liked ? '#EF4444' : 'none'}
+            />
+          </View>
+          <Text style={styles.actionCountText}>{item.likes_count}</Text>
+        </TouchableOpacity>
+
+        {/* Comments */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => onOpenComments(item.id)}
+        >
+          <View style={styles.actionIconWrap}>
+            <MessageCircle size={24} color="#ffffff" />
+          </View>
+          <Text style={styles.actionCountText}>{item.comments_count}</Text>
+        </TouchableOpacity>
+
+        {/* Share */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => onShare(item)}
+        >
+          <View style={styles.actionIconWrap}>
+            <Share2 size={22} color="#ffffff" />
+          </View>
+          <Text style={styles.actionCountText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom Overlay: Creator & Caption */}
+      <View style={styles.bottomOverlay} pointerEvents="box-none">
+        <View style={styles.creatorRow}>
+          {displayAuthor?.avatar_url ? (
+            <Image source={{ uri: displayAuthor.avatar_url }} style={styles.creatorAvatar} />
+          ) : (
+            <View style={styles.creatorAvatarPlaceholder}>
+              <Text style={styles.creatorInitial}>
+                {(displayAuthor?.name || displayAuthor?.username || 'U')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.creatorMeta}>
+            <View style={styles.nameRow}>
+              <Text style={styles.creatorName}>
+                {displayAuthor?.name || displayAuthor?.username || 'Campus Student'}
+              </Text>
+              {displayAuthor?.is_verified && (
+                <CheckCircle2 size={13} color={colors.primary} style={{ marginLeft: 4 }} />
+              )}
+            </View>
+            <Text style={styles.creatorHandle}>
+              @{displayAuthor?.username || 'student'}
+            </Text>
+          </View>
+        </View>
+
+        {cleanCaption ? (
+          <Text style={styles.captionText} numberOfLines={3}>
+            {cleanCaption}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+};
 
 export const ShortsViewerModal: React.FC<ShortsViewerModalProps> = ({
   visible,
@@ -97,164 +361,15 @@ export const ShortsViewerModal: React.FC<ShortsViewerModalProps> = ({
     }
   };
 
-  const renderItem = ({ item, index }: { item: FeedPost; index: number }) => {
-    const isCurrent = index === activeIndex && visible;
-    const orig = item.original_post;
-    const videoSource = (item.video_url || orig?.video_url || '').trim();
-    const rawContent = item.content || orig?.content || '';
-    const youtubeId = extractYouTubeId(videoSource) || extractYouTubeId(rawContent);
-    const cleanCaption = youtubeId ? cleanVideoUrlsFromText(rawContent) : rawContent;
-    const displayAuthor = orig && !item.content ? (orig.author || item.author) : item.author;
-
-    const embedHtml = youtubeId
-      ? `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; background: #000; }
-              body, html { width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-              iframe { width: 100%; height: 100%; border: none; }
-            </style>
-          </head>
-          <body>
-            <iframe
-              src="https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&fs=1"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              allowfullscreen>
-            </iframe>
-          </body>
-        </html>
-      `
-      : `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; background: #000; }
-              body, html { width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-              video { width: 100%; height: 100%; object-fit: contain; }
-            </style>
-          </head>
-          <body>
-            <video
-              src="${videoSource}"
-              controls
-              autoplay
-              playsinline
-              webkit-playsinline
-              loop
-            ></video>
-          </body>
-        </html>
-      `;
-
-    return (
-      <View style={styles.pageContainer}>
-        {/* Fullscreen Video */}
-        {isCurrent ? (
-          <WebViewComponent
-            style={styles.webView}
-            source={{ html: embedHtml }}
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-            domStorageEnabled
-            scalesPageToFit
-            scrollEnabled={false}
-          />
-        ) : (
-          <View style={styles.placeholderBlack} />
-        )}
-
-        {/* Top Repost Badge */}
-        {orig && (
-          <View style={styles.repostTopBadge}>
-            <Repeat2 size={12} color="#ffffff" style={{ marginRight: 4 }} />
-            <Text style={styles.repostTopText}>
-              Reposted by @{item.author?.username || 'student'}
-            </Text>
-          </View>
-        )}
-
-        {/* Right Floating Actions */}
-        <View style={styles.rightActionsColumn}>
-          {/* Like */}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => onLikeToggle(item.id)}
-          >
-            <View style={[styles.actionIconWrap, item.user_has_liked && styles.likedIconWrap]}>
-              <Heart
-                size={24}
-                color={item.user_has_liked ? '#ffffff' : '#ffffff'}
-                fill={item.user_has_liked ? '#EF4444' : 'none'}
-              />
-            </View>
-            <Text style={styles.actionCountText}>{item.likes_count}</Text>
-          </TouchableOpacity>
-
-          {/* Comments */}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => onOpenComments(item.id)}
-          >
-            <View style={styles.actionIconWrap}>
-              <MessageCircle size={24} color="#ffffff" />
-            </View>
-            <Text style={styles.actionCountText}>{item.comments_count}</Text>
-          </TouchableOpacity>
-
-          {/* Share */}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => handleShare(item)}
-          >
-            <View style={styles.actionIconWrap}>
-              <Share2 size={22} color="#ffffff" />
-            </View>
-            <Text style={styles.actionCountText}>Share</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom Overlay: Creator & Caption */}
-        <View style={styles.bottomOverlay}>
-          <View style={styles.creatorRow}>
-            {displayAuthor?.avatar_url ? (
-              <Image source={{ uri: displayAuthor.avatar_url }} style={styles.creatorAvatar} />
-            ) : (
-              <View style={styles.creatorAvatarPlaceholder}>
-                <Text style={styles.creatorInitial}>
-                  {(displayAuthor?.name || displayAuthor?.username || 'U')[0].toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <View style={styles.creatorMeta}>
-              <View style={styles.nameRow}>
-                <Text style={styles.creatorName}>
-                  {displayAuthor?.name || displayAuthor?.username || 'Campus Student'}
-                </Text>
-                {displayAuthor?.is_verified && (
-                  <CheckCircle2 size={13} color={colors.primary} style={{ marginLeft: 4 }} />
-                )}
-              </View>
-              <Text style={styles.creatorHandle}>
-                @{displayAuthor?.username || 'student'}
-              </Text>
-            </View>
-          </View>
-
-          {cleanCaption ? (
-            <Text style={styles.captionText} numberOfLines={3}>
-              {cleanCaption}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    );
-  };
+  const renderItem = ({ item, index }: { item: FeedPost; index: number }) => (
+    <ShortItem
+      item={item}
+      isCurrent={index === activeIndex && visible}
+      onLikeToggle={onLikeToggle}
+      onOpenComments={onOpenComments}
+      onShare={handleShare}
+    />
+  );
 
   if (!visible) return null;
 
@@ -328,6 +443,34 @@ const styles = StyleSheet.create({
   placeholderBlack: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  touchOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 80,
+    bottom: 120,
+    zIndex: 50,
+  },
+  centeredIndicatorWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 85,
+  },
+  centeredIndicatorCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   topCloseBtn: {
     position: 'absolute',
