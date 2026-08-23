@@ -39,6 +39,7 @@ import {
   MessageSquare,
   HelpCircle,
   BookOpen,
+  ChartBar,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, useTheme } from '../../theme/colors';
@@ -592,7 +593,7 @@ export default function FeedScreen() {
                   })
                 }
               >
-                <BarChart2 size={14} color={colors.primary} />
+                <ChartBar size={14} color={colors.primary} />
                 <Text style={[styles.starterChipText, { color: colors.text }]}>Create a Poll</Text>
               </TouchableOpacity>
 
