@@ -2,7 +2,6 @@
   "expo": {
     "name": "unilink",
     "slug": "unilink",
-    "owner": "syntaxdrive",
     "scheme": "unilink",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,6 +17,7 @@
       }
     },
     "android": {
+      "package": "com.syntaxdrive.unilink",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
