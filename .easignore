@@ -1,0 +1,11 @@
+backend/
+src/
+dist/
+public/
+docs/
+supabase/
+migrations/
+node_modules/
+.git/
+node_modules
+.expo
