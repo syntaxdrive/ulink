@@ -316,9 +316,6 @@ export default function PodcastScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Global Spotify Audio Player */}
-      <SpotifyAudioPlayer />
     </SafeAreaView>
   );
 }

@@ -431,6 +431,10 @@ export const ShortsViewerModal: React.FC<ShortsViewerModalProps> = ({
             snapToInterval={screenHeight}
             snapToAlignment="start"
             decelerationRate="fast"
+            windowSize={3}
+            maxToRenderPerBatch={2}
+            initialNumToRender={2}
+            removeClippedSubviews={Platform.OS === 'android'}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             getItemLayout={(_, index) => ({

@@ -142,6 +142,7 @@ export default function LoginScreen({ navigation }: any) {
           email: trimmedEmail,
           password: trimmedPassword,
           options: {
+            emailRedirectTo: 'unilink://auth/callback',
             data: {
               name: name.trim(),
               full_name: name.trim(),

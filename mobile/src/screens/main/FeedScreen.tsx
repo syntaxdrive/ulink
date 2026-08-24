@@ -970,6 +970,11 @@ export default function FeedScreen() {
           }
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          initialNumToRender={5}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          updateCellsBatchingPeriod={50}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -1113,9 +1118,6 @@ export default function FeedScreen() {
           onClose={() => setReportingUser(null)}
         />
       )}
-
-      {/* Global Spotify Audio Player */}
-      <SpotifyAudioPlayer />
     </SafeAreaView>
   );
 }

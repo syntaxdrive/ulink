@@ -24,6 +24,7 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import { GlobalAudioEngine } from '../components/GlobalAudioEngine';
 import { GlobalMiniPlayer } from '../components/GlobalMiniPlayer';
 import { GlobalPublishBanner } from '../components/GlobalPublishBanner';
+import { notificationService } from '../services/notificationService';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,12 +48,17 @@ function MainNavigator() {
 }
 
 export default function AppNavigator() {
-  const { token, isLoading, checkToken, createSessionFromUrl } = useAuthStore();
+  const { token, userId, isLoading, checkToken, createSessionFromUrl } = useAuthStore();
   const { colors, isDark } = useTheme();
 
   useEffect(() => {
     checkToken();
     useThemeStore.getState().initTheme();
+
+    // Register push notifications
+    if (token) {
+      notificationService.registerForPushNotificationsAsync(userId || undefined);
+    }
 
     // 1. Listen for deep link events when app is opened via custom scheme
     const subscription = Linking.addEventListener('url', async (event) => {
@@ -71,7 +77,7 @@ export default function AppNavigator() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [token, userId]);
 
   const baseTheme = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {

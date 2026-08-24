@@ -388,9 +388,6 @@ export default function PodcastsScreen() {
         </ScrollView>
       )}
 
-      {/* Spotify Standard Audio Player */}
-      <SpotifyAudioPlayer />
-
       {/* Creator Podcast Studio Modal */}
       <PodcastStudioModal
         visible={studioVisible}

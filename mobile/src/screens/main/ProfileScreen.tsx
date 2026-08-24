@@ -824,36 +824,6 @@ export default function ProfileScreen({ navigation, route }: any) {
               <Text style={[styles.editProfileBtnText, { color: colors.text }]}>Edit Profile</Text>
             </TouchableOpacity>
           )}
-
-          {/* Theme Mode Switcher (Light / Dark) */}
-          {isOwnProfile && (
-            <TouchableOpacity
-              style={[styles.themeToggleCard, { backgroundColor: isDark ? '#1C1C1E' : '#F9FAFB', borderColor: colors.border }]}
-              onPress={toggleTheme}
-              activeOpacity={0.8}
-            >
-              <View style={styles.themeToggleLeft}>
-                {isDark ? (
-                  <Moon size={18} color="#10B981" />
-                ) : (
-                  <Sun size={18} color="#F59E0B" />
-                )}
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={[styles.themeToggleTitle, { color: colors.text }]}>
-                    {isDark ? 'Dark Theme' : 'Light Theme'}
-                  </Text>
-                  <Text style={[styles.themeToggleSubtitle, { color: colors.textSecondary }]}>
-                    Tap to switch to {isDark ? 'Light' : 'Dark'} mode
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.themePill, { backgroundColor: isDark ? '#064E3B' : '#E5E7EB' }]}>
-                <Text style={[styles.themePillText, { color: isDark ? '#10B981' : '#374151' }]}>
-                  {isDark ? '🌙 Dark' : '☀️ Light'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* User Posts Section */}

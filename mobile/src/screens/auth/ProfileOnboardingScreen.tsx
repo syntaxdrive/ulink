@@ -25,6 +25,7 @@ import {
 import { colors } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
 import { uploadService } from '../../services/uploadService';
+import { notificationService } from '../../services/notificationService';
 import { useAuthStore } from '../../store/authStore';
 
 const POPULAR_UNIVERSITIES = [
@@ -175,6 +176,10 @@ export default function ProfileOnboardingScreen({ navigation, route }: any) {
         .eq('id', uid);
 
       if (error) throw error;
+
+      // Dispatch native push notification, in-app notification, and welcome DM
+      notificationService.dispatchWelcomeFlow(uid, name.trim(), chosenUni).catch(() => {});
+      notificationService.registerForPushNotificationsAsync(uid).catch(() => {});
 
       await checkToken();
       Alert.alert('Profile Complete 🎉', 'Welcome to UniLink! You are now connected to your campus.');
