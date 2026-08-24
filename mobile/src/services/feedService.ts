@@ -57,6 +57,49 @@ export interface CommentItem {
 }
 
 /**
+ * UniLink Base Ranking Algorithm
+ * Blends organic student engagement & recency with Campus Proximity and Verified Creator Multipliers (1.35x).
+ */
+export function calculatePostScore(
+  post: FeedPost,
+  viewerUniversity?: string | null
+): number {
+  const now = Date.now();
+  const postTime = new Date(post.created_at).getTime();
+  const ageInHours = Math.max(0.05, (now - postTime) / (1000 * 60 * 60));
+
+  // 1. Organic Student Engagement Signals
+  const likesScore = (post.likes_count || 0) * 3;
+  const commentsScore = (post.comments_count || 0) * 5;
+  const mediaBonus = post.video_url || (post.image_urls && post.image_urls.length > 0) ? 8 : 0;
+  const pollBonus = post.poll_options && post.poll_options.length > 0 ? 6 : 0;
+  const repostBonus = post.is_repost ? 5 : 0;
+
+  const rawEngagement = likesScore + commentsScore + mediaBonus + pollBonus + repostBonus;
+
+  // 2. Campus Proximity Boost (Same university peers get +25 points for local relevance)
+  const isSameUni = Boolean(
+    viewerUniversity &&
+      post.author?.university &&
+      post.author.university.trim().toLowerCase() === viewerUniversity.trim().toLowerCase()
+  );
+  const campusBoost = isSameUni ? 25 : 0;
+
+  // 3. Time Decay (Ensures fresh student voices and viral moments circulate dynamically)
+  const timeScore = (rawEngagement + 12 + campusBoost) / Math.pow(ageInHours + 2, 1.22);
+
+  // 4. Base Score (scaled)
+  let finalScore = timeScore * 100;
+
+  // 5. Multiplier Effect for Verified Creators (1.35x Visibility Multiplier)
+  if (post.author?.is_verified) {
+    finalScore *= 1.35;
+  }
+
+  return finalScore;
+}
+
+/**
  * FeedService — Modular data layer for feed, posts, likes, comments, and reshares.
  * Uses Supabase (PostgreSQL) directly with live relational count aggregation,
  * with graceful fallback to NestJS API client.
@@ -148,20 +191,29 @@ export const FeedService = {
       // 3. User like states and poll vote states
       let likedPostIds = new Set<string>();
       let userVotesMap = new Map<string, number>();
+      let viewerUniversity: string | null = null;
 
-      if (currentUserId && rawPosts.length > 0) {
-        const postIds = rawPosts.map((p: any) => p.id);
-        const [likesRes, votesRes] = await Promise.all([
+      if (currentUserId) {
+        const [likesRes, votesRes, viewerRes] = await Promise.all([
+          rawPosts.length > 0
+            ? supabase
+                .from('likes')
+                .select('post_id')
+                .eq('user_id', currentUserId)
+                .in('post_id', rawPosts.map((p: any) => p.id))
+            : Promise.resolve({ data: [] }),
+          rawPosts.length > 0
+            ? supabase
+                .from('poll_votes')
+                .select('post_id, option_index')
+                .eq('user_id', currentUserId)
+                .in('post_id', rawPosts.map((p: any) => p.id))
+            : Promise.resolve({ data: [] }),
           supabase
-            .from('likes')
-            .select('post_id')
-            .eq('user_id', currentUserId)
-            .in('post_id', postIds),
-          supabase
-            .from('poll_votes')
-            .select('post_id, option_index')
-            .eq('user_id', currentUserId)
-            .in('post_id', postIds),
+            .from('profiles')
+            .select('university')
+            .eq('id', currentUserId)
+            .single(),
         ]);
 
         if (likesRes.data) {
@@ -170,9 +222,12 @@ export const FeedService = {
         if (votesRes.data) {
           votesRes.data.forEach((v: any) => userVotesMap.set(v.post_id, v.option_index));
         }
+        if (viewerRes.data?.university) {
+          viewerUniversity = viewerRes.data.university;
+        }
       }
 
-      return rawPosts.map((p: any) => {
+      const formattedPosts: FeedPost[] = rawPosts.map((p: any) => {
         const authorProfile = p.profiles || profileMap.get(p.author_id);
         const actualLikes = p.actual_likes?.[0]?.count ?? p.likes_count ?? 0;
         const actualComments = p.actual_comments?.[0]?.count ?? p.comments_count ?? 0;
@@ -198,12 +253,28 @@ export const FeedService = {
           user_has_liked: likedPostIds.has(p.id),
         };
       });
+
+      // Apply Base-Level Balanced Ranking Algorithm (Organic Engagement + Campus Boost + Verified 1.35x Multiplier)
+      formattedPosts.sort((a, b) => {
+        const scoreB = calculatePostScore(b, viewerUniversity);
+        const scoreA = calculatePostScore(a, viewerUniversity);
+        return scoreB - scoreA;
+      });
+
+      return formattedPosts;
     } catch (supabaseError) {
       console.warn('Supabase getFeed failed, trying NestJS backend fallback...', supabaseError);
       // 2. Fallback: NestJS API
       const res = await apiClient.get('/feed');
       return res.data?.posts || [];
     }
+  },
+
+  /**
+   * Calculate post ranking score using the UniLink Balanced Algorithm
+   */
+  calculatePostScore(post: FeedPost, viewerUniversity?: string | null): number {
+    return calculatePostScore(post, viewerUniversity);
   },
 
   /**
