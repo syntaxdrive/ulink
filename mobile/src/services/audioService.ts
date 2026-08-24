@@ -1,5 +1,3 @@
-import { Audio, AVPlaybackStatus } from 'expo-av';
-
 export interface AudioTrack {
   id: string;
   uri: string;
@@ -24,12 +22,17 @@ export interface PlaybackState {
   queueIndex: number;
 }
 
+export interface AudioCommand {
+  action: 'play' | 'pause' | 'resume' | 'seek' | 'rate' | 'stop';
+  payload?: any;
+}
+
 type StateListener = (state: PlaybackState) => void;
+type CommandListener = (cmd: AudioCommand) => void;
 
 class AudioPlayerService {
-  private sound: Audio.Sound | null = null;
   private listeners = new Set<StateListener>();
-  private audioModeSet = false;
+  private commandListeners = new Set<CommandListener>();
 
   private state: PlaybackState = {
     isPlaying: false,
@@ -43,26 +46,6 @@ class AudioPlayerService {
     queueIndex: -1,
   };
 
-  constructor() {
-    this.initAudioMode();
-  }
-
-  private async initAudioMode() {
-    if (this.audioModeSet) return;
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-      this.audioModeSet = true;
-    } catch (e) {
-      console.warn('Could not set audio mode:', e);
-    }
-  }
-
   public subscribe(listener: StateListener) {
     this.listeners.add(listener);
     listener(this.state);
@@ -71,38 +54,38 @@ class AudioPlayerService {
     };
   }
 
-  private notify() {
-    this.listeners.forEach((fn) => fn(this.state));
+  public subscribeCommands(listener: CommandListener) {
+    this.commandListeners.add(listener);
+    return () => {
+      this.commandListeners.delete(listener);
+    };
   }
 
   public getState(): PlaybackState {
     return this.state;
   }
 
-  private onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        console.warn(`Audio Player Error: ${status.error}`);
-        this.state = { ...this.state, isLoading: false, isPlaying: false };
-        this.notify();
-      }
-      return;
-    }
+  public updateState(partial: Partial<PlaybackState>) {
+    this.state = { ...this.state, ...partial };
+    this.listeners.forEach((fn) => fn(this.state));
+  }
 
-    this.state = {
-      ...this.state,
-      isPlaying: status.isPlaying,
-      positionMillis: status.positionMillis || 0,
-      durationMillis: status.durationMillis || this.state.durationMillis || 0,
-      isLoading: status.isBuffering,
-    };
-    this.notify();
+  /**
+   * Called by the audio engine on progress update
+   */
+  public onTimeUpdate(currentTimeSec: number, durationSec: number) {
+    const pos = Math.floor(currentTimeSec * 1000);
+    const dur = Math.floor(durationSec * 1000);
+    this.updateState({
+      positionMillis: pos,
+      durationMillis: dur > 0 ? dur : this.state.durationMillis,
+      isLoading: false,
+    });
+  }
 
-    // Auto-advance on track completion
-    if (status.didJustFinish) {
-      this.playNext();
-    }
-  };
+  public onEnded() {
+    this.playNext();
+  }
 
   /**
    * Set queue of episodes/tracks
@@ -119,25 +102,6 @@ class AudioPlayerService {
    * Play a specific track object
    */
   public async playTrack(track: AudioTrack) {
-    await this.initAudioMode();
-
-    // If already playing this track, toggle or resume
-    if (this.sound && this.state.currentUri === track.uri) {
-      if (!this.state.isPlaying) {
-        await this.sound.playAsync();
-      }
-      return;
-    }
-
-    // Unload existing sound
-    if (this.sound) {
-      try {
-        await this.sound.unloadAsync();
-      } catch {}
-      this.sound = null;
-    }
-
-    // Find index in queue or add
     let qIndex = this.state.queue.findIndex((t) => t.id === track.id || t.uri === track.uri);
     let newQueue = [...this.state.queue];
     if (qIndex === -1) {
@@ -145,8 +109,7 @@ class AudioPlayerService {
       qIndex = 0;
     }
 
-    this.state = {
-      ...this.state,
+    this.updateState({
       isLoading: true,
       isPlaying: true,
       currentUri: track.uri,
@@ -155,26 +118,11 @@ class AudioPlayerService {
       durationMillis: (track.durationSeconds || 0) * 1000,
       queue: newQueue,
       queueIndex: qIndex,
-    };
-    this.notify();
+    });
 
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.uri },
-        {
-          shouldPlay: true,
-          rate: this.state.rate,
-          shouldCorrectPitch: true,
-          progressUpdateIntervalMillis: 300,
-        },
-        this.onPlaybackStatusUpdate
-      );
-      this.sound = sound;
-    } catch (err: any) {
-      console.warn('Failed to load audio sound:', err);
-      this.state = { ...this.state, isLoading: false, isPlaying: false };
-      this.notify();
-    }
+    this.commandListeners.forEach((fn) =>
+      fn({ action: 'play', payload: { uri: track.uri, rate: this.state.rate } })
+    );
   }
 
   /**
@@ -196,26 +144,14 @@ class AudioPlayerService {
   }
 
   public async pause() {
-    if (this.sound) {
-      try {
-        await this.sound.pauseAsync();
-        this.state = { ...this.state, isPlaying: false };
-        this.notify();
-      } catch (err) {
-        console.warn('Pause error:', err);
-      }
-    }
+    this.updateState({ isPlaying: false });
+    this.commandListeners.forEach((fn) => fn({ action: 'pause' }));
   }
 
   public async resume() {
-    if (this.sound) {
-      try {
-        await this.sound.playAsync();
-        this.state = { ...this.state, isPlaying: true };
-        this.notify();
-      } catch (err) {
-        console.warn('Resume error:', err);
-      }
+    if (this.state.currentUri) {
+      this.updateState({ isPlaying: true });
+      this.commandListeners.forEach((fn) => fn({ action: 'resume' }));
     }
   }
 
@@ -227,7 +163,7 @@ class AudioPlayerService {
 
     if (this.state.isPlaying) {
       await this.pause();
-    } else if (this.sound) {
+    } else if (this.state.currentUri) {
       await this.resume();
     } else if (this.state.currentTrack) {
       await this.playTrack(this.state.currentTrack);
@@ -235,15 +171,10 @@ class AudioPlayerService {
   }
 
   public async seek(positionMillis: number) {
-    if (this.sound) {
-      try {
-        await this.sound.setPositionAsync(positionMillis);
-        this.state = { ...this.state, positionMillis };
-        this.notify();
-      } catch (err) {
-        console.warn('Seek error:', err);
-      }
-    }
+    this.updateState({ positionMillis });
+    this.commandListeners.forEach((fn) =>
+      fn({ action: 'seek', payload: { positionMillis } })
+    );
   }
 
   public async skip(seconds: number) {
@@ -258,13 +189,10 @@ class AudioPlayerService {
   }
 
   public async setRate(rate: number) {
-    if (this.sound) {
-      try {
-        await this.sound.setRateAsync(rate, true);
-      } catch {}
-    }
-    this.state = { ...this.state, rate };
-    this.notify();
+    this.updateState({ rate });
+    this.commandListeners.forEach((fn) =>
+      fn({ action: 'rate', payload: { rate } })
+    );
   }
 
   public async playNext() {
@@ -276,7 +204,6 @@ class AudioPlayerService {
 
   public async playPrevious() {
     const { queue, queueIndex, positionMillis } = this.state;
-    // If more than 3 seconds in, restart track
     if (positionMillis > 3000) {
       await this.seek(0);
       return;
@@ -289,14 +216,7 @@ class AudioPlayerService {
   }
 
   public async stop() {
-    if (this.sound) {
-      try {
-        await this.sound.stopAsync();
-        await this.sound.unloadAsync();
-      } catch {}
-      this.sound = null;
-    }
-    this.state = {
+    this.updateState({
       isPlaying: false,
       positionMillis: 0,
       durationMillis: 0,
@@ -306,8 +226,8 @@ class AudioPlayerService {
       rate: 1.0,
       queue: [],
       queueIndex: -1,
-    };
-    this.notify();
+    });
+    this.commandListeners.forEach((fn) => fn({ action: 'stop' }));
   }
 }
 
