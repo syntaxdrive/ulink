@@ -46,6 +46,8 @@ const CATEGORIES = [
   'Other',
 ];
 
+const MAX_PODCASTS_PER_USER = 3;
+
 interface PodcastStudioModalProps {
   visible: boolean;
   onClose: () => void;
@@ -126,6 +128,13 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
   };
 
   const startCreateNewShow = () => {
+    if (myPodcasts.length >= MAX_PODCASTS_PER_USER) {
+      Alert.alert(
+        'Show Limit Reached (3/3)',
+        'Each student creator can host up to 3 active podcast shows. You can edit an existing show or delete one to start a new show.'
+      );
+      return;
+    }
     setEditingPodcastId(null);
     setPodTitle('');
     setPodDesc('');
@@ -265,6 +274,14 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
 
         Alert.alert('Show Updated! 🎙️', `"${podTitle}" has been updated successfully.`);
       } else {
+        if (myPodcasts.length >= MAX_PODCASTS_PER_USER) {
+          Alert.alert(
+            'Show Limit Reached (3/3)',
+            'You already have 3 active podcast shows (maximum allowed). Please edit an existing show or delete one to start a new one.'
+          );
+          return;
+        }
+
         // Insert new show
         const { error } = await supabase
           .from('podcasts')
