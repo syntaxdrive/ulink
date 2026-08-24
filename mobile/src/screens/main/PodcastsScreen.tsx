@@ -24,11 +24,13 @@ import {
   Users,
   TrendingUp,
   Radio,
+  Plus,
 } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
 import { audioService, PlaybackState, AudioTrack } from '../../services/audioService';
 import { SpotifyAudioPlayer } from '../../components/SpotifyAudioPlayer';
+import { PodcastStudioModal } from '../../components/PodcastStudioModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -82,6 +84,7 @@ export default function PodcastsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [studioVisible, setStudioVisible] = useState(false);
 
   // Active track info & playback state
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
@@ -192,7 +195,14 @@ export default function PodcastsScreen() {
           <Mic2 size={20} color={colors.primary} />
           <Text style={styles.headerTitle}>Campus Podcasts</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={styles.studioHeaderBtn}
+          onPress={() => setStudioVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Plus size={14} color="#000000" style={{ marginRight: 3 }} />
+          <Text style={styles.studioHeaderBtnText}>Studio</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Search Input */}
@@ -380,6 +390,13 @@ export default function PodcastsScreen() {
 
       {/* Spotify Standard Audio Player */}
       <SpotifyAudioPlayer />
+
+      {/* Creator Podcast Studio Modal */}
+      <PodcastStudioModal
+        visible={studioVisible}
+        onClose={() => setStudioVisible(false)}
+        onPodcastCreatedOrUpdated={fetchPodcastsData}
+      />
     </SafeAreaView>
   );
 }
@@ -415,6 +432,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: colors.text,
+  },
+  studioHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+  },
+  studioHeaderBtnText: {
+    color: '#000000',
+    fontSize: 12,
+    fontWeight: '800',
   },
   searchContainer: {
     flexDirection: 'row',

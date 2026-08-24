@@ -41,6 +41,7 @@ interface AdminStats {
   total_posts: number;
   total_communities: number;
   pending_reports: number;
+  pending_podcasts: number;
 }
 
 interface AdminUser {
@@ -73,10 +74,12 @@ export default function AdminScreen({ navigation }: any) {
     total_posts: 0,
     total_communities: 0,
     pending_reports: 0,
+    pending_podcasts: 0,
   });
-  const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'stats'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'podcasts'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [adminPodcasts, setAdminPodcasts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,12 +94,14 @@ export default function AdminScreen({ navigation }: any) {
         { count: postCount },
         { count: commCount },
         { count: reportCount },
+        { count: podcastPendingCount },
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', true),
         supabase.from('posts').select('*', { count: 'exact', head: true }),
         supabase.from('communities').select('*', { count: 'exact', head: true }),
         supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('podcasts').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       ]);
 
       setStats({
@@ -105,6 +110,7 @@ export default function AdminScreen({ navigation }: any) {
         total_posts: postCount || 0,
         total_communities: commCount || 0,
         pending_reports: reportCount || 0,
+        pending_podcasts: podcastPendingCount || 0,
       });
 
       // 2. Fetch Users
@@ -132,6 +138,20 @@ export default function AdminScreen({ navigation }: any) {
 
       if (reportData) {
         setReports(reportData as any);
+      }
+
+      // 4. Fetch All Podcasts for Moderation
+      const { data: podData } = await supabase
+        .from('podcasts')
+        .select(`
+          *,
+          creator:profiles!creator_id(id, name, username, avatar_url),
+          episodes:podcast_episodes(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (podData) {
+        setAdminPodcasts(podData);
       }
     } catch (error) {
       console.warn('Error loading admin data:', error);
@@ -229,6 +249,118 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  // Approve a Podcast Show
+  const handleApprovePodcast = async (pod: any) => {
+    try {
+      const { error } = await supabase
+        .from('podcasts')
+        .update({ status: 'approved' })
+        .eq('id', pod.id);
+
+      if (error) throw error;
+
+      setAdminPodcasts((prev) =>
+        prev.map((p) => (p.id === pod.id ? { ...p, status: 'approved' } : p))
+      );
+      setStats((s) => ({ ...s, pending_podcasts: Math.max(0, s.pending_podcasts - 1) }));
+
+      // Send approval notification to student creator
+      if (pod.creator_id) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: pod.creator_id,
+            type: 'podcast_approved',
+            title: 'Podcast Approved! 🎉',
+            message: `Your podcast "${pod.title}" has been approved by campus admins and is now live on UniLink!`,
+            action_url: `/podcasts/${pod.id}`,
+            read: false,
+          });
+        } catch {}
+      }
+
+      Alert.alert('Approved! 🎉', `"${pod.title}" is now approved and live for all campus students!`);
+    } catch (err: any) {
+      Alert.alert('Approval Error', err.message || 'Could not approve podcast.');
+    }
+  };
+
+  // Reject a Podcast Show
+  const handleRejectPodcast = async (pod: any) => {
+    Alert.alert(
+      'Reject Podcast?',
+      `Are you sure you want to reject "${pod.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('podcasts')
+                .update({ status: 'rejected' })
+                .eq('id', pod.id);
+
+              if (error) throw error;
+
+              setAdminPodcasts((prev) =>
+                prev.map((p) => (p.id === pod.id ? { ...p, status: 'rejected' } : p))
+              );
+              setStats((s) => ({ ...s, pending_podcasts: Math.max(0, s.pending_podcasts - 1) }));
+
+              if (pod.creator_id) {
+                try {
+                  await supabase.from('notifications').insert({
+                    user_id: pod.creator_id,
+                    type: 'podcast_rejected',
+                    title: 'Podcast Update',
+                    message: `Your podcast "${pod.title}" requires modifications before it can be approved.`,
+                    action_url: `/podcasts/${pod.id}`,
+                    read: false,
+                  });
+                } catch {}
+              }
+
+              Alert.alert('Podcast Rejected', `"${pod.title}" has been marked as rejected.`);
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not reject podcast.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Delete a Podcast
+  const handleDeletePodcast = async (pod: any) => {
+    Alert.alert(
+      'Delete Podcast?',
+      `Permanently remove "${pod.title}" and its episodes?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('podcasts')
+                .delete()
+                .eq('id', pod.id);
+
+              if (error) throw error;
+
+              setAdminPodcasts((prev) => prev.filter((p) => p.id !== pod.id));
+              Alert.alert('Deleted', `"${pod.title}" was removed.`);
+            } catch (err: any) {
+              Alert.alert('Delete Error', err.message || 'Could not delete podcast.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const filteredUsers = users.filter((u) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -314,6 +446,16 @@ export default function AdminScreen({ navigation }: any) {
             <AlertTriangle size={15} color={activeTab === 'reports' ? '#ffffff' : '#000000'} />
             <Text style={[styles.tabBtnText, activeTab === 'reports' && styles.tabBtnTextActive]}>
               Reports ({reports.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'podcasts' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('podcasts')}
+          >
+            <Radio size={15} color={activeTab === 'podcasts' ? '#ffffff' : '#000000'} />
+            <Text style={[styles.tabBtnText, activeTab === 'podcasts' && styles.tabBtnTextActive]}>
+              Shows ({adminPodcasts.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -470,6 +612,139 @@ export default function AdminScreen({ navigation }: any) {
                     </View>
                   </View>
                 ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── TAB 3: PODCASTS APPROVAL & MODERATION ── */}
+        {activeTab === 'podcasts' && (
+          <View style={styles.tabContent}>
+            {loading ? (
+              <ActivityIndicator size="large" color="#000000" style={{ marginTop: 24 }} />
+            ) : adminPodcasts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Radio size={36} color="#059669" style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyTitle}>No Podcasts Found</Text>
+                <Text style={styles.emptyText}>No student podcasts have been submitted yet.</Text>
+              </View>
+            ) : (
+              <View style={styles.reportList}>
+                {adminPodcasts.map((pod) => {
+                  const isPending = pod.status === 'pending';
+                  const isApproved = pod.status === 'approved';
+                  const isRejected = pod.status === 'rejected';
+
+                  return (
+                    <View key={pod.id} style={styles.reportCard}>
+                      <View style={styles.reportHeader}>
+                        <View
+                          style={[
+                            styles.reportReasonBadge,
+                            {
+                              backgroundColor: isApproved
+                                ? '#ECFDF5'
+                                : isPending
+                                ? '#FFFBEB'
+                                : '#FEF2F2',
+                            },
+                          ]}
+                        >
+                          <Radio
+                            size={12}
+                            color={isApproved ? '#059669' : isPending ? '#D97706' : '#DC2626'}
+                          />
+                          <Text
+                            style={[
+                              styles.reportReasonText,
+                              {
+                                color: isApproved ? '#059669' : isPending ? '#D97706' : '#DC2626',
+                              },
+                            ]}
+                          >
+                            {pod.status?.toUpperCase() || 'PENDING'}
+                          </Text>
+                        </View>
+                        <Text style={styles.reportDate}>
+                          {new Date(pod.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+
+                      {/* Podcast Meta */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+                        {pod.cover_url ? (
+                          <Image source={{ uri: pod.cover_url }} style={{ width: 44, height: 44, borderRadius: 8, marginRight: 10 }} />
+                        ) : (
+                          <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: 'rgba(16,185,129,0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                            <Radio size={20} color="#059669" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: '#000000' }}>
+                            {pod.title}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)' }}>
+                            Category: {pod.category || 'Other'} · {pod.episodes?.length || pod.episodes_count || 0} episodes
+                          </Text>
+                        </View>
+                      </View>
+
+                      {pod.description ? (
+                        <Text style={[styles.reportDetails, { marginTop: 2, marginBottom: 8 }]}>
+                          {pod.description}
+                        </Text>
+                      ) : null}
+
+                      <Text style={styles.reportDetails}>
+                        Created by:{' '}
+                        <Text style={{ fontWeight: '700', color: '#000000' }}>
+                          {pod.creator?.name || pod.creator?.username || 'Student Creator'}
+                        </Text>
+                      </Text>
+
+                      {/* Action Buttons */}
+                      <View style={[styles.reportActionsRow, { gap: 8 }]}>
+                        {isPending && (
+                          <TouchableOpacity
+                            style={[styles.dismissReportBtn, { backgroundColor: '#10B981', borderColor: '#10B981' }]}
+                            onPress={() => handleApprovePodcast(pod)}
+                          >
+                            <Check size={14} color="#000000" />
+                            <Text style={[styles.dismissReportText, { color: '#000000', fontWeight: '800' }]}>
+                              Approve Show
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {!isRejected && (
+                          <TouchableOpacity
+                            style={[styles.dismissReportBtn, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}
+                            onPress={() => handleRejectPodcast(pod)}
+                          >
+                            <X size={14} color="#DC2626" />
+                            <Text style={[styles.dismissReportText, { color: '#DC2626' }]}>
+                              Reject
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {isApproved && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                            <CheckCircle2 size={13} color="#059669" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>Live on UniLink</Text>
+                          </View>
+                        )}
+
+                        <TouchableOpacity
+                          style={{ padding: 6, marginLeft: 'auto' }}
+                          onPress={() => handleDeletePodcast(pod)}
+                        >
+                          <Trash2 size={16} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             )}
           </View>
