@@ -142,20 +142,13 @@ export default function OnboardingIntroScreen({ navigation }: any) {
                 {/* Subtitle Description */}
                 <Text style={styles.slideSubtitle}>{slide.subtitle}</Text>
 
-                {/* Modern Playful Illustration Card */}
+                {/* Transparent Real Human Cutout Portrait (Chest-up) */}
                 <View style={styles.illustrationArea}>
-                  <View
-                    style={[
-                      styles.illustrationCard,
-                      { backgroundColor: '#FFFFFF' },
-                    ]}
-                  >
-                    <Image
-                      source={slide.image}
-                      style={styles.illustrationImage}
-                      resizeMode="contain"
-                    />
-                  </View>
+                  <Image
+                    source={slide.image}
+                    style={styles.illustrationImage}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
             );
@@ -293,25 +286,10 @@ const styles = StyleSheet.create({
   },
   illustrationArea: {
     width: '100%',
-    height: screenHeight * 0.40,
-    justifyContent: 'center',
+    height: screenHeight * 0.44,
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 4,
-  },
-  illustrationCard: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
+    marginTop: 6,
   },
   illustrationImage: {
     width: '100%',
