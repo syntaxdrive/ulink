@@ -40,6 +40,7 @@ import {
   HelpCircle,
   BookOpen,
   ChartBar,
+  Flag,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, useTheme } from '../../theme/colors';
@@ -50,6 +51,7 @@ import { FormattedText } from '../../components/FormattedText';
 import { AutoHeightImage } from '../../components/AutoHeightImage';
 import { VideoPlayer } from '../../components/VideoPlayer';
 import { ShortsViewerModal } from '../../components/ShortsViewerModal';
+import { ReportModal } from '../../components/ReportModal';
 import { SocialSourceBadge } from '../../components/SocialSourceBadge';
 import { PollCard } from '../../components/PollCard';
 import { extractYouTubeId, cleanVideoUrlsFromText } from '../../utils/videoUtils';
@@ -145,6 +147,9 @@ export default function FeedScreen() {
 
   // First-time Post Prompt Card
   const [dismissedStarter, setDismissedStarter] = useState(false);
+
+  // Moderation / Report Offence Modal
+  const [reportingUser, setReportingUser] = useState<{ id: string; name: string; postId?: string } | null>(null);
 
   // Autoplay visible video tracking
   const [visiblePostId, setVisiblePostId] = useState<string | null>(null);
@@ -683,12 +688,25 @@ export default function FeedScreen() {
             </View>
           </TouchableOpacity>
 
-          {isAuthor && (
+          {isAuthor ? (
             <TouchableOpacity
               style={styles.moreBtn}
               onPress={() => handleDeletePost(post.id)}
             >
               <Trash2 size={16} color={colors.danger} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.moreBtn}
+              onPress={() =>
+                setReportingUser({
+                  id: post.author_id || post.author?.id || '',
+                  name: post.author?.name || post.author?.username || 'student',
+                  postId: post.id,
+                })
+              }
+            >
+              <Flag size={14} color={colors.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -698,7 +716,7 @@ export default function FeedScreen() {
           <>
             <FormattedText content={post.content} style={styles.postContent} />
             <View style={{ paddingHorizontal: 16 }}>
-              <SocialSourceBadge text={post.content} linkUrl={post.video_url || undefined} />
+              <SocialSourceBadge text={post.content || ''} linkUrl={post.video_url || undefined} />
             </View>
           </>
         ) : null}
@@ -1086,6 +1104,17 @@ export default function FeedScreen() {
         onLikeToggle={handleLike}
         onOpenComments={openCommentsModal}
       />
+
+      {/* Moderation / Report Offence Modal */}
+      {reportingUser && (
+        <ReportModal
+          visible={!!reportingUser}
+          targetUserId={reportingUser.id}
+          targetUserName={reportingUser.name}
+          targetPostId={reportingUser.postId}
+          onClose={() => setReportingUser(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }

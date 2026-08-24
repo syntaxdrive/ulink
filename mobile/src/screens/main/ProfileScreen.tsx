@@ -30,12 +30,15 @@ import {
   Trash2,
   Shield,
   ChevronRight,
+  ChevronLeft,
+  Flag,
   Moon,
   Sun,
 } from 'lucide-react-native';
 import { colors, useTheme } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { ReportModal } from '../../components/ReportModal';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 40) / 2;
@@ -73,13 +76,18 @@ interface UserPost {
   created_at: string;
 }
 
-export default function ProfileScreen({ navigation }: any) {
+export default function ProfileScreen({ navigation, route }: any) {
   const { colors, isDark, toggleTheme } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   const logout = useAuthStore((state) => state.logout);
+
+  const routeUserId = route?.params?.userId;
+  const isOwnProfile = !routeUserId || routeUserId === currentUserId;
 
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -103,13 +111,16 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const currentUid = session?.user?.id;
+      if (currentUid) setCurrentUserId(currentUid);
 
-      if (currentUid) {
+      const targetUid = routeUserId || currentUid;
+
+      if (targetUid) {
         // 1. Fetch profile from Supabase
         const { data: profData, error: profError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', currentUid)
+          .eq('id', targetUid)
           .single();
 
         if (profData && !profError) {
@@ -120,7 +131,7 @@ export default function ProfileScreen({ navigation }: any) {
         const { data: postsData } = await supabase
           .from('posts')
           .select('id, content, image_url, likes_count, comments_count, created_at')
-          .eq('author_id', currentUid)
+          .eq('author_id', targetUid)
           .order('created_at', { ascending: false });
 
         if (postsData) {
@@ -133,7 +144,7 @@ export default function ProfileScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [routeUserId]);
 
   useEffect(() => {
     fetchProfileData();
@@ -250,10 +261,23 @@ export default function ProfileScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       {/* Top Navigation Bar */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
-          <LogOut color={colors.danger} size={20} />
-        </TouchableOpacity>
+        {!isOwnProfile ? (
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+            <ChevronLeft color={colors.text} size={22} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
+        <Text style={styles.headerTitle}>{isOwnProfile ? 'Profile' : `@${profile?.username || 'profile'}`}</Text>
+        {isOwnProfile ? (
+          <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
+            <LogOut color={colors.danger} size={20} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.iconButton} onPress={() => setReportModalVisible(true)}>
+            <Flag color="#EF4444" size={20} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -324,7 +348,7 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
 
           {/* Admin Dashboard Entry (Visible ONLY to Staff / Admins) */}
-          {profile?.is_admin && (
+          {isOwnProfile && profile?.is_admin && (
             <TouchableOpacity
               style={styles.adminPanelBtn}
               onPress={() => navigation?.navigate('Admin')}
@@ -343,42 +367,55 @@ export default function ProfileScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
 
-          {/* Edit Profile Action Button */}
-          <TouchableOpacity
-            style={[styles.editProfileBtn, { backgroundColor: isDark ? '#27272A' : '#F3F4F6', borderColor: colors.border }]}
-            onPress={handleOpenEdit}
-          >
-            <Edit3 size={15} color={colors.text} style={{ marginRight: 6 }} />
-            <Text style={[styles.editProfileBtnText, { color: colors.text }]}>Edit Profile</Text>
-          </TouchableOpacity>
+          {/* Edit Profile Action Button (If Own Profile) */}
+          {isOwnProfile ? (
+            <TouchableOpacity
+              style={[styles.editProfileBtn, { backgroundColor: isDark ? '#27272A' : '#F3F4F6', borderColor: colors.border }]}
+              onPress={handleOpenEdit}
+            >
+              <Edit3 size={15} color={colors.text} style={{ marginRight: 6 }} />
+              <Text style={[styles.editProfileBtnText, { color: colors.text }]}>Edit Profile</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.reportStudentBtn}
+              onPress={() => setReportModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Flag size={15} color="#DC2626" style={{ marginRight: 6 }} />
+              <Text style={styles.reportStudentBtnText}>Report Offence / Account</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Theme Mode Switcher (Light / Dark) */}
-          <TouchableOpacity
-            style={[styles.themeToggleCard, { backgroundColor: isDark ? '#1C1C1E' : '#F9FAFB', borderColor: colors.border }]}
-            onPress={toggleTheme}
-            activeOpacity={0.8}
-          >
-            <View style={styles.themeToggleLeft}>
-              {isDark ? (
-                <Moon size={18} color="#10B981" />
-              ) : (
-                <Sun size={18} color="#F59E0B" />
-              )}
-              <View style={{ marginLeft: 10 }}>
-                <Text style={[styles.themeToggleTitle, { color: colors.text }]}>
-                  {isDark ? 'Dark Theme' : 'Light Theme'}
-                </Text>
-                <Text style={[styles.themeToggleSubtitle, { color: colors.textSecondary }]}>
-                  Tap to switch to {isDark ? 'Light' : 'Dark'} mode
+          {isOwnProfile && (
+            <TouchableOpacity
+              style={[styles.themeToggleCard, { backgroundColor: isDark ? '#1C1C1E' : '#F9FAFB', borderColor: colors.border }]}
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+            >
+              <View style={styles.themeToggleLeft}>
+                {isDark ? (
+                  <Moon size={18} color="#10B981" />
+                ) : (
+                  <Sun size={18} color="#F59E0B" />
+                )}
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={[styles.themeToggleTitle, { color: colors.text }]}>
+                    {isDark ? 'Dark Theme' : 'Light Theme'}
+                  </Text>
+                  <Text style={[styles.themeToggleSubtitle, { color: colors.textSecondary }]}>
+                    Tap to switch to {isDark ? 'Light' : 'Dark'} mode
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.themePill, { backgroundColor: isDark ? '#064E3B' : '#E5E7EB' }]}>
+                <Text style={[styles.themePillText, { color: isDark ? '#10B981' : '#374151' }]}>
+                  {isDark ? '🌙 Dark' : '☀️ Light'}
                 </Text>
               </View>
-            </View>
-            <View style={[styles.themePill, { backgroundColor: isDark ? '#064E3B' : '#E5E7EB' }]}>
-              <Text style={[styles.themePillText, { color: isDark ? '#10B981' : '#374151' }]}>
-                {isDark ? '🌙 Dark' : '☀️ Light'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* User Posts Section */}
@@ -619,6 +656,16 @@ export default function ProfileScreen({ navigation }: any) {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* Report Offence / User Modal */}
+      {profile && !isOwnProfile && (
+        <ReportModal
+          visible={reportModalVisible}
+          targetUserId={profile.id}
+          targetUserName={profile.name || profile.username || 'student'}
+          onClose={() => setReportModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -818,6 +865,22 @@ const styles = StyleSheet.create({
   editProfileBtnText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  reportStudentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  reportStudentBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DC2626',
   },
   themeToggleCard: {
     flexDirection: 'row',

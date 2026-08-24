@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Radio } from 'lucide-react-native';
@@ -81,10 +82,12 @@ export default function SplashScreen({ navigation }: any) {
           },
         ]}
       >
-        {/* Glowing Logo Icon */}
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoBadgeText}>U</Text>
-        </View>
+        {/* Official App Logo */}
+        <Image
+          source={require('../../../assets/icon.png')}
+          style={styles.appLogo}
+          resizeMode="contain"
+        />
 
         {/* Brand Text */}
         <Text style={styles.brandTitle}>UniLink</Text>
@@ -93,7 +96,7 @@ export default function SplashScreen({ navigation }: any) {
         <ActivityIndicator
           size="small"
           color={colors.primary}
-          style={{ marginTop: 32 }}
+          style={{ marginTop: 36 }}
         />
       </Animated.View>
 
@@ -107,7 +110,7 @@ export default function SplashScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 32,
@@ -117,48 +120,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoBadge: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 10,
-    position: 'relative',
+  appLogo: {
+    width: 104,
+    height: 104,
+    borderRadius: 24,
     marginBottom: 20,
   },
-  logoBadgeText: {
-    fontSize: 44,
-    fontWeight: '900',
-    color: '#ffffff',
-  },
-  sparkleDot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#000000',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
   brandTitle: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '900',
-    color: colors.text,
-    letterSpacing: -1,
+    color: '#000000',
+    letterSpacing: -0.8,
   },
   brandSubtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.55)',
     marginTop: 6,
     fontWeight: '600',
   },

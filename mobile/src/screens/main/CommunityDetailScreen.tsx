@@ -41,6 +41,7 @@ import {
   Trash2,
   Camera,
   Check,
+  Flag,
 } from 'lucide-react-native';
 import { colors, useTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
@@ -49,6 +50,7 @@ import { VideoPlayer } from '../../components/VideoPlayer';
 import { FormattedText } from '../../components/FormattedText';
 import { SocialSourceBadge } from '../../components/SocialSourceBadge';
 import { PollCard } from '../../components/PollCard';
+import { ReportModal } from '../../components/ReportModal';
 import { extractYouTubeId, cleanVideoUrlsFromText } from '../../utils/videoUtils';
 import { uploadService, PickedMedia } from '../../services/uploadService';
 import { FeedService } from '../../services/feedService';
@@ -190,6 +192,9 @@ export default function CommunityDetailScreen() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Moderation / Report Offence Modal
+  const [reportingUser, setReportingUser] = useState<{ id: string; name: string; postId?: string } | null>(null);
 
   /* ── 1. Init Session & Community ── */
   useEffect(() => {
@@ -911,12 +916,25 @@ export default function CommunityDetailScreen() {
             </View>
           </View>
 
-          {canDelete && (
+          {canDelete ? (
             <TouchableOpacity
               style={styles.postDeleteBtn}
               onPress={() => handleDeletePost(item.id)}
             >
               <Trash2 size={15} color={colors.danger} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.postDeleteBtn}
+              onPress={() =>
+                setReportingUser({
+                  id: item.author_id || item.author?.id || '',
+                  name: item.author?.name || item.author?.username || 'student',
+                  postId: item.id,
+                })
+              }
+            >
+              <Flag size={14} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -925,7 +943,7 @@ export default function CommunityDetailScreen() {
           <>
             <FormattedText content={item.content} style={styles.postContent} />
             <View style={{ paddingHorizontal: 16 }}>
-              <SocialSourceBadge text={item.content} linkUrl={item.video_url || undefined} />
+              <SocialSourceBadge text={item.content || ''} linkUrl={item.video_url || undefined} />
             </View>
           </>
         ) : null}
@@ -1655,6 +1673,17 @@ export default function CommunityDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Moderation / Report Offence Modal */}
+      {reportingUser && (
+        <ReportModal
+          visible={!!reportingUser}
+          targetUserId={reportingUser.id}
+          targetUserName={reportingUser.name}
+          targetPostId={reportingUser.postId}
+          onClose={() => setReportingUser(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
