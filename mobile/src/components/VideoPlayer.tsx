@@ -163,7 +163,8 @@ const InternalYouTubePlayer: React.FC<InternalYouTubePlayerProps> = ({
       <body>
         <div class="video-container" id="videoBox">
           <iframe
-            src="https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&autoplay=1&playsinline=1&rel=0&modestbranding=1&fs=1"
+            id="ytPlayer"
+            src="https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&playsinline=1&rel=0&modestbranding=1&fs=1&origin=https://unilink.ng&widget_referrer=https://unilink.ng"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowfullscreen>
           </iframe>
@@ -209,17 +210,20 @@ const InternalYouTubePlayer: React.FC<InternalYouTubePlayerProps> = ({
         <View style={[styles.playerWrapper, { borderRadius }]}>
           <WebViewComponent
             ref={webViewRef}
-            source={{ html: embedHtml }}
+            source={{ html: embedHtml, baseUrl: 'https://unilink.ng' }}
             style={[styles.webView, { borderRadius }]}
             allowsInlineMediaPlayback={true}
             mediaPlaybackRequiresUserAction={false}
             javaScriptEnabled={true}
             domStorageEnabled={true}
+            allowsFullscreenVideo={true}
+            userAgent="Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             onMessage={handleMessage}
             onLoadStart={() => setIsLoading(true)}
             onLoadEnd={() => setIsLoading(false)}
             scrollEnabled={false}
             originWhitelist={['*']}
+            mixedContentMode="always"
           />
           {isLoading && (
             <View style={styles.loadingOverlay}>

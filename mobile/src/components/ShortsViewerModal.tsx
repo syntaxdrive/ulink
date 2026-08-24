@@ -65,6 +65,7 @@ const ShortItem: React.FC<ShortItemProps> = ({
 
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [showIndicator, setShowIndicator] = useState<boolean>(false);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState<boolean>(false);
   const webViewRef = useRef<any>(null);
   const indicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,7 +132,7 @@ const ShortItem: React.FC<ShortItemProps> = ({
         <body>
           <iframe
             id="ytIframe"
-            src="https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&playsinline=1&controls=0&rel=0&modestbranding=1&fs=1"
+            src="https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&playsinline=1&controls=0&rel=0&modestbranding=1&fs=1&origin=https://unilink.ng&widget_referrer=https://unilink.ng"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowfullscreen>
           </iframe>
@@ -183,14 +184,17 @@ const ShortItem: React.FC<ShortItemProps> = ({
         <WebViewComponent
           ref={webViewRef}
           style={styles.webView}
-          source={{ html: embedHtml }}
+          source={{ html: embedHtml, baseUrl: 'https://unilink.ng' }}
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
           javaScriptEnabled
           domStorageEnabled
+          allowsFullscreenVideo
+          userAgent="Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
           scalesPageToFit
           scrollEnabled={false}
           onMessage={handleMessage}
+          mixedContentMode="always"
         />
       ) : (
         <View style={styles.placeholderBlack} />
@@ -294,9 +298,26 @@ const ShortItem: React.FC<ShortItemProps> = ({
         </View>
 
         {cleanCaption ? (
-          <Text style={styles.captionText} numberOfLines={3}>
-            {cleanCaption}
-          </Text>
+          <View style={styles.captionContainer}>
+            <Text
+              style={styles.captionText}
+              numberOfLines={isCaptionExpanded ? undefined : 2}
+            >
+              {cleanCaption}
+            </Text>
+            {cleanCaption.length > 70 && (
+              <TouchableOpacity
+                onPress={() => setIsCaptionExpanded(!isCaptionExpanded)}
+                style={styles.readMoreBtn}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.readMoreText}>
+                  {isCaptionExpanded ? 'Show less' : '...read more'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         ) : null}
       </View>
     </View>
@@ -608,6 +629,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  captionContainer: {
+    marginTop: 4,
+  },
   captionText: {
     color: '#ffffff',
     fontSize: 13,
@@ -615,6 +639,18 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  readMoreBtn: {
+    marginTop: 3,
+    alignSelf: 'flex-start',
+  },
+  readMoreText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   emptyContainer: {
     flex: 1,
