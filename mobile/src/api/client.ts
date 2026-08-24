@@ -1,23 +1,25 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 
-const getBaseURL = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  
-  // Extract host IP dynamically from Expo Metro packager (e.g. 10.149.190.193)
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const hostIp = hostUri.split(':')[0];
-    if (hostIp) {
-      return `http://${hostIp}:3000/api/v1`;
-    }
+/**
+ * API base URL resolution:
+ * 1. Use EXPO_PUBLIC_API_URL if set in EAS env (production backend URL)
+ * 2. Otherwise use a non-crashing placeholder — the app primarily uses Supabase directly.
+ *    NestJS is only a fallback and its unavailability should not crash the app.
+ *
+ * NOTE: Constants.expoConfig.hostUri is ONLY available in Expo Go dev mode.
+ * In standalone APK builds it is always null/undefined. The old code silently
+ * fell back to a hardcoded local LAN IP (10.149.190.193) which fails in production.
+ */
+const getBaseURL = (): string => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
-
-  // Fallback IP for physical devices on local network
-  return 'http://10.149.190.193:3000/api/v1';
+  // All primary data comes from Supabase directly.
+  // NestJS API calls fail gracefully (caught by try/catch in callers).
+  return 'http://localhost:3000/api/v1';
 };
 
 const baseURL = getBaseURL();
@@ -25,20 +27,23 @@ const TOKEN_KEY = 'ulink_auth_token';
 
 export const apiClient = axios.create({
   baseURL,
-  timeout: 10000, // 10s timeout
+  timeout: 8000,
 });
 
 apiClient.interceptors.request.use(
   async (config) => {
-    let token: string | null = null;
-    if (Platform.OS === 'web') {
-      token = localStorage.getItem(TOKEN_KEY);
-    } else {
-      token = await SecureStore.getItemAsync(TOKEN_KEY);
-    }
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      let token: string | null = null;
+      if (Platform.OS === 'web') {
+        token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+      } else {
+        token = await SecureStore.getItemAsync(TOKEN_KEY);
+      }
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // SecureStore read failure is non-fatal
     }
     return config;
   },
