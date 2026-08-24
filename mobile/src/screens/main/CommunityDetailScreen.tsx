@@ -496,6 +496,63 @@ export default function CommunityDetailScreen() {
     }
   };
 
+  /* ── 4b. Direct Banner & DP Upload Handlers ── */
+  const handlePickBanner = async () => {
+    if (!community || !isAdmin) return;
+    try {
+      const picked = await uploadService.pickImages(1);
+      if (picked.length > 0) {
+        setEditCoverUri(picked[0].uri);
+        if (!isSettingsOpen) {
+          setSavingSettings(true);
+          const coverUrl = await uploadService.uploadFile({ uri: picked[0].uri, type: 'image' }, 'community-covers');
+          const { error } = await supabase
+            .from('communities')
+            .update({ cover_image_url: coverUrl })
+            .eq('id', community.id);
+          if (!error) {
+            setCommunity((prev) => (prev ? { ...prev, cover_url: coverUrl } : null));
+            Alert.alert('Banner Updated 🎉', 'Community cover banner has been updated.');
+          } else {
+            throw error;
+          }
+          setSavingSettings(false);
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Upload Error', err.message || 'Could not upload banner image.');
+      setSavingSettings(false);
+    }
+  };
+
+  const handlePickIcon = async () => {
+    if (!community || !isAdmin) return;
+    try {
+      const picked = await uploadService.pickImages(1);
+      if (picked.length > 0) {
+        setEditIconUri(picked[0].uri);
+        if (!isSettingsOpen) {
+          setSavingSettings(true);
+          const iconUrl = await uploadService.uploadFile({ uri: picked[0].uri, type: 'image' }, 'community-icons');
+          const { error } = await supabase
+            .from('communities')
+            .update({ icon_url: iconUrl })
+            .eq('id', community.id);
+          if (!error) {
+            setCommunity((prev) => (prev ? { ...prev, icon_url: iconUrl } : null));
+            Alert.alert('Icon Updated 🎉', 'Community display picture (DP) has been updated.');
+          } else {
+            throw error;
+          }
+          setSavingSettings(false);
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Upload Error', err.message || 'Could not upload icon DP.');
+      setSavingSettings(false);
+    }
+  };
+
   /* ── 5. Save Community Settings ── */
   const handleSaveSettings = async () => {
     if (!community || !editName.trim()) return;
@@ -512,22 +569,18 @@ export default function CommunityDetailScreen() {
         coverUrl = await uploadService.uploadFile({ uri: editCoverUri, type: 'image' }, 'community-covers');
       }
 
-      const updates = {
+      const updates: any = {
         name: editName.trim(),
         description: editDescription.trim() || null,
         privacy: editPrivacy,
-        category: editCategory,
-        posting_permission: editPostingPermission,
-        rules: editRules.trim() || null,
         icon_url: iconUrl,
-        cover_url: coverUrl,
         cover_image_url: coverUrl,
       };
 
       const { error } = await supabase.from('communities').update(updates).eq('id', community.id);
       if (error) throw error;
 
-      setCommunity((prev) => (prev ? { ...prev, ...updates } : null));
+      setCommunity((prev) => (prev ? { ...prev, ...updates, cover_url: coverUrl } : null));
       setIsSettingsOpen(false);
       Alert.alert('Settings Updated 🎉', 'Community settings have been saved successfully.');
     } catch (err: any) {
@@ -946,22 +999,43 @@ export default function CommunityDetailScreen() {
     if (!community) return null;
     return (
       <View style={styles.communityHeader}>
-        {/* Cover */}
-        {community.cover_url ? (
-          <Image source={{ uri: community.cover_url }} style={styles.coverImage} />
-        ) : (
-          <View style={styles.coverPlaceholder} />
-        )}
+        {/* Cover Banner */}
+        <TouchableOpacity
+          activeOpacity={isAdmin ? 0.85 : 1}
+          onPress={isAdmin ? handlePickBanner : undefined}
+          style={styles.coverWrapper}
+        >
+          {community.cover_url ? (
+            <Image source={{ uri: community.cover_url }} style={styles.coverImage} />
+          ) : (
+            <View style={styles.coverPlaceholder} />
+          )}
+          {isAdmin && (
+            <View style={styles.editBannerBadge}>
+              <Camera size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.editBannerBadgeText}>Edit Banner</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {/* Icon & Action Row */}
         <View style={styles.communityInfoRow}>
-          <View style={styles.iconContainer}>
+          <TouchableOpacity
+            activeOpacity={isAdmin ? 0.85 : 1}
+            onPress={isAdmin ? handlePickIcon : undefined}
+            style={styles.iconContainer}
+          >
             {community.icon_url ? (
               <Image source={{ uri: community.icon_url }} style={styles.communityIcon} />
             ) : (
               <Text style={styles.communityInitial}>{community.name[0].toUpperCase()}</Text>
             )}
-          </View>
+            {isAdmin && (
+              <View style={styles.editIconBadge}>
+                <Camera size={11} color="#FFFFFF" />
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={styles.headerBtnsRow}>
             {/* Manage Members */}
@@ -1240,9 +1314,33 @@ export default function CommunityDetailScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.settingsFormScroll} showsVerticalScrollIndicator={false}>
-              {/* Display Picture & Cover Upload */}
+              {/* Cover Banner Upload */}
               <View style={styles.formSection}>
-                <Text style={styles.formLabel}>Community Logo / Icon</Text>
+                <Text style={styles.formLabel}>Community Cover Banner</Text>
+                <TouchableOpacity
+                  style={styles.coverUploadBox}
+                  onPress={async () => {
+                    const media = await uploadService.pickImages(1);
+                    if (media.length > 0) setEditCoverUri(media[0].uri);
+                  }}
+                >
+                  {editCoverUri || community?.cover_url ? (
+                    <Image
+                      source={{ uri: editCoverUri || community?.cover_url || '' }}
+                      style={styles.uploadedCoverPreview}
+                    />
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Camera size={24} color={colors.primary} />
+                      <Text style={styles.uploadText}>Upload Cover Banner</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Logo / Icon DP Upload */}
+              <View style={styles.formSection}>
+                <Text style={styles.formLabel}>Community Display Picture (DP) / Icon</Text>
                 <TouchableOpacity
                   style={styles.logoUploadBox}
                   onPress={async () => {
@@ -1258,7 +1356,7 @@ export default function CommunityDetailScreen() {
                   ) : (
                     <View style={styles.uploadPlaceholder}>
                       <Camera size={24} color={colors.primary} />
-                      <Text style={styles.uploadText}>Change Logo</Text>
+                      <Text style={styles.uploadText}>Upload Community DP</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -1274,40 +1372,6 @@ export default function CommunityDetailScreen() {
                   placeholder="Community Name"
                   placeholderTextColor={colors.textSecondary}
                 />
-              </View>
-
-              {/* Category */}
-              <View style={styles.formSection}>
-                <Text style={styles.formLabel}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 8 }}>
-                  {[
-                    'Academic',
-                    'Tech & Coding',
-                    'Career & Jobs',
-                    'Campus Life',
-                    'Sports & Gaming',
-                    'Creative & Arts',
-                    'Religion & Fellowship',
-                  ].map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[
-                        styles.categoryPill,
-                        editCategory === cat && styles.categoryPillActive,
-                      ]}
-                      onPress={() => setEditCategory(cat)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryPillText,
-                          editCategory === cat && styles.categoryPillTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
               </View>
 
               {/* Privacy Setting Toggle */}
@@ -1614,8 +1678,25 @@ const styles = StyleSheet.create({
 
   // Community Header
   communityHeader: { backgroundColor: colors.background },
+  coverWrapper: { position: 'relative', width, height: 140 },
   coverImage: { width, height: 140, resizeMode: 'cover' },
   coverPlaceholder: { width, height: 140, backgroundColor: colors.surfaceElevated },
+  editBannerBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  editBannerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   communityInfoRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1633,6 +1714,18 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.background,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  editIconBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   communityIcon: { width: 72, height: 72 },
   communityInitial: { color: colors.primary, fontSize: 28, fontWeight: '900' },
@@ -1882,6 +1975,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 8,
   },
+  coverUploadBox: {
+    width: '100%',
+    height: 110,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceElevated,
+    overflow: 'hidden',
+  },
+  uploadedCoverPreview: { width: '100%', height: 110, resizeMode: 'cover' },
   logoUploadBox: {
     width: 72,
     height: 72,

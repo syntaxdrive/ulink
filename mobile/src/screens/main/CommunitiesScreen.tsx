@@ -233,11 +233,10 @@ export default function CommunitiesScreen() {
           name: createName.trim(),
           slug,
           description: createDescription.trim() || null,
-          category: createCategory,
           privacy: createPrivacy,
           icon_url: iconUrl,
-          cover_url: coverUrl,
-          creator_id: currentUserId,
+          cover_image_url: coverUrl,
+          created_by: currentUserId,
         })
         .select('*')
         .single();

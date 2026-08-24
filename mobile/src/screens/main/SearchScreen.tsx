@@ -47,7 +47,8 @@ interface CommunityResult {
   slug?: string;
   description: string | null;
   icon_url: string | null;
-  cover_url: string | null;
+  cover_url?: string | null;
+  cover_image_url?: string | null;
   privacy: 'public' | 'private';
   category?: string;
   members_count?: number;
@@ -108,7 +109,7 @@ export default function SearchScreen() {
             .limit(10),
           supabase
             .from('communities')
-            .select('id, name, slug, description, icon_url, cover_url, privacy, category, members_count')
+            .select('id, name, slug, description, icon_url, cover_image_url, privacy, members_count')
             .order('members_count', { ascending: false })
             .limit(8),
           supabase
@@ -121,7 +122,12 @@ export default function SearchScreen() {
           setPeople(peopleRes.value.data as UserProfile[]);
         }
         if (commRes.status === 'fulfilled' && commRes.value.data) {
-          setCommunities(commRes.value.data as CommunityResult[]);
+          setCommunities(
+            (commRes.value.data || []).map((c: any) => ({
+              ...c,
+              cover_url: c.cover_image_url || c.cover_url || null,
+            })) as CommunityResult[]
+          );
         }
         if (podRes.status === 'fulfilled' && podRes.value.data) {
           setPodcasts(podRes.value.data as PodcastResult[]);
@@ -139,8 +145,8 @@ export default function SearchScreen() {
           .limit(20),
         supabase
           .from('communities')
-          .select('id, name, slug, description, icon_url, cover_url, privacy, category, members_count')
-          .or(`name.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%`)
+          .select('id, name, slug, description, icon_url, cover_image_url, privacy, members_count')
+          .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
           .limit(20),
         supabase
           .from('podcasts')
@@ -165,7 +171,12 @@ export default function SearchScreen() {
       }
 
       if (commRes.status === 'fulfilled' && commRes.value.data) {
-        setCommunities(commRes.value.data as CommunityResult[]);
+        setCommunities(
+          (commRes.value.data || []).map((c: any) => ({
+            ...c,
+            cover_url: c.cover_image_url || c.cover_url || null,
+          })) as CommunityResult[]
+        );
       } else {
         setCommunities([]);
       }
