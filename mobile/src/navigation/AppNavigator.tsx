@@ -20,6 +20,7 @@ import CommunityDetailScreen from '../screens/main/CommunityDetailScreen';
 import StudyScreen from '../screens/main/StudyScreen';
 import SearchScreen from '../screens/main/SearchScreen';
 import AdminScreen from '../screens/main/AdminScreen';
+import ProfileScreen from '../screens/main/ProfileScreen';
 import { GlobalAudioEngine } from '../components/GlobalAudioEngine';
 import { GlobalMiniPlayer } from '../components/GlobalMiniPlayer';
 import { GlobalPublishBanner } from '../components/GlobalPublishBanner';
@@ -30,6 +31,7 @@ function MainNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs"        component={TabNavigator} />
+      <Stack.Screen name="Profile"         component={ProfileScreen} />
       <Stack.Screen name="Messages"        component={MessagesScreen} />
       <Stack.Screen name="Podcasts"        component={PodcastsScreen} />
       <Stack.Screen name="Podcast"         component={PodcastScreen} />

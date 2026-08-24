@@ -14,6 +14,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Share,
+  Linking,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -34,6 +37,16 @@ import {
   Flag,
   Moon,
   Sun,
+  UserPlus,
+  UserCheck,
+  UserX,
+  MessageCircle,
+  Share2,
+  Sparkles,
+  Link2,
+  Clock,
+  ExternalLink,
+  GraduationCap,
 } from 'lucide-react-native';
 import { colors, useTheme } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
@@ -76,9 +89,20 @@ interface UserPost {
   created_at: string;
 }
 
+interface MiniStudent {
+  id: string;
+  name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  university: string | null;
+  is_verified: boolean;
+  headline: string | null;
+}
+
 export default function ProfileScreen({ navigation, route }: any) {
   const { colors, isDark, toggleTheme } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,6 +112,21 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const routeUserId = route?.params?.userId;
   const isOwnProfile = !routeUserId || routeUserId === currentUserId;
+
+  // Social Interaction States
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+  // Connection State: 'none' | 'pending_sent' | 'pending_received' | 'accepted'
+  const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending_sent' | 'pending_received' | 'accepted'>('none');
+  const [connectionLoading, setConnectionLoading] = useState(false);
+
+  // Followers / Following Modal State
+  const [socialModalType, setSocialModalType] = useState<'followers' | 'following' | null>(null);
+  const [socialList, setSocialList] = useState<MiniStudent[]>([]);
+  const [socialListLoading, setSocialListLoading] = useState(false);
 
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -115,6 +154,16 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       const targetUid = routeUserId || currentUid;
 
+      if (currentUid && currentUid !== targetUid) {
+        // Fetch current user's profile for mutual university comparison
+        const { data: myData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUid)
+          .single();
+        if (myData) setCurrentUserProfile(myData as UserProfile);
+      }
+
       if (targetUid) {
         // 1. Fetch profile from Supabase
         const { data: profData, error: profError } = await supabase
@@ -124,10 +173,63 @@ export default function ProfileScreen({ navigation, route }: any) {
           .single();
 
         if (profData && !profError) {
-          setProfile(profData as UserProfile);
+          const userProf = profData as UserProfile;
+          setProfile(userProf);
+          setFollowersCount(userProf.followers_count ?? 0);
+          setFollowingCount(userProf.following_count ?? 0);
         }
 
-        // 2. Fetch posts from Supabase
+        // 2. Fetch live follow counts & status if viewing another user
+        if (currentUid && targetUid !== currentUid) {
+          const [followCheck, connCheck, { count: fc }, { count: fgc }] = await Promise.all([
+            supabase
+              .from('follows')
+              .select('id')
+              .eq('follower_id', currentUid)
+              .eq('following_id', targetUid)
+              .maybeSingle(),
+            supabase
+              .from('connections')
+              .select('id, requester_id, recipient_id, status')
+              .or(`and(requester_id.eq.${currentUid},recipient_id.eq.${targetUid}),and(requester_id.eq.${targetUid},recipient_id.eq.${currentUid})`)
+              .maybeSingle(),
+            supabase
+              .from('follows')
+              .select('*', { count: 'exact', head: true })
+              .eq('following_id', targetUid),
+            supabase
+              .from('follows')
+              .select('*', { count: 'exact', head: true })
+              .eq('follower_id', targetUid),
+          ]);
+
+          setIsFollowing(!!followCheck.data);
+          if (fc !== null) setFollowersCount(fc);
+          if (fgc !== null) setFollowingCount(fgc);
+
+          if (connCheck.data) {
+            const conn = connCheck.data;
+            if (conn.status === 'accepted') {
+              setConnectionStatus('accepted');
+            } else if (conn.requester_id === currentUid) {
+              setConnectionStatus('pending_sent');
+            } else {
+              setConnectionStatus('pending_received');
+            }
+          } else {
+            setConnectionStatus('none');
+          }
+        } else if (targetUid) {
+          // Live count for own profile
+          const [{ count: fc }, { count: fgc }] = await Promise.all([
+            supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', targetUid),
+            supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', targetUid),
+          ]);
+          if (fc !== null) setFollowersCount(fc);
+          if (fgc !== null) setFollowingCount(fgc);
+        }
+
+        // 3. Fetch posts from Supabase
         const { data: postsData } = await supabase
           .from('posts')
           .select('id, content, image_url, likes_count, comments_count, created_at')
@@ -153,6 +255,187 @@ export default function ProfileScreen({ navigation, route }: any) {
   const onRefresh = () => {
     setRefreshing(true);
     fetchProfileData();
+  };
+
+  // Follow / Unfollow Toggle
+  const handleToggleFollow = async () => {
+    if (!currentUserId || !profile?.id || isOwnProfile || followLoading) return;
+
+    setFollowLoading(true);
+    const prevFollowing = isFollowing;
+    const nextFollowing = !prevFollowing;
+
+    // Optimistic Update
+    setIsFollowing(nextFollowing);
+    setFollowersCount((prev) => (nextFollowing ? prev + 1 : Math.max(0, prev - 1)));
+
+    try {
+      if (nextFollowing) {
+        const { error } = await supabase
+          .from('follows')
+          .insert({ follower_id: currentUserId, following_id: profile.id });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', currentUserId)
+          .eq('following_id', profile.id);
+        if (error) throw error;
+      }
+    } catch (err: any) {
+      console.warn('Error toggling follow:', err);
+      // Revert on error
+      setIsFollowing(prevFollowing);
+      setFollowersCount((prev) => (prevFollowing ? prev + 1 : Math.max(0, prev - 1)));
+      Alert.alert('Follow Error', 'Could not update follow status. Please try again.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  // Connection Request Handling
+  const handleConnectionAction = async () => {
+    if (!currentUserId || !profile?.id || isOwnProfile || connectionLoading) return;
+
+    setConnectionLoading(true);
+    try {
+      if (connectionStatus === 'none') {
+        // Send connection request
+        setConnectionStatus('pending_sent');
+        const { error } = await supabase.from('connections').insert({
+          requester_id: currentUserId,
+          recipient_id: profile.id,
+          status: 'pending',
+        });
+        if (error) throw error;
+        Alert.alert('Request Sent', `Connection invitation sent to ${profile.name || profile.username}!`);
+      } else if (connectionStatus === 'pending_sent') {
+        // Cancel pending request
+        setConnectionStatus('none');
+        const { error } = await supabase
+          .from('connections')
+          .delete()
+          .eq('requester_id', currentUserId)
+          .eq('recipient_id', profile.id);
+        if (error) throw error;
+      } else if (connectionStatus === 'pending_received') {
+        // Accept incoming request
+        setConnectionStatus('accepted');
+        const { error } = await supabase
+          .from('connections')
+          .update({ status: 'accepted' })
+          .eq('requester_id', profile.id)
+          .eq('recipient_id', currentUserId);
+        if (error) throw error;
+        Alert.alert('Connected!', `You and ${profile.name || profile.username} are now campus connections!`);
+      } else if (connectionStatus === 'accepted') {
+        // Option to disconnect
+        Alert.alert(
+          'Campus Connection',
+          `Are you sure you want to disconnect from ${profile.name || profile.username}?`,
+          [
+            { text: 'Keep Connected', style: 'cancel' },
+            {
+              text: 'Disconnect',
+              style: 'destructive',
+              onPress: async () => {
+                setConnectionStatus('none');
+                await supabase
+                  .from('connections')
+                  .delete()
+                  .or(`and(requester_id.eq.${currentUserId},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${currentUserId})`);
+              },
+            },
+          ]
+        );
+      }
+    } catch (err: any) {
+      console.warn('Connection action error:', err);
+      Alert.alert('Error', err.message || 'Could not complete connection action.');
+      fetchProfileData();
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  // Direct Message
+  const handleOpenMessage = () => {
+    if (!profile) return;
+    navigation.navigate('Messages', {
+      targetUser: {
+        id: profile.id,
+        name: profile.name,
+        username: profile.username,
+        avatar_url: profile.avatar_url,
+        is_verified: profile.is_verified,
+      },
+    });
+  };
+
+  // Share Profile
+  const handleShareProfile = async () => {
+    if (!profile) return;
+    try {
+      const shareUrl = `https://unilink.app/u/${profile.username || profile.id}`;
+      await Share.share({
+        title: `${profile.name || profile.username} on UniLink`,
+        message: `Connect with ${profile.name || profile.username} (${profile.university || 'Campus Student'}) on UniLink!\n\n${shareUrl}`,
+      });
+    } catch (err) {
+      console.warn('Error sharing profile:', err);
+    }
+  };
+
+  // Open Social / External Link
+  const handleOpenLink = (url: string | null) => {
+    if (!url) return;
+    const formatted = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+    Linking.openURL(formatted).catch(() => Alert.alert('Invalid Link', 'Could not open this webpage.'));
+  };
+
+  // Fetch Followers or Following list for modal
+  const handleOpenSocialList = async (type: 'followers' | 'following') => {
+    if (!profile?.id) return;
+    setSocialModalType(type);
+    setSocialListLoading(true);
+    setSocialList([]);
+
+    try {
+      if (type === 'followers') {
+        const { data, error } = await supabase
+          .from('follows')
+          .select(`
+            follower:profiles!follower_id (
+              id, name, username, avatar_url, university, is_verified, headline
+            )
+          `)
+          .eq('following_id', profile.id)
+          .limit(60);
+
+        if (error) throw error;
+        const students = (data?.map((d: any) => d.follower).filter(Boolean) || []) as MiniStudent[];
+        setSocialList(students);
+      } else {
+        const { data, error } = await supabase
+          .from('follows')
+          .select(`
+            following:profiles!following_id (
+              id, name, username, avatar_url, university, is_verified, headline
+            )
+          `)
+          .eq('follower_id', profile.id)
+          .limit(60);
+
+        if (error) throw error;
+        const students = (data?.map((d: any) => d.following).filter(Boolean) || []) as MiniStudent[];
+        setSocialList(students);
+      }
+    } catch (err: any) {
+      console.warn('Error fetching social list:', err);
+    } finally {
+      setSocialListLoading(false);
+    }
   };
 
   const handleOpenEdit = () => {
@@ -249,6 +532,12 @@ export default function ProfileScreen({ navigation, route }: any) {
     ]);
   };
 
+  const isSameUniversity =
+    !isOwnProfile &&
+    profile?.university &&
+    currentUserProfile?.university &&
+    profile.university.toLowerCase() === currentUserProfile.university.toLowerCase();
+
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -266,7 +555,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <ChevronLeft color={colors.text} size={22} />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 36 }} />
+          <View style={{ width: 38 }} />
         )}
         <Text style={styles.headerTitle}>{isOwnProfile ? 'Profile' : `@${profile?.username || 'profile'}`}</Text>
         {isOwnProfile ? (
@@ -274,9 +563,14 @@ export default function ProfileScreen({ navigation, route }: any) {
             <LogOut color={colors.danger} size={20} />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.iconButton} onPress={() => setReportModalVisible(true)}>
-            <Flag color="#EF4444" size={20} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={styles.iconButton} onPress={handleShareProfile}>
+              <Share2 color={colors.text} size={18} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={() => setReportModalVisible(true)}>
+              <Flag color="#EF4444" size={18} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -314,6 +608,16 @@ export default function ProfileScreen({ navigation, route }: any) {
             </View>
           </View>
 
+          {/* Same University Proximity Pill */}
+          {isSameUniversity && (
+            <View style={styles.campusProximityPill}>
+              <GraduationCap size={13} color="#059669" />
+              <Text style={styles.campusProximityText}>
+                Fellow student at {profile?.university}
+              </Text>
+            </View>
+          )}
+
           {/* Headline / Bio */}
           {profile?.headline ? (
             <Text style={styles.headlineText}>{profile.headline}</Text>
@@ -321,7 +625,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
           {profile?.about ? <Text style={styles.aboutText}>{profile.about}</Text> : null}
 
-          {/* Location & Links */}
+          {/* Location */}
           {profile?.location ? (
             <View style={styles.metaInfoRow}>
               <MapPin size={13} color={colors.textSecondary} />
@@ -329,23 +633,166 @@ export default function ProfileScreen({ navigation, route }: any) {
             </View>
           ) : null}
 
-          {/* Stats Bar */}
+          {/* Skills Chips */}
+          {profile?.skills && (
+            <View style={styles.skillsContainer}>
+              {(Array.isArray(profile.skills) ? profile.skills : profile.skills.split(',')).map((skill, idx) => {
+                const s = typeof skill === 'string' ? skill.trim() : '';
+                if (!s) return null;
+                return (
+                  <View key={idx} style={[styles.skillChip, { backgroundColor: isDark ? '#27272A' : '#F3F4F6' }]}>
+                    <Text style={[styles.skillChipText, { color: colors.text }]}>{s}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Social & Portfolio Links Row */}
+          {(profile?.website_url || profile?.github_url || profile?.linkedin_url || profile?.twitter_url) && (
+            <View style={styles.socialChipsRow}>
+              {profile?.website_url && (
+                <TouchableOpacity
+                  style={[styles.socialChip, { borderColor: colors.border }]}
+                  onPress={() => handleOpenLink(profile.website_url)}
+                >
+                  <Globe size={13} color={colors.primary} />
+                  <Text style={[styles.socialChipText, { color: colors.text }]}>Website</Text>
+                </TouchableOpacity>
+              )}
+              {profile?.github_url && (
+                <TouchableOpacity
+                  style={[styles.socialChip, { borderColor: colors.border }]}
+                  onPress={() => handleOpenLink(profile.github_url)}
+                >
+                  <ExternalLink size={13} color={colors.text} />
+                  <Text style={[styles.socialChipText, { color: colors.text }]}>GitHub</Text>
+                </TouchableOpacity>
+              )}
+              {profile?.linkedin_url && (
+                <TouchableOpacity
+                  style={[styles.socialChip, { borderColor: colors.border }]}
+                  onPress={() => handleOpenLink(profile.linkedin_url)}
+                >
+                  <ExternalLink size={13} color="#0A66C2" />
+                  <Text style={[styles.socialChipText, { color: '#0A66C2' }]}>LinkedIn</Text>
+                </TouchableOpacity>
+              )}
+              {profile?.twitter_url && (
+                <TouchableOpacity
+                  style={[styles.socialChip, { borderColor: colors.border }]}
+                  onPress={() => handleOpenLink(profile.twitter_url)}
+                >
+                  <ExternalLink size={13} color="#1DA1F2" />
+                  <Text style={[styles.socialChipText, { color: '#1DA1F2' }]}>Twitter / X</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Interactive Stats Bar */}
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{posts.length}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{profile?.followers_count ?? 0}</Text>
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => handleOpenSocialList('followers')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statNumber, { color: colors.primary }]}>{followersCount}</Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{profile?.following_count ?? 0}</Text>
+            <TouchableOpacity
+              style={styles.statBox}
+              onPress={() => handleOpenSocialList('following')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statNumber, { color: colors.primary }]}>{followingCount}</Text>
               <Text style={styles.statLabel}>Following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
+
+          {/* Interaction Buttons for Other Profiles */}
+          {!isOwnProfile && (
+            <View style={styles.socialActionGroup}>
+              {/* Follow Button */}
+              <TouchableOpacity
+                style={[
+                  styles.followBtn,
+                  isFollowing
+                    ? [styles.followingBtnActive, { borderColor: colors.border, backgroundColor: isDark ? '#27272A' : '#F3F4F6' }]
+                    : { backgroundColor: colors.primary },
+                ]}
+                onPress={handleToggleFollow}
+                disabled={followLoading}
+                activeOpacity={0.8}
+              >
+                {isFollowing ? (
+                  <>
+                    <UserCheck size={16} color="#059669" style={{ marginRight: 6 }} />
+                    <Text style={[styles.followingBtnText, { color: colors.text }]}>Following</Text>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.followBtnText}>Follow</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Connect Button */}
+              <TouchableOpacity
+                style={[
+                  styles.connectBtn,
+                  connectionStatus === 'accepted'
+                    ? { backgroundColor: '#ECFDF5', borderColor: '#10B981' }
+                    : connectionStatus === 'pending_sent'
+                    ? { backgroundColor: isDark ? '#27272A' : '#F3F4F6', borderColor: colors.border }
+                    : connectionStatus === 'pending_received'
+                    ? { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }
+                    : { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: colors.border },
+                ]}
+                onPress={handleConnectionAction}
+                disabled={connectionLoading}
+                activeOpacity={0.8}
+              >
+                {connectionStatus === 'accepted' ? (
+                  <>
+                    <Users size={15} color="#059669" style={{ marginRight: 5 }} />
+                    <Text style={[styles.connectBtnText, { color: '#059669' }]}>Connected</Text>
+                  </>
+                ) : connectionStatus === 'pending_sent' ? (
+                  <>
+                    <Clock size={15} color={colors.textSecondary} style={{ marginRight: 5 }} />
+                    <Text style={[styles.connectBtnText, { color: colors.textSecondary }]}>Pending</Text>
+                  </>
+                ) : connectionStatus === 'pending_received' ? (
+                  <>
+                    <Check size={15} color="#2563EB" style={{ marginRight: 5 }} />
+                    <Text style={[styles.connectBtnText, { color: '#2563EB' }]}>Accept</Text>
+                  </>
+                ) : (
+                  <>
+                    <Link2 size={15} color={colors.text} style={{ marginRight: 5 }} />
+                    <Text style={[styles.connectBtnText, { color: colors.text }]}>Connect</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Direct Message Icon Button */}
+              <TouchableOpacity
+                style={[styles.messageIconBtn, { backgroundColor: isDark ? '#27272A' : '#F3F4F6', borderColor: colors.border }]}
+                onPress={handleOpenMessage}
+                activeOpacity={0.8}
+              >
+                <MessageCircle size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Admin Dashboard Entry (Visible ONLY to Staff / Admins) */}
           {isOwnProfile && profile?.is_admin && (
@@ -368,22 +815,13 @@ export default function ProfileScreen({ navigation, route }: any) {
           )}
 
           {/* Edit Profile Action Button (If Own Profile) */}
-          {isOwnProfile ? (
+          {isOwnProfile && (
             <TouchableOpacity
               style={[styles.editProfileBtn, { backgroundColor: isDark ? '#27272A' : '#F3F4F6', borderColor: colors.border }]}
               onPress={handleOpenEdit}
             >
               <Edit3 size={15} color={colors.text} style={{ marginRight: 6 }} />
               <Text style={[styles.editProfileBtnText, { color: colors.text }]}>Edit Profile</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.reportStudentBtn}
-              onPress={() => setReportModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Flag size={15} color="#DC2626" style={{ marginRight: 6 }} />
-              <Text style={styles.reportStudentBtnText}>Report Offence / Account</Text>
             </TouchableOpacity>
           )}
 
@@ -420,13 +858,17 @@ export default function ProfileScreen({ navigation, route }: any) {
 
         {/* User Posts Section */}
         <View style={styles.postsSection}>
-          <Text style={styles.sectionTitle}>Your Posts ({posts.length})</Text>
+          <Text style={styles.sectionTitle}>
+            {isOwnProfile ? 'Your Posts' : `${profile?.name || 'User'}'s Posts`} ({posts.length})
+          </Text>
 
           {posts.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateTitle}>No posts yet</Text>
               <Text style={styles.emptyStateSubtitle}>
-                Share thoughts, project updates, or course notes with your university campus.
+                {isOwnProfile
+                  ? 'Share thoughts, project updates, or course notes with your university campus.'
+                  : 'This student has not shared any campus updates yet.'}
               </Text>
             </View>
           ) : (
@@ -447,12 +889,14 @@ export default function ProfileScreen({ navigation, route }: any) {
                       <Text style={styles.postCardMeta}>❤️ {post.likes_count}</Text>
                       <Text style={styles.postCardMeta}>💬 {post.comments_count}</Text>
                     </View>
-                    <TouchableOpacity
-                      style={styles.postDeleteBtn}
-                      onPress={() => handleDeletePost(post.id)}
-                    >
-                      <Trash2 size={13} color={colors.danger} />
-                    </TouchableOpacity>
+                    {isOwnProfile && (
+                      <TouchableOpacity
+                        style={styles.postDeleteBtn}
+                        onPress={() => handleDeletePost(post.id)}
+                      >
+                        <Trash2 size={13} color={colors.danger} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ))}
@@ -461,29 +905,112 @@ export default function ProfileScreen({ navigation, route }: any) {
         </View>
       </ScrollView>
 
-      {/* ── Edit Profile Modal ─────────────────────────────────────────── */}
+      {/* Followers & Following Bottom Sheet / Modal */}
+      <Modal
+        visible={!!socialModalType}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSocialModalType(null)}
+      >
+        <SafeAreaView style={[styles.modalSafeArea, { backgroundColor: isDark ? '#121212' : '#FFFFFF' }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {socialModalType === 'followers' ? 'Followers' : 'Following'}
+            </Text>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSocialModalType(null)}>
+              <X size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {socialListLoading ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : socialList.length === 0 ? (
+            <View style={styles.emptySocialList}>
+              <Users size={32} color={colors.textSecondary} style={{ marginBottom: 10 }} />
+              <Text style={styles.emptySocialTitle}>
+                {socialModalType === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
+              </Text>
+              <Text style={styles.emptySocialSubtitle}>
+                {socialModalType === 'followers'
+                  ? 'When students follow this profile, they will appear here.'
+                  : 'Profiles followed by this student will be listed here.'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={socialList}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ padding: 16 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.socialListItem, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setSocialModalType(null);
+                    if (item.id === currentUserId) {
+                      navigation.navigate('MainTabs', { screen: 'Profile' });
+                    } else {
+                      navigation.push('Profile', { userId: item.id });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.miniAvatar} />
+                  ) : (
+                    <View style={styles.miniAvatarPlaceholder}>
+                      <Text style={styles.miniAvatarText}>
+                        {(item.name || item.username || 'U')[0].toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={[styles.socialListName, { color: colors.text }]}>
+                        {item.name || item.username || 'Student'}
+                      </Text>
+                      {item.is_verified && <CheckCircle2 size={13} color={colors.primary} />}
+                    </View>
+                    <Text style={styles.socialListUsername}>@{item.username || 'student'}</Text>
+                    {item.university && (
+                      <Text style={styles.socialListUniv} numberOfLines={1}>
+                        🎓 {item.university}
+                      </Text>
+                    )}
+                  </View>
+
+                  <ChevronRight size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Edit Profile Modal */}
       <Modal
         visible={isEditModalOpen}
         animationType="slide"
-        transparent={false}
+        presentationStyle="pageSheet"
         onRequestClose={() => setIsEditModalOpen(false)}
       >
-        <SafeAreaView style={styles.modalSafeArea}>
+        <SafeAreaView style={[styles.modalSafeArea, { backgroundColor: isDark ? '#121212' : '#FFFFFF' }]}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ flex: 1 }}
           >
-            {/* Modal Header */}
             <View style={styles.modalHeader}>
               <TouchableOpacity
-                onPress={() => setIsEditModalOpen(false)}
                 style={styles.modalCloseBtn}
+                onPress={() => setIsEditModalOpen(false)}
               >
-                <X size={22} color={colors.text} />
+                <X size={20} color={colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Edit Profile</Text>
               <TouchableOpacity
-                style={[styles.saveBtn, savingProfile && { opacity: 0.6 }]}
+                style={styles.saveBtn}
                 onPress={handleSaveProfile}
                 disabled={savingProfile}
               >
@@ -766,6 +1293,24 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+  campusProximityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  campusProximityText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
+  },
   headlineText: {
     fontSize: 14,
     color: colors.text,
@@ -789,6 +1334,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+  skillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 12,
+  },
+  skillChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+  },
+  skillChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  socialChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+  },
+  socialChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  socialChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -800,6 +1379,8 @@ const styles = StyleSheet.create({
   },
   statBox: {
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   statNumber: {
     fontSize: 17,
@@ -815,6 +1396,53 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: colors.border,
+  },
+  socialActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  followBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  followBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  followingBtnActive: {
+    borderWidth: 1,
+  },
+  followingBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  connectBtn: {
+    flex: 1.1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  connectBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  messageIconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   adminPanelBtn: {
     flexDirection: 'row',
@@ -865,22 +1493,6 @@ const styles = StyleSheet.create({
   editProfileBtnText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  reportStudentBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
-    paddingVertical: 10,
-    marginTop: 14,
-  },
-  reportStudentBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#DC2626',
   },
   themeToggleCard: {
     flexDirection: 'row',
@@ -1061,4 +1673,64 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+
+  // Social Modal List
+  emptySocialList: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+  },
+  emptySocialTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  emptySocialSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  socialListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  miniAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  miniAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniAvatarText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  socialListName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  socialListUsername: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  socialListUniv: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
 });
+
