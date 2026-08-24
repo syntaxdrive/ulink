@@ -47,8 +47,15 @@
       "expo-secure-store",
       "expo-document-picker",
       "expo-image-picker",
-      "expo-audio"
+      "expo-audio",
+      "expo-updates"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/511f065d-4ce7-43b2-aa86-f7cd7a651c41"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "511f065d-4ce7-43b2-aa86-f7cd7a651c41"
