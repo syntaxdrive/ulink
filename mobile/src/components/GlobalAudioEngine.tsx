@@ -1,19 +1,18 @@
 import React, { useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer, AudioStatus } from 'expo-audio';
 import { audioService, AudioCommand } from '../services/audioService';
 
 export const GlobalAudioEngine: React.FC = () => {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
   const currentUriRef = useRef<string | null>(null);
+  const statusSubRef = useRef<{ remove: () => void } | null>(null);
 
   useEffect(() => {
     // Configure audio mode for background playback on native devices
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
     }).catch((e) => {
       console.warn('Audio mode setup notice:', e);
     });
@@ -26,61 +25,73 @@ export const GlobalAudioEngine: React.FC = () => {
 
           audioService.updateState({ isLoading: true, isPlaying: false, currentUri: uri });
 
-          // Unload previous sound if any
-          if (soundRef.current) {
-            try {
-              await soundRef.current.unloadAsync();
-            } catch {}
-            soundRef.current = null;
+          if (statusSubRef.current) {
+            statusSubRef.current.remove();
+            statusSubRef.current = null;
           }
 
-          const { sound } = await Audio.Sound.createAsync(
-            { uri },
-            { shouldPlay: true, rate: rate || 1.0, progressUpdateIntervalMillis: 500 },
-            (status) => {
-              if (status.isLoaded) {
-                audioService.updateState({
-                  isPlaying: status.isPlaying,
-                  positionMillis: status.positionMillis || 0,
-                  durationMillis: status.durationMillis || 0,
-                  isLoading: status.isBuffering,
-                });
-                if (status.didJustFinish) {
-                  audioService.onEnded();
-                }
-              } else if (status.error) {
-                console.warn('Native audio playback error:', status.error);
-                audioService.updateState({ isPlaying: false, isLoading: false });
-              }
-            }
-          );
+          if (playerRef.current) {
+            try {
+              playerRef.current.pause();
+            } catch {}
+            playerRef.current = null;
+          }
 
-          soundRef.current = sound;
+          const player = createAudioPlayer({ uri }, { updateInterval: 500 });
+          if (rate && typeof rate === 'number') {
+            player.playbackRate = rate;
+          }
+
+          const sub = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+            audioService.updateState({
+              isPlaying: status.playing,
+              positionMillis: Math.round((status.currentTime || 0) * 1000),
+              durationMillis: Math.round((status.duration || 0) * 1000),
+              isLoading: status.isBuffering,
+            });
+
+            if (status.didJustFinish) {
+              audioService.onEnded();
+            }
+
+            if (status.error) {
+              console.warn('Native audio playback error:', status.error);
+              audioService.updateState({ isPlaying: false, isLoading: false });
+            }
+          });
+
+          statusSubRef.current = sub;
+          playerRef.current = player;
           currentUriRef.current = uri;
+
+          player.play();
           audioService.updateState({ isPlaying: true, isLoading: false });
         } else if (cmd.action === 'pause') {
-          if (soundRef.current) {
-            await soundRef.current.pauseAsync();
+          if (playerRef.current) {
+            playerRef.current.pause();
             audioService.updateState({ isPlaying: false });
           }
         } else if (cmd.action === 'resume') {
-          if (soundRef.current) {
-            await soundRef.current.playAsync();
+          if (playerRef.current) {
+            playerRef.current.play();
             audioService.updateState({ isPlaying: true });
           }
         } else if (cmd.action === 'seek') {
-          if (soundRef.current && typeof cmd.payload === 'number') {
-            await soundRef.current.setPositionAsync(cmd.payload);
+          if (playerRef.current && typeof cmd.payload === 'number') {
+            await playerRef.current.seekTo(cmd.payload / 1000);
           }
         } else if (cmd.action === 'rate') {
-          if (soundRef.current && typeof cmd.payload === 'number') {
-            await soundRef.current.setRateAsync(cmd.payload, true);
+          if (playerRef.current && typeof cmd.payload === 'number') {
+            playerRef.current.playbackRate = cmd.payload;
           }
         } else if (cmd.action === 'stop') {
-          if (soundRef.current) {
-            await soundRef.current.stopAsync();
-            await soundRef.current.unloadAsync();
-            soundRef.current = null;
+          if (playerRef.current) {
+            playerRef.current.pause();
+            if (statusSubRef.current) {
+              statusSubRef.current.remove();
+              statusSubRef.current = null;
+            }
+            playerRef.current = null;
             audioService.updateState({ isPlaying: false, positionMillis: 0 });
           }
         }
@@ -92,8 +103,13 @@ export const GlobalAudioEngine: React.FC = () => {
 
     return () => {
       unsubscribeCmd();
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
+      if (statusSubRef.current) {
+        statusSubRef.current.remove();
+      }
+      if (playerRef.current) {
+        try {
+          playerRef.current.pause();
+        } catch {}
       }
     };
   }, []);
