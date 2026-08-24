@@ -97,13 +97,15 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      {token ? <MainNavigator /> : <AuthNavigator />}
+    <>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        {token ? <MainNavigator /> : <AuthNavigator />}
+      </NavigationContainer>
       <GlobalAudioEngine />
       {token ? <GlobalMiniPlayer /> : null}
       <GlobalPublishBanner />
-    </NavigationContainer>
+    </>
   );
 }
 

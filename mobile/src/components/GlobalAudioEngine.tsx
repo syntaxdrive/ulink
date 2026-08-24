@@ -1,188 +1,102 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { audioService } from '../services/audioService';
-
-const WebViewComponent = WebView as any;
-
-const AUDIO_ENGINE_HTML = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  </head>
-  <body style="background: transparent;">
-    <audio id="globalAudio" preload="auto" playsinline webkit-playsinline></audio>
-    <script>
-      (function() {
-        var audio = document.getElementById('globalAudio');
-
-        function post(msg) {
-          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-          }
-        }
-
-        audio.addEventListener('timeupdate', function() {
-          post({
-            type: 'timeupdate',
-            currentTime: audio.currentTime || 0,
-            duration: audio.duration || 0
-          });
-        });
-
-        audio.addEventListener('playing', function() {
-          post({ type: 'playing' });
-        });
-
-        audio.addEventListener('pause', function() {
-          post({ type: 'pause' });
-        });
-
-        audio.addEventListener('ended', function() {
-          post({ type: 'ended' });
-        });
-
-        audio.addEventListener('error', function(e) {
-          post({ type: 'error', code: audio.error ? audio.error.code : 0 });
-        });
-
-        window.playTrack = function(uri, rate) {
-          if (audio.src !== uri) {
-            audio.src = uri;
-            audio.load();
-          }
-          if (rate) audio.playbackRate = rate;
-          var p = audio.play();
-          if (p !== undefined) {
-            p.catch(function(err) {
-              post({ type: 'play_error', message: err.message });
-            });
-          }
-        };
-
-        window.pauseTrack = function() {
-          audio.pause();
-        };
-
-        window.resumeTrack = function() {
-          var p = audio.play();
-          if (p !== undefined) {
-            p.catch(function(err) {});
-          }
-        };
-
-        window.seekTrack = function(seconds) {
-          audio.currentTime = seconds;
-        };
-
-        window.setRate = function(rate) {
-          audio.playbackRate = rate;
-        };
-
-        window.stopTrack = function() {
-          audio.pause();
-          audio.src = '';
-        };
-      })();
-    </script>
-  </body>
-</html>
-`;
+import { Audio } from 'expo-av';
+import { audioService, AudioCommand } from '../services/audioService';
 
 export const GlobalAudioEngine: React.FC = () => {
-  const webViewRef = useRef<any>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const currentUriRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = audioService.subscribeCommands((cmd) => {
-      if (!webViewRef.current) return;
+    // Configure audio mode for background playback on native devices
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      staysActiveInBackground: true,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    }).catch((e) => {
+      console.warn('Audio mode setup notice:', e);
+    });
 
-      if (cmd.action === 'play') {
-        const uri = cmd.payload?.uri;
-        const rate = cmd.payload?.rate || 1.0;
-        webViewRef.current.injectJavaScript(`
-          if (window.playTrack) { window.playTrack("${uri}", ${rate}); }
-          true;
-        `);
-      } else if (cmd.action === 'pause') {
-        webViewRef.current.injectJavaScript(`
-          if (window.pauseTrack) { window.pauseTrack(); }
-          true;
-        `);
-      } else if (cmd.action === 'resume') {
-        webViewRef.current.injectJavaScript(`
-          if (window.resumeTrack) { window.resumeTrack(); }
-          true;
-        `);
-      } else if (cmd.action === 'seek') {
-        const sec = (cmd.payload?.positionMillis || 0) / 1000;
-        webViewRef.current.injectJavaScript(`
-          if (window.seekTrack) { window.seekTrack(${sec}); }
-          true;
-        `);
-      } else if (cmd.action === 'rate') {
-        const rate = cmd.payload?.rate || 1.0;
-        webViewRef.current.injectJavaScript(`
-          if (window.setRate) { window.setRate(${rate}); }
-          true;
-        `);
-      } else if (cmd.action === 'stop') {
-        webViewRef.current.injectJavaScript(`
-          if (window.stopTrack) { window.stopTrack(); }
-          true;
-        `);
+    const unsubscribeCmd = audioService.subscribeCommands(async (cmd: AudioCommand) => {
+      try {
+        if (cmd.action === 'play') {
+          const { uri, rate } = cmd.payload || {};
+          if (!uri) return;
+
+          audioService.updateState({ isLoading: true, isPlaying: false, currentUri: uri });
+
+          // Unload previous sound if any
+          if (soundRef.current) {
+            try {
+              await soundRef.current.unloadAsync();
+            } catch {}
+            soundRef.current = null;
+          }
+
+          const { sound } = await Audio.Sound.createAsync(
+            { uri },
+            { shouldPlay: true, rate: rate || 1.0, progressUpdateIntervalMillis: 500 },
+            (status) => {
+              if (status.isLoaded) {
+                audioService.updateState({
+                  isPlaying: status.isPlaying,
+                  positionMillis: status.positionMillis || 0,
+                  durationMillis: status.durationMillis || 0,
+                  isLoading: status.isBuffering,
+                });
+                if (status.didJustFinish) {
+                  audioService.onEnded();
+                }
+              } else if (status.error) {
+                console.warn('Native audio playback error:', status.error);
+                audioService.updateState({ isPlaying: false, isLoading: false });
+              }
+            }
+          );
+
+          soundRef.current = sound;
+          currentUriRef.current = uri;
+          audioService.updateState({ isPlaying: true, isLoading: false });
+        } else if (cmd.action === 'pause') {
+          if (soundRef.current) {
+            await soundRef.current.pauseAsync();
+            audioService.updateState({ isPlaying: false });
+          }
+        } else if (cmd.action === 'resume') {
+          if (soundRef.current) {
+            await soundRef.current.playAsync();
+            audioService.updateState({ isPlaying: true });
+          }
+        } else if (cmd.action === 'seek') {
+          if (soundRef.current && typeof cmd.payload === 'number') {
+            await soundRef.current.setPositionAsync(cmd.payload);
+          }
+        } else if (cmd.action === 'rate') {
+          if (soundRef.current && typeof cmd.payload === 'number') {
+            await soundRef.current.setRateAsync(cmd.payload, true);
+          }
+        } else if (cmd.action === 'stop') {
+          if (soundRef.current) {
+            await soundRef.current.stopAsync();
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+            audioService.updateState({ isPlaying: false, positionMillis: 0 });
+          }
+        }
+      } catch (err) {
+        console.warn('Audio command execution error:', err);
+        audioService.updateState({ isLoading: false });
       }
     });
 
     return () => {
-      unsubscribe();
+      unsubscribeCmd();
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
     };
   }, []);
 
-  const handleMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'timeupdate') {
-        audioService.onTimeUpdate(data.currentTime, data.duration);
-      } else if (data.type === 'ended') {
-        audioService.onEnded();
-      } else if (data.type === 'playing') {
-        audioService.updateState({ isPlaying: true, isLoading: false });
-      } else if (data.type === 'pause') {
-        audioService.updateState({ isPlaying: false });
-      }
-    } catch {}
-  };
-
-  return (
-    <View style={styles.hiddenContainer} pointerEvents="none">
-      <WebViewComponent
-        ref={webViewRef}
-        originWhitelist={['*']}
-        source={{ html: AUDIO_ENGINE_HTML }}
-        onMessage={handleMessage}
-        mediaPlaybackRequiresUserAction={false}
-        allowsInlineMediaPlayback={true}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        style={styles.hiddenWebView}
-      />
-    </View>
-  );
+  return null;
 };
-
-const styles = StyleSheet.create({
-  hiddenContainer: {
-    position: 'absolute',
-    top: -100,
-    left: -100,
-    width: 1,
-    height: 1,
-    opacity: 0,
-    overflow: 'hidden',
-  },
-  hiddenWebView: {
-    width: 1,
-    height: 1,
-  },
-});
