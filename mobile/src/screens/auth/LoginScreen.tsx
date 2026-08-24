@@ -296,15 +296,37 @@ export default function LoginScreen({ navigation }: any) {
                 <Mail size={18} color="rgba(0, 0, 0, 0.5)" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Student Email (e.g. name@university.edu)"
+                  placeholder="Student Email (e.g. name@gmail.com)"
                   placeholderTextColor="rgba(0, 0, 0, 0.4)"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  importantForAutofill="yes"
                 />
               </View>
+
+              {/* Quick Domain Suggestions (e.g. @gmail.com) */}
+              {email.length > 1 && !email.includes('@') && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.domainPillsScroll}
+                >
+                  {['@gmail.com', '@yahoo.com', '@outlook.com', '@icloud.com'].map((domain) => (
+                    <TouchableOpacity
+                      key={domain}
+                      style={styles.domainPill}
+                      onPress={() => setEmail(email.trim() + domain)}
+                    >
+                      <Text style={styles.domainPillText}>{domain}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
 
               {/* Password */}
               <View style={styles.inputWrapper}>
@@ -316,6 +338,8 @@ export default function LoginScreen({ navigation }: any) {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  textContentType="password"
                 />
                 <TouchableOpacity
                   style={styles.eyeBtn}
@@ -603,6 +627,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 14,
     padding: 4,
+  },
+  domainPillsScroll: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 2,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  domainPill: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  domainPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
 
   // Real-time Detected Account Inline Card (Emerald Green Theme)

@@ -354,7 +354,7 @@ export const ShortsViewerModal: React.FC<ShortsViewerModalProps> = ({
 
   const handleShare = async (post: FeedPost) => {
     try {
-      const message = `Check out this campus video on UniLink:\n"${post.content || post.original_post?.content || ''}"\nhttps://ulink.ng/post/${post.id}`;
+      const message = `Check out this campus video on UniLink:\n"${post.content || post.original_post?.content || ''}"\nhttps://unilink.ng/post/${post.id}`;
       await Share.share({ message });
     } catch {
       // Ignore
