@@ -295,7 +295,50 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
       if (onPodcastCreatedOrUpdated) onPodcastCreatedOrUpdated();
       setActiveTab('my_shows');
     } catch (e: any) {
-      Alert.alert('Save Failed', e.message || 'Could not save podcast.');
+      if (
+        e.message?.includes('podcasts_creator_id_unique') ||
+        e.message?.includes('podcast_creator_id_unique') ||
+        e.code === '23505'
+      ) {
+        Alert.alert(
+          'Single Show Constraint Active',
+          'Your Supabase database table currently enforces 1 podcast show per user.\n\nTo enable multiple shows, run this in Supabase SQL Editor:\nALTER TABLE podcasts DROP CONSTRAINT IF EXISTS podcasts_creator_id_unique;\n\nWould you like to update your existing show instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Update Existing Show',
+              onPress: async () => {
+                if (myPodcasts.length > 0) {
+                  try {
+                    const firstShow = myPodcasts[0];
+                    const { error: updErr } = await supabase
+                      .from('podcasts')
+                      .update({
+                        title: podTitle.trim(),
+                        description: podDesc.trim() || null,
+                        category: podCategory,
+                        cover_url: podCoverUrl || firstShow.cover_url,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', firstShow.id);
+
+                    if (updErr) throw updErr;
+
+                    if (currentUserId) fetchMyPodcasts(currentUserId);
+                    if (onPodcastCreatedOrUpdated) onPodcastCreatedOrUpdated();
+                    setActiveTab('my_shows');
+                    Alert.alert('Show Updated! 🎙️', `"${podTitle}" has been updated.`);
+                  } catch (err: any) {
+                    Alert.alert('Update Failed', err.message || 'Could not update show.');
+                  }
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Save Failed', e.message || 'Could not save podcast.');
+      }
     } finally {
       setSubmittingPod(false);
     }
