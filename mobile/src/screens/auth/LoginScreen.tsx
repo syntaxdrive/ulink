@@ -46,6 +46,42 @@ export default function LoginScreen({ navigation }: any) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [settingPassword, setSettingPassword] = useState(false);
 
+  // Real-time Account Auto-Detection for Google Auth / Existing Users
+  const [detectedAccount, setDetectedAccount] = useState<{ id: string; name: string; username: string; avatar_url: string; email: string } | null>(null);
+  const [checkingAccount, setCheckingAccount] = useState(false);
+
+  // Auto-scan email against registered profiles
+  useEffect(() => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@') || !trimmed.includes('.') || !isLogin) {
+      setDetectedAccount(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingAccount(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url, email')
+          .ilike('email', trimmed)
+          .maybeSingle();
+
+        if (data) {
+          setDetectedAccount(data);
+        } else {
+          setDetectedAccount(null);
+        }
+      } catch {
+        // Ignore
+      } finally {
+        setCheckingAccount(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [email, isLogin]);
+
   const setToken = useAuthStore((state) => state.setToken);
 
   // 2. Email & Password Sign-In / Sign-Up
@@ -326,6 +362,41 @@ export default function LoginScreen({ navigation }: any) {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+              )}
+
+              {/* Real-time Account Auto-Detection (Google Auth / Existing User helper) */}
+              {detectedAccount && isLogin && (
+                <View style={styles.detectedInlineCard}>
+                  <View style={styles.detectedInlineHeader}>
+                    <View style={styles.accountPill}>
+                      <CheckCircle2 size={12} color="#059669" />
+                      <Text style={styles.accountPillText}>ACCOUNT DETECTED</Text>
+                    </View>
+                    <Text style={styles.detectedStudentName} numberOfLines={1}>
+                      {detectedAccount.name || detectedAccount.username || 'Student'}
+                    </Text>
+                  </View>
+                  <Text style={styles.detectedInlineNotice}>
+                    👋 Previously logged in with Google on the web or need to set your mobile password? Tap below to get a 6-digit confirmation code and sign in!
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.inlinePasswordActionBtn}
+                    onPress={() => handleRequestPasswordOtp()}
+                    disabled={settingPassword}
+                    activeOpacity={0.85}
+                  >
+                    {settingPassword ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <KeyRound size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={styles.inlinePasswordActionText}>
+                          Request 6-Digit Code & Set Password
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Password */}
