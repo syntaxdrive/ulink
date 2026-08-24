@@ -54,6 +54,7 @@ import { ShortsViewerModal } from '../../components/ShortsViewerModal';
 import { ReportModal } from '../../components/ReportModal';
 import { SocialSourceBadge } from '../../components/SocialSourceBadge';
 import { PollCard } from '../../components/PollCard';
+import { SpotifyAudioPlayer } from '../../components/SpotifyAudioPlayer';
 import { extractYouTubeId, cleanVideoUrlsFromText } from '../../utils/videoUtils';
 import { supabase } from '../../lib/supabase';
 import { audioService, PlaybackState } from '../../services/audioService';
@@ -125,13 +126,7 @@ export default function FeedScreen() {
   const [userId, setUserId] = useState<string | null>(null);
 
   // Audio Playback state
-  const [playbackState, setPlaybackState] = useState<PlaybackState>({
-    isPlaying: false,
-    positionMillis: 0,
-    durationMillis: 0,
-    isLoading: false,
-    currentUri: null,
-  });
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(audioService.getState());
 
   // Comments modal state
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
@@ -181,7 +176,7 @@ export default function FeedScreen() {
         FeedService.getFeed(userId),
         apiClient.get('/podcasts?limit=10'),
         supabase
-          .from('episodes')
+          .from('podcast_episodes')
           .select(`
             id, title, description, audio_url, cover_url, duration_seconds, plays_count, created_at,
             podcast:podcasts!podcast_id(
@@ -1115,6 +1110,9 @@ export default function FeedScreen() {
           onClose={() => setReportingUser(null)}
         />
       )}
+
+      {/* Global Spotify Audio Player */}
+      <SpotifyAudioPlayer />
     </SafeAreaView>
   );
 }

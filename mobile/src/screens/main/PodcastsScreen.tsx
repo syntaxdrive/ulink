@@ -27,7 +27,8 @@ import {
 } from 'lucide-react-native';
 import { colors } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
-import { audioService, PlaybackState } from '../../services/audioService';
+import { audioService, PlaybackState, AudioTrack } from '../../services/audioService';
+import { SpotifyAudioPlayer } from '../../components/SpotifyAudioPlayer';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -84,13 +85,7 @@ export default function PodcastsScreen() {
 
   // Active track info & playback state
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
-  const [playbackState, setPlaybackState] = useState<PlaybackState>({
-    isPlaying: false,
-    positionMillis: 0,
-    durationMillis: 0,
-    isLoading: false,
-    currentUri: null,
-  });
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(audioService.getState());
 
   useEffect(() => {
     const unsubscribe = audioService.subscribe(setPlaybackState);
@@ -152,10 +147,20 @@ export default function PodcastsScreen() {
     fetchPodcastsData();
   };
 
-  const handlePlayEpisode = async (episode: Episode) => {
+  const handlePlayEpisode = async (episode: Episode, index = 0) => {
     setCurrentEpisode(episode);
     if (episode.audio_url) {
-      await audioService.togglePlay(episode.audio_url);
+      const queueTracks: AudioTrack[] = episodes.map((ep) => ({
+        id: ep.id,
+        uri: ep.audio_url,
+        title: ep.title,
+        hostName: ep.podcast?.title || 'UniLink Podcast',
+        coverUrl: ep.cover_url || ep.podcast?.cover_url || undefined,
+        podcastId: ep.podcast_id,
+        podcastTitle: ep.podcast?.title || 'Campus Podcast',
+        durationSeconds: ep.duration_seconds,
+      }));
+      audioService.setQueue(queueTracks, index);
     }
   };
 
@@ -330,7 +335,7 @@ export default function PodcastsScreen() {
                 <TrendingUp size={16} color={colors.primary} />
               </View>
 
-              {episodes.map((ep) => {
+              {episodes.map((ep, index) => {
                 const isThisPlaying =
                   playbackState.currentUri === ep.audio_url && playbackState.isPlaying;
 
@@ -338,7 +343,7 @@ export default function PodcastsScreen() {
                   <TouchableOpacity
                     key={ep.id}
                     style={[styles.episodeItem, currentEpisode?.id === ep.id && styles.episodeItemActive]}
-                    onPress={() => handlePlayEpisode(ep)}
+                    onPress={() => handlePlayEpisode(ep, index)}
                   >
                     <View style={styles.epPlayCircle}>
                       {isThisPlaying ? (
@@ -369,6 +374,9 @@ export default function PodcastsScreen() {
           ) : null}
         </ScrollView>
       )}
+
+      {/* Spotify Standard Audio Player */}
+      <SpotifyAudioPlayer />
     </SafeAreaView>
   );
 }

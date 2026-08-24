@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -15,37 +16,33 @@ import {
   ArrowLeft,
   Play,
   Pause,
-  FastForward,
-  Rewind,
-  Volume2,
   Mic2,
   Headphones,
   CheckCircle2,
+  Share2,
+  Users,
+  Shuffle,
+  Clock,
+  Radio,
 } from 'lucide-react-native';
-import { colors } from '../../theme/colors';
+import { colors, useTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
-import { audioService, PlaybackState } from '../../services/audioService';
+import { audioService, PlaybackState, AudioTrack } from '../../services/audioService';
+import { SpotifyAudioPlayer } from '../../components/SpotifyAudioPlayer';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function PodcastScreen() {
+  const { colors, isDark } = useTheme();
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { podcastId } = (route.params || {}) as { podcastId?: string };
 
   const [podcast, setPodcast] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeEpisode, setActiveEpisode] = useState<any>(null);
 
-  // Audio Playback State from audioService
-  const [playbackState, setPlaybackState] = useState<PlaybackState>({
-    isPlaying: false,
-    positionMillis: 0,
-    durationMillis: 0,
-    isLoading: false,
-    currentUri: null,
-  });
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(audioService.getState());
 
   useEffect(() => {
     const unsubscribe = audioService.subscribe(setPlaybackState);
@@ -105,10 +102,6 @@ export default function PodcastScreen() {
 
       setPodcast(podData);
       setEpisodes(epData || []);
-
-      if (epData && epData.length > 0) {
-        setActiveEpisode(epData[0]);
-      }
     } catch (e) {
       console.warn('Error loading podcast from Supabase:', e);
     } finally {
@@ -116,178 +109,204 @@ export default function PodcastScreen() {
     }
   };
 
-  const handlePlayPause = async () => {
-    if (!activeEpisode?.audio_url) return;
-    await audioService.togglePlay(activeEpisode.audio_url);
+  const handlePlayEpisode = (episode: any, index = 0) => {
+    if (!episode.audio_url) return;
+    const queueTracks: AudioTrack[] = episodes.map((ep) => ({
+      id: ep.id,
+      uri: ep.audio_url,
+      title: ep.title,
+      hostName: podcast?.creator?.name || podcast?.title || 'Campus Host',
+      coverUrl: ep.cover_url || podcast?.cover_url || undefined,
+      podcastId: podcast?.id,
+      podcastTitle: podcast?.title,
+      durationSeconds: ep.duration_seconds,
+      episodeNumber: ep.episode_number,
+    }));
+    audioService.setQueue(queueTracks, index);
   };
 
-  const handlePlayEpisode = async (episode: any) => {
-    setActiveEpisode(episode);
-    if (episode.audio_url) {
-      await audioService.play(episode.audio_url);
+  const handlePlayAll = () => {
+    if (episodes.length > 0) {
+      handlePlayEpisode(episodes[0], 0);
     }
   };
 
-  const handleSkip = (seconds: number) => {
-    audioService.skip(seconds);
+  const handleShuffle = () => {
+    if (episodes.length > 0) {
+      const randomIndex = Math.floor(Math.random() * episodes.length);
+      handlePlayEpisode(episodes[randomIndex], randomIndex);
+    }
   };
 
-  const formatTime = (millis: number) => {
-    const totalSeconds = Math.floor(millis / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = Math.floor(totalSeconds % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  const handleSharePodcast = async () => {
+    if (!podcast) return;
+    try {
+      await Share.share({
+        message: `Listen to "${podcast.title}" by ${podcast.creator?.name || 'UniLink'} on UniLink Campus Audio!\n\nhttps://unilink.ng/podcasts/${podcast.id}`,
+      });
+    } catch {}
   };
-
-  const isCurrentPlaying =
-    activeEpisode &&
-    playbackState.currentUri === activeEpisode.audio_url &&
-    playbackState.isPlaying;
-
-  const currentDuration =
-    playbackState.durationMillis > 0
-      ? playbackState.durationMillis
-      : (activeEpisode?.duration_seconds || 180) * 1000;
-
-  const progressPercent = Math.min(
-    100,
-    currentDuration > 0 ? (playbackState.positionMillis / currentDuration) * 100 : 0
-  );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading show...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading podcast show...</Text>
       </SafeAreaView>
     );
   }
 
   if (!podcast) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ArrowLeft size={24} color={colors.text} />
+            <ArrowLeft size={22} color={colors.text} />
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Podcast not found</Text>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>Podcast not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <ArrowLeft size={24} color={colors.text} />
+          <ArrowLeft size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Now Playing</Text>
-        <TouchableOpacity style={styles.actionBtn}>
-          <Volume2 size={24} color={colors.text} />
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+          {podcast.title}
+        </Text>
+        <TouchableOpacity onPress={handleSharePodcast} style={styles.actionBtn}>
+          <Share2 size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Artwork */}
-        <View style={styles.artworkContainer}>
+        {/* Show Artwork & Meta Banner */}
+        <View style={styles.showHero}>
           {podcast.cover_url ? (
-            <Image source={{ uri: podcast.cover_url }} style={styles.artwork} />
+            <Image source={{ uri: podcast.cover_url }} style={styles.showCover} />
           ) : (
-            <View style={[styles.artwork, styles.placeholderArtwork]}>
-              <Mic2 size={64} color={colors.primary} />
+            <View style={[styles.showCover, styles.placeholderCover]}>
+              <Mic2 size={54} color={colors.primary} />
             </View>
           )}
-        </View>
 
-        {/* Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.podcastTitle}>{podcast.title}</Text>
+          <View style={styles.showCategoryPill}>
+            <Text style={styles.showCategoryText}>{podcast.category || 'Podcast'}</Text>
+          </View>
+
+          <Text style={[styles.showTitle, { color: colors.text }]}>{podcast.title}</Text>
+
           <View style={styles.creatorRow}>
-            <Text style={styles.creatorName}>
-              By {podcast.creator?.name || 'Campus Creator'}
+            {podcast.creator?.avatar_url ? (
+              <Image source={{ uri: podcast.creator.avatar_url }} style={styles.creatorAvatar} />
+            ) : (
+              <View style={[styles.creatorAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                  {(podcast.creator?.name || 'U')[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <Text style={[styles.creatorName, { color: colors.textSecondary }]}>
+              {podcast.creator?.name || 'Campus Creator'}
             </Text>
             {podcast.creator?.is_verified && (
               <CheckCircle2 size={14} color={colors.primary} style={{ marginLeft: 4 }} />
             )}
+            <Text style={[styles.followerDot, { color: colors.textTertiary }]}>·</Text>
+            <Text style={[styles.followerCount, { color: colors.textSecondary }]}>
+              {podcast.followers_count || 0} followers
+            </Text>
           </View>
-          <Text style={styles.episodeTitle} numberOfLines={2}>
-            {activeEpisode ? activeEpisode.title : 'Select an episode'}
-          </Text>
+
+          {podcast.description ? (
+            <Text style={[styles.showDescription, { color: colors.textSecondary }]}>
+              {podcast.description}
+            </Text>
+          ) : null}
+
+          {/* Spotify Action Buttons (Play All & Shuffle) */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity style={styles.playAllBtn} onPress={handlePlayAll} activeOpacity={0.85}>
+              <Play size={18} color="#000000" fill="#000000" style={{ marginRight: 6 }} />
+              <Text style={styles.playAllBtnText}>Play Latest</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle} activeOpacity={0.85}>
+              <Shuffle size={18} color={colors.text} style={{ marginRight: 6 }} />
+              <Text style={[styles.shuffleBtnText, { color: colors.text }]}>Shuffle</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-          </View>
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(playbackState.positionMillis)}</Text>
-            <Text style={styles.timeText}>{formatTime(currentDuration)}</Text>
-          </View>
-        </View>
-
-        {/* Playback Controls */}
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity style={styles.controlBtn} onPress={() => handleSkip(-15)}>
-            <Rewind size={30} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.playBtn}
-            onPress={handlePlayPause}
-            disabled={playbackState.isLoading}
-          >
-            {playbackState.isLoading ? (
-              <ActivityIndicator color={colors.background} size="small" />
-            ) : isCurrentPlaying ? (
-              <Pause size={34} color={colors.background} fill={colors.background} />
-            ) : (
-              <Play size={34} color={colors.background} fill={colors.background} style={{ marginLeft: 4 }} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlBtn} onPress={() => handleSkip(15)}>
-            <FastForward size={30} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Episodes List */}
+        {/* Episodes Section */}
         <View style={styles.episodesSection}>
-          <Text style={styles.sectionTitle}>All Episodes ({episodes.length})</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            All Episodes ({episodes.length})
+          </Text>
+
           {episodes.length === 0 ? (
             <View style={styles.emptyEpisodesBox}>
-              <Headphones size={32} color={colors.textSecondary} />
-              <Text style={styles.emptyEpisodesText}>No episodes uploaded yet.</Text>
+              <Headphones size={36} color={colors.textSecondary} />
+              <Text style={[styles.emptyEpisodesTitle, { color: colors.text }]}>No episodes yet</Text>
+              <Text style={[styles.emptyEpisodesSub, { color: colors.textSecondary }]}>
+                Stay tuned! New episodes from this creator will appear here.
+              </Text>
             </View>
           ) : (
-            episodes.map((epi) => {
+            episodes.map((epi, index) => {
               const isThisTrackPlaying =
                 playbackState.currentUri === epi.audio_url && playbackState.isPlaying;
-              const isSelected = activeEpisode?.id === epi.id;
 
               return (
                 <TouchableOpacity
                   key={epi.id}
-                  style={[styles.episodeCard, isSelected && styles.activeEpisodeCard]}
-                  onPress={() => handlePlayEpisode(epi)}
+                  style={[
+                    styles.episodeCard,
+                    {
+                      backgroundColor: isThisTrackPlaying
+                        ? isDark
+                          ? 'rgba(16, 185, 129, 0.12)'
+                          : '#ECFDF5'
+                        : isDark
+                        ? '#1C1C1E'
+                        : '#FFFFFF',
+                      borderColor: isThisTrackPlaying ? '#10B981' : colors.border,
+                    },
+                  ]}
+                  onPress={() => handlePlayEpisode(epi, index)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.episodePlayIcon}>
+                  <View style={[styles.episodePlayIcon, isThisTrackPlaying && { backgroundColor: '#10B981' }]}>
                     {isThisTrackPlaying ? (
-                      <Pause size={16} color={colors.primary} />
+                      <Pause size={16} color="#FFFFFF" fill="#FFFFFF" />
                     ) : (
-                      <Play size={16} color={colors.textSecondary} />
+                      <Play size={16} color={colors.primary} fill={colors.primary} style={{ marginLeft: 2 }} />
                     )}
                   </View>
+
                   <View style={styles.episodeInfo}>
-                    <Text style={styles.epiTitle} numberOfLines={1}>
+                    <Text style={[styles.epiTitle, { color: colors.text }]} numberOfLines={1}>
                       {epi.title}
                     </Text>
-                    <Text style={styles.epiDuration}>
-                      {Math.floor((epi.duration_seconds || 180) / 60)} mins ·{' '}
-                      {new Date(epi.created_at).toLocaleDateString()}
-                    </Text>
+                    {epi.description ? (
+                      <Text style={[styles.epiDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+                        {epi.description}
+                      </Text>
+                    ) : null}
+                    <View style={styles.epiMetaRow}>
+                      <Clock size={11} color={colors.textTertiary} style={{ marginRight: 3 }} />
+                      <Text style={[styles.epiDuration, { color: colors.textSecondary }]}>
+                        {Math.floor((epi.duration_seconds || 180) / 60)} mins ·{' '}
+                        {new Date(epi.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -295,6 +314,9 @@ export default function PodcastScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Global Spotify Audio Player */}
+      <SpotifyAudioPlayer />
     </SafeAreaView>
   );
 }
@@ -302,196 +324,223 @@ export default function PodcastScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   backBtn: {
-    padding: 5,
-  },
-  actionBtn: {
-    padding: 5,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  artworkContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 24,
-  },
-  artwork: {
-    width: 260,
-    height: 260,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  placeholderArtwork: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoContainer: {
-    paddingHorizontal: 25,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  podcastTitle: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 16,
     fontWeight: '800',
-    color: colors.text,
+    flex: 1,
     textAlign: 'center',
-    marginBottom: 4,
+    marginHorizontal: 10,
+  },
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  showHero: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  showCover: {
+    width: 170,
+    height: 170,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  placeholderCover: {
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  showCategoryPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  showCategoryText: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  showTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: 10,
+    letterSpacing: -0.4,
   },
   creatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: 8,
+  },
+  creatorAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginRight: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   creatorName: {
-    fontSize: 15,
-    color: colors.primary,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  episodeTitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
+  followerDot: {
+    marginHorizontal: 6,
   },
-  progressContainer: {
-    paddingHorizontal: 25,
-    marginBottom: 24,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 3,
-    marginBottom: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timeText: {
+  followerCount: {
     fontSize: 12,
-    color: colors.textSecondary,
     fontWeight: '500',
   },
-  controlsContainer: {
+  showDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 10,
+    paddingHorizontal: 12,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 20,
+    width: '100%',
+  },
+  playAllBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 36,
-    marginBottom: 32,
-  },
-  controlBtn: {
-    padding: 10,
-  },
-  playBtn: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
+    backgroundColor: '#10B981',
+    paddingVertical: 13,
+    borderRadius: 24,
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  playAllBtnText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  shuffleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingVertical: 13,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  shuffleBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   episodesSection: {
     paddingHorizontal: 20,
+    marginTop: 10,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    color: colors.text,
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  emptyEpisodesBox: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyEpisodesTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 10,
+  },
+  emptyEpisodesSub: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
   },
   episodeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
     marginBottom: 10,
   },
-  activeEpisodeCard: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-  },
   episodePlayIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
   },
   episodeInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   epiTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
-    marginBottom: 3,
+  },
+  epiDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  epiMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   epiDuration: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  emptyEpisodesBox: {
-    paddingVertical: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyEpisodesText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
