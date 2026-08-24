@@ -123,27 +123,31 @@ export default function OnboardingIntroScreen({ navigation }: any) {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleScroll}
           contentContainerStyle={styles.slidesContainer}
+          style={{ flex: 1 }}
         >
           {SLIDES.map((slide) => {
             const TagIcon = slide.tagIcon;
             return (
               <View key={slide.id} style={styles.slide}>
-                {/* Header Tag Pill */}
-                <View style={styles.tagPill}>
-                  <Text style={styles.tagText}>{slide.tag}</Text>
-                  <View style={styles.tagIconCircle}>
-                    <TagIcon size={12} color="#ffffff" />
+                {/* Text Content */}
+                <View style={styles.textContent}>
+                  {/* Header Tag Pill */}
+                  <View style={styles.tagPill}>
+                    <Text style={styles.tagText}>{slide.tag}</Text>
+                    <View style={styles.tagIconCircle}>
+                      <TagIcon size={12} color="#ffffff" />
+                    </View>
                   </View>
+
+                  {/* Big Bold Headline */}
+                  <Text style={styles.slideTitle}>{slide.title}</Text>
+
+                  {/* Subtitle Description */}
+                  <Text style={styles.slideSubtitle}>{slide.subtitle}</Text>
                 </View>
 
-                {/* Big Bold Headline */}
-                <Text style={styles.slideTitle}>{slide.title}</Text>
-
-                {/* Subtitle Description */}
-                <Text style={styles.slideSubtitle}>{slide.subtitle}</Text>
-
-                {/* Transparent Real Human Cutout Portrait (Chest-up) */}
-                <View style={styles.illustrationArea}>
+                {/* Big Full-Bleed Real Human Cutout (Behind bottom controls) */}
+                <View style={styles.illustrationArea} pointerEvents="none">
                   <Image
                     source={slide.image}
                     style={styles.illustrationImage}
@@ -155,8 +159,8 @@ export default function OnboardingIntroScreen({ navigation }: any) {
           })}
         </ScrollView>
 
-        {/* Bottom Navigation & Action Bar */}
-        <View style={styles.bottomBar}>
+        {/* Bottom Floating Navigation & Action Bar */}
+        <View style={styles.bottomBar} pointerEvents="box-none">
           {/* Pagination Indicator Dots */}
           <View style={styles.paginationRow}>
             {SLIDES.map((_, index) => (
@@ -239,9 +243,14 @@ const styles = StyleSheet.create({
   },
   slide: {
     width: screenWidth,
+    height: '100%',
+    position: 'relative',
+  },
+  textContent: {
     paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingTop: 8,
     alignItems: 'flex-start',
+    zIndex: 10,
   },
   tagPill: {
     flexDirection: 'row',
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     paddingVertical: 5,
     borderRadius: 20,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   tagText: {
     color: '#ffffff',
@@ -270,36 +279,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slideTitle: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     color: '#000000',
-    lineHeight: 36,
+    lineHeight: 34,
     letterSpacing: -0.8,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   slideSubtitle: {
     fontSize: 13,
     color: 'rgba(0, 0, 0, 0.75)',
-    lineHeight: 19,
-    marginBottom: 12,
+    lineHeight: 18,
     fontWeight: '500',
   },
   illustrationArea: {
-    width: '100%',
-    height: screenHeight * 0.44,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: screenHeight * 0.58,
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 6,
+    zIndex: 1,
   },
   illustrationImage: {
-    width: '100%',
+    width: screenWidth * 1.08,
     height: '100%',
   },
   bottomBar: {
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-    paddingTop: 10,
+    position: 'absolute',
+    bottom: 24,
+    left: 24,
+    right: 24,
     gap: 16,
+    zIndex: 30,
   },
   paginationRow: {
     flexDirection: 'row',
