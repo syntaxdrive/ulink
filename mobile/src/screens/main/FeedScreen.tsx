@@ -179,11 +179,14 @@ export default function FeedScreen() {
           .from('podcast_episodes')
           .select(`
             id, title, description, audio_url, cover_url, duration_seconds, plays_count, created_at,
-            podcast:podcasts!podcast_id(
+            podcast:podcasts!inner(
               id, title, cover_url,
               creator:profiles!creator_id(name, username, avatar_url)
             )
           `)
+          .eq('is_published', true)
+          .ilike('podcast.title', '%BLISSFUL%')
+          .not('audio_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(10),
       ]);

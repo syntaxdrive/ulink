@@ -65,6 +65,7 @@ export default function PodcastScreen() {
           .from('podcasts')
           .select('id')
           .eq('status', 'approved')
+          .ilike('title', '%BLISSFUL%')
           .limit(1)
           .single();
         if (firstPod) queryId = firstPod.id;
@@ -90,13 +91,14 @@ export default function PodcastScreen() {
 
       if (podErr) throw podErr;
 
-      // 2. Fetch Episodes
+      // 2. Fetch Episodes with valid audio URLs
       const { data: epData, error: epErr } = await supabase
         .from('podcast_episodes')
         .select('*')
         .eq('podcast_id', queryId)
         .eq('is_published', true)
-        .order('episode_number', { ascending: false });
+        .not('audio_url', 'is', null)
+        .order('episode_number', { ascending: true });
 
       if (epErr) throw epErr;
 

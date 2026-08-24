@@ -97,6 +97,7 @@ export default function PodcastsScreen() {
   const fetchPodcastsData = useCallback(async () => {
     try {
       // 1. Fetch Podcasts from Supabase
+      // 1. Fetch Podcasts from Supabase (Only approved valid podcasts like THE BLISSFUL CAST)
       const { data: podData, error: podErr } = await supabase
         .from('podcasts')
         .select(`
@@ -108,16 +109,17 @@ export default function PodcastsScreen() {
           )
         `)
         .eq('status', 'approved')
+        .ilike('title', '%BLISSFUL%')
         .order('followers_count', { ascending: false });
 
       if (podErr) throw podErr;
 
-      // 2. Fetch Recent Published Episodes
+      // 2. Fetch Recent Published Episodes with valid audio URLs
       const { data: epData } = await supabase
         .from('podcast_episodes')
         .select(`
           *,
-          podcast:podcasts(
+          podcast:podcasts!inner(
             id,
             title,
             cover_url,
@@ -125,8 +127,9 @@ export default function PodcastsScreen() {
           )
         `)
         .eq('is_published', true)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .ilike('podcast.title', '%BLISSFUL%')
+        .not('audio_url', 'is', null)
+        .order('episode_number', { ascending: true });
 
       setPodcasts((podData as Podcast[]) || []);
       setEpisodes((epData as Episode[]) || []);

@@ -12,6 +12,8 @@ import {
   PanResponder,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -24,14 +26,12 @@ import {
   ChevronDown,
   Share2,
   ListMusic,
-  Volume2,
   CheckCircle2,
   X,
   Radio,
-  Gauge,
 } from 'lucide-react-native';
-import { colors, useTheme } from '../theme/colors';
-import { audioService, PlaybackState, AudioTrack } from '../services/audioService';
+import { useTheme } from '../theme/colors';
+import { audioService, PlaybackState } from '../services/audioService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -52,6 +52,18 @@ export function SpotifyAudioPlayer() {
   const [queueVisible, setQueueVisible] = useState(false);
   const [scrubPosition, setScrubPosition] = useState<number | null>(null);
 
+  // Draggable Bubble Position
+  const pan = useRef(
+    new Animated.ValueXY({
+      x: SCREEN_WIDTH - 76,
+      y: SCREEN_HEIGHT - 220,
+    })
+  ).current;
+
+  // Artwork rotation animation
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const isSpinning = useRef(false);
+
   useEffect(() => {
     const unsubscribe = audioService.subscribe(setPlaybackState);
     return () => {
@@ -61,15 +73,85 @@ export function SpotifyAudioPlayer() {
 
   const { currentTrack, isPlaying, positionMillis, durationMillis, isLoading, rate, queue, queueIndex } = playbackState;
 
+  // Handle vinyl rotation
+  useEffect(() => {
+    let anim: Animated.CompositeAnimation | null = null;
+    if (isPlaying) {
+      isSpinning.current = true;
+      anim = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 10000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      anim.start();
+    } else {
+      isSpinning.current = false;
+      spinValue.stopAnimation();
+    }
+    return () => {
+      if (anim) anim.stop();
+    };
+  }, [isPlaying]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  // Pan Responder for Draggable Bubble
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  const bubblePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4;
+      },
+      onPanResponderGrant: () => {
+        isDragging.current = false;
+        pan.extractOffset();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6) {
+          isDragging.current = true;
+        }
+        pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        pan.flattenOffset();
+        // If not dragged significantly, treat as tap to expand player!
+        if (!isDragging.current) {
+          setFullscreenVisible(true);
+        } else {
+          // Snap bubble to nearest screen edge (left or right)
+          const currentX = (pan.x as any)._value;
+          const currentY = (pan.y as any)._value;
+          const targetX = currentX < SCREEN_WIDTH / 2 ? 14 : SCREEN_WIDTH - 76;
+          const boundedY = Math.max(60, Math.min(SCREEN_HEIGHT - 140, currentY));
+
+          Animated.spring(pan, {
+            toValue: { x: targetX, y: boundedY },
+            useNativeDriver: false,
+            friction: 6,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   if (!currentTrack) return null;
 
   const activePosition = scrubPosition !== null ? scrubPosition : positionMillis;
   const progressRatio = durationMillis > 0 ? Math.min(1, Math.max(0, activePosition / durationMillis)) : 0;
   const remainingMillis = Math.max(0, durationMillis - activePosition);
 
-  // Scrub bar pan responder for drag seeking
+  // Scrubber PanResponder for drag seeking in Fullscreen
   const barWidth = SCREEN_WIDTH - 48;
-  const panResponder = PanResponder.create({
+  const scrubberPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
@@ -101,89 +183,66 @@ export function SpotifyAudioPlayer() {
     if (!currentTrack) return;
     try {
       await Share.share({
-        message: `Listen to "${currentTrack.title}" by ${currentTrack.hostName || 'UniLink'} on UniLink!\n\nhttps://unilink.ng/podcasts/${currentTrack.podcastId || currentTrack.id}`,
+        message: `Listen to "${currentTrack.title}" on UniLink Campus Audio!\n\nhttps://unilink.ng/podcasts/${currentTrack.podcastId || currentTrack.id}`,
       });
     } catch {}
   };
 
   return (
     <>
-      {/* ── 1. SPOTIFY MINI PLAYER (Floating at Bottom) ──────────────── */}
+      {/* ── 1. DRAGGABLE FLOATING SPOTIFY AUDIO BUBBLE ───────────────── */}
       {!fullscreenVisible && (
-        <TouchableOpacity
-          activeOpacity={0.94}
-          onPress={() => setFullscreenVisible(true)}
+        <Animated.View
           style={[
-            styles.miniPlayerContainer,
+            styles.bubbleWrapper,
             {
-              backgroundColor: isDark ? '#1F1F23' : '#18181B',
+              transform: pan.getTranslateTransform(),
             },
           ]}
+          {...bubblePanResponder.panHandlers}
         >
-          {/* Top Progress Line */}
-          <View style={styles.miniProgressTrack}>
-            <View
-              style={[
-                styles.miniProgressBar,
-                { width: `${progressRatio * 100}%` },
-              ]}
-            />
+          <View style={[styles.bubbleCircle, isPlaying && styles.bubbleCirclePlaying]}>
+            {/* Spinning Disc Cover */}
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              {currentTrack.coverUrl ? (
+                <Image source={{ uri: currentTrack.coverUrl }} style={styles.bubbleImage} />
+              ) : (
+                <View style={styles.bubblePlaceholder}>
+                  <Radio size={24} color="#10B981" />
+                </View>
+              )}
+            </Animated.View>
+
+            {/* Inner Center Hole for Vinyl Record Effect */}
+            <View style={styles.vinylCenterHole} />
+
+            {/* Mini 1-Tap Play/Pause Badge Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.bubblePlayBadge}
+              onPress={() => audioService.togglePlay()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : isPlaying ? (
+                <Pause size={12} color="#000000" fill="#000000" />
+              ) : (
+                <Play size={12} color="#000000" fill="#000000" style={{ marginLeft: 1 }} />
+              )}
+            </TouchableOpacity>
+
+            {/* Mini Close Badge */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.bubbleCloseBadge}
+              onPress={() => audioService.stop()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={10} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.miniPlayerContent}>
-            {/* Cover Image */}
-            {currentTrack.coverUrl ? (
-              <Image source={{ uri: currentTrack.coverUrl }} style={styles.miniCover} />
-            ) : (
-              <View style={styles.miniCoverPlaceholder}>
-                <Radio size={16} color="#FFFFFF" />
-              </View>
-            )}
-
-            {/* Info */}
-            <View style={styles.miniInfo}>
-              <Text style={styles.miniTitle} numberOfLines={1}>
-                {currentTrack.title}
-              </Text>
-              <Text style={styles.miniSubtitle} numberOfLines={1}>
-                {currentTrack.podcastTitle || currentTrack.hostName || 'UniLink Podcast'}
-              </Text>
-            </View>
-
-            {/* Controls */}
-            <View style={styles.miniControls}>
-              <TouchableOpacity
-                onPress={() => audioService.skip(-15)}
-                style={styles.miniIconBtn}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <RotateCcw size={18} color="#A1A1AA" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => audioService.togglePlay()}
-                style={styles.miniPlayBtn}
-                activeOpacity={0.8}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : isPlaying ? (
-                  <Pause size={18} color="#000000" fill="#000000" />
-                ) : (
-                  <Play size={18} color="#000000" fill="#000000" style={{ marginLeft: 2 }} />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => audioService.stop()}
-                style={styles.miniCloseBtn}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={16} color="#71717A" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
+        </Animated.View>
       )}
 
       {/* ── 2. SPOTIFY FULLSCREEN EXPANDED PLAYER MODAL ──────────────── */}
@@ -207,7 +266,7 @@ export function SpotifyAudioPlayer() {
             <View style={styles.fullHeaderMeta}>
               <Text style={styles.fullHeaderSub}>PLAYING FROM PODCAST</Text>
               <Text style={styles.fullHeaderTitle} numberOfLines={1}>
-                {currentTrack.podcastTitle || 'UniLink Campus Audio'}
+                {currentTrack.podcastTitle || 'THE BLISSFUL CAST'}
               </Text>
             </View>
 
@@ -236,7 +295,7 @@ export function SpotifyAudioPlayer() {
                 </Text>
                 <View style={styles.hostRow}>
                   <Text style={styles.fullHostName} numberOfLines={1}>
-                    {currentTrack.hostName || 'Campus Host'}
+                    {currentTrack.hostName || 'THE BLISSFUL CAST'}
                   </Text>
                   <CheckCircle2 size={13} color="#10B981" style={{ marginLeft: 4 }} />
                 </View>
@@ -253,7 +312,7 @@ export function SpotifyAudioPlayer() {
 
             {/* Spotify Scrubber Bar */}
             <View style={styles.scrubberContainer}>
-              <View style={styles.scrubTrackArea} {...panResponder.panHandlers}>
+              <View style={styles.scrubTrackArea} {...scrubberPanResponder.panHandlers}>
                 <View style={styles.scrubTrackBg}>
                   <View style={[styles.scrubProgressFill, { width: `${progressRatio * 100}%` }]} />
                   <View style={[styles.scrubThumb, { left: `${progressRatio * 100}%` }]} />
@@ -321,7 +380,7 @@ export function SpotifyAudioPlayer() {
               </TouchableOpacity>
             </View>
 
-            {/* Bottom Actions (Queue Selector) */}
+            {/* Bottom Extras (Queue Selector) */}
             <View style={styles.bottomExtrasRow}>
               <TouchableOpacity
                 style={styles.queueBtn}
@@ -373,7 +432,7 @@ export function SpotifyAudioPlayer() {
                         {track.title}
                       </Text>
                       <Text style={styles.queueTrackHost} numberOfLines={1}>
-                        {track.hostName || 'UniLink Podcast'}
+                        {track.hostName || 'THE BLISSFUL CAST'}
                       </Text>
                     </View>
                     {isCurrent && isPlaying && (
@@ -393,85 +452,79 @@ export function SpotifyAudioPlayer() {
 }
 
 const styles = StyleSheet.create({
-  // Mini Player
-  miniPlayerContainer: {
+  // Draggable Bubble Styles
+  bubbleWrapper: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 84 : 64,
-    left: 10,
-    right: 10,
-    borderRadius: 14,
-    overflow: 'hidden',
+    zIndex: 9999,
+  },
+  bubbleCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#18181B',
+    borderWidth: 2.5,
+    borderColor: '#3F3F46',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.5,
     shadowRadius: 10,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    zIndex: 999,
+    elevation: 10,
+    overflow: 'visible',
   },
-  miniProgressTrack: {
-    height: 2.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    width: '100%',
+  bubbleCirclePlaying: {
+    borderColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOpacity: 0.6,
   },
-  miniProgressBar: {
-    height: '100%',
-    backgroundColor: '#10B981',
+  bubbleImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
-  miniPlayerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  miniCover: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-  },
-  miniCoverPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+  bubblePlaceholder: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#27272A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  miniInfo: {
-    flex: 1,
-    marginLeft: 10,
-    marginRight: 6,
+  vinylCenterHole: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#18181B',
+    borderWidth: 1.5,
+    borderColor: '#3F3F46',
   },
-  miniTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  miniSubtitle: {
-    fontSize: 11,
-    color: '#A1A1AA',
-    marginTop: 2,
-  },
-  miniControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  miniIconBtn: {
-    padding: 4,
-  },
-  miniPlayBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+  bubblePlayBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#18181B',
   },
-  miniCloseBtn: {
-    padding: 4,
-    marginLeft: 4,
+  bubbleCloseBadge: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#18181B',
   },
 
   // Fullscreen Player
