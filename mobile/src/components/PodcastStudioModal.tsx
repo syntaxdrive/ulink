@@ -112,6 +112,15 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
 
       if (error) throw error;
       setMyPodcasts(data || []);
+
+      if (data && data.length > 0) {
+        const p = data[0];
+        setPodTitle(p.title || '');
+        setPodDesc(p.description || '');
+        setPodCategory(p.category || 'Campus Life');
+        setPodCoverUrl(p.cover_url || null);
+        setSelectedPodcast(p);
+      }
     } catch (e) {
       console.warn('Error fetching my podcasts:', e);
     } finally {
@@ -185,8 +194,8 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
     }
   };
 
-  // Submit New Podcast
-  const handleCreatePodcast = async () => {
+  // Submit / Update Podcast Show
+  const handleCreateOrUpdatePodcast = async () => {
     if (!podTitle.trim()) {
       Alert.alert('Required', 'Please provide a podcast show title.');
       return;
@@ -195,37 +204,52 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
 
     try {
       setSubmittingPod(true);
-      const { data, error } = await supabase
-        .from('podcasts')
-        .insert({
-          creator_id: currentUserId,
-          title: podTitle.trim(),
-          description: podDesc.trim() || null,
-          category: podCategory,
-          cover_url: podCoverUrl,
-          status: 'pending', // Awaiting Admin Approval
-          followers_count: 0,
-          episodes_count: 0,
-        })
-        .select()
-        .single();
+      const existingPod = myPodcasts.length > 0 ? myPodcasts[0] : null;
 
-      if (error) throw error;
+      if (existingPod) {
+        // Update existing show
+        const { error } = await supabase
+          .from('podcasts')
+          .update({
+            title: podTitle.trim(),
+            description: podDesc.trim() || null,
+            category: podCategory,
+            cover_url: podCoverUrl || existingPod.cover_url,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingPod.id);
 
-      Alert.alert(
-        'Show Submitted! 🎉',
-        'Your podcast has been submitted for admin approval. Once verified by campus admins, it will appear publicly for everyone on campus!'
-      );
+        if (error) throw error;
 
-      // Reset form
-      setPodTitle('');
-      setPodDesc('');
-      setPodCoverUrl(null);
+        Alert.alert('Show Updated! 🎙️', `"${podTitle}" has been updated successfully.`);
+      } else {
+        // Insert new show
+        const { error } = await supabase
+          .from('podcasts')
+          .insert({
+            creator_id: currentUserId,
+            title: podTitle.trim(),
+            description: podDesc.trim() || null,
+            category: podCategory,
+            cover_url: podCoverUrl,
+            status: 'pending', // Awaiting Admin Approval
+            followers_count: 0,
+            episodes_count: 0,
+          });
+
+        if (error) throw error;
+
+        Alert.alert(
+          'Show Submitted! 🎉',
+          'Your podcast has been submitted for admin approval. Once verified by campus admins, it will appear publicly for everyone on campus!'
+        );
+      }
+
       if (currentUserId) fetchMyPodcasts(currentUserId);
       if (onPodcastCreatedOrUpdated) onPodcastCreatedOrUpdated();
       setActiveTab('my_shows');
     } catch (e: any) {
-      Alert.alert('Creation Failed', e.message || 'Could not submit podcast.');
+      Alert.alert('Save Failed', e.message || 'Could not save podcast.');
     } finally {
       setSubmittingPod(false);
     }
@@ -355,7 +379,7 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
             onPress={() => setActiveTab('create_show')}
           >
             <Text style={[styles.tabText, { color: activeTab === 'create_show' ? colors.primary : colors.textSecondary }]}>
-              + Create Show
+              {myPodcasts.length > 0 ? 'Edit Show' : '+ Create Show'}
             </Text>
           </TouchableOpacity>
 
@@ -424,25 +448,36 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
                           </Text>
 
                           {/* Status Badge */}
-                          <View style={styles.statusBadgeRow}>
-                            {isApproved && (
-                              <View style={[styles.statusBadge, { backgroundColor: '#ECFDF5', borderColor: '#10B981' }]}>
-                                <CheckCircle2 size={12} color="#059669" style={{ marginRight: 4 }} />
-                                <Text style={[styles.statusBadgeText, { color: '#059669' }]}>LIVE & APPROVED</Text>
-                              </View>
-                            )}
-                            {isPending && (
-                              <View style={[styles.statusBadge, { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' }]}>
-                                <Clock size={12} color="#D97706" style={{ marginRight: 4 }} />
-                                <Text style={[styles.statusBadgeText, { color: '#D97706' }]}>PENDING ADMIN REVIEW</Text>
-                              </View>
-                            )}
-                            {isRejected && (
-                              <View style={[styles.statusBadge, { backgroundColor: '#FEF2F2', borderColor: '#EF4444' }]}>
-                                <AlertCircle size={12} color="#DC2626" style={{ marginRight: 4 }} />
-                                <Text style={[styles.statusBadgeText, { color: '#DC2626' }]}>CHANGES REQUESTED</Text>
-                              </View>
-                            )}
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
+                                backgroundColor: isApproved
+                                  ? '#ECFDF5'
+                                  : isPending
+                                  ? '#FFFBEB'
+                                  : '#FEF2F2',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                {
+                                  color: isApproved
+                                    ? '#059669'
+                                    : isPending
+                                    ? '#D97706'
+                                    : '#DC2626',
+                                },
+                              ]}
+                            >
+                              {isApproved
+                                ? '● LIVE & APPROVED'
+                                : isPending
+                                ? '● AWAITING ADMIN APPROVAL'
+                                : '● CHANGES REQUESTED'}
+                            </Text>
                           </View>
                         </View>
                       </View>
@@ -453,19 +488,36 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
                         </Text>
                       ) : null}
 
-                      {/* Add Episode Shortcut */}
-                      <TouchableOpacity
-                        style={styles.addEpisodeBtn}
-                        onPress={() => {
-                          setSelectedPodcast(pod);
-                          setActiveTab('add_episode');
-                        }}
-                      >
-                        <Plus size={16} color={colors.primary} style={{ marginRight: 4 }} />
-                        <Text style={[styles.addEpisodeBtnText, { color: colors.primary }]}>
-                          Drop New Episode
-                        </Text>
-                      </TouchableOpacity>
+                      {/* Actions: Add Episode & Edit Show */}
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                        <TouchableOpacity
+                          style={[styles.addEpisodeBtn, { flex: 1 }]}
+                          onPress={() => {
+                            setSelectedPodcast(pod);
+                            setActiveTab('add_episode');
+                          }}
+                        >
+                          <Plus size={16} color={colors.primary} style={{ marginRight: 4 }} />
+                          <Text style={[styles.addEpisodeBtnText, { color: colors.primary }]}>
+                            Drop Episode
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.addEpisodeBtn, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderColor: colors.border }]}
+                          onPress={() => {
+                            setPodTitle(pod.title || '');
+                            setPodDesc(pod.description || '');
+                            setPodCategory(pod.category || 'Campus Life');
+                            setPodCoverUrl(pod.cover_url || null);
+                            setActiveTab('create_show');
+                          }}
+                        >
+                          <Text style={[styles.addEpisodeBtnText, { color: colors.text }]}>
+                            Edit Show
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   );
                 })
@@ -473,10 +525,12 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
             </ScrollView>
           )}
 
-          {/* ── TAB 2: CREATE PODCAST SHOW ─────────────────────────── */}
+          {/* ── TAB 2: CREATE / EDIT PODCAST SHOW ───────────────────── */}
           {activeTab === 'create_show' && (
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-              <Text style={[styles.formSectionTitle, { color: colors.text }]}>Show Details</Text>
+              <Text style={[styles.formSectionTitle, { color: colors.text }]}>
+                {myPodcasts.length > 0 ? 'Edit Show Details' : 'Show Details'}
+              </Text>
 
               {/* Cover Artwork Picker */}
               <TouchableOpacity style={styles.coverPicker} onPress={handlePickPodCover} activeOpacity={0.8}>
@@ -562,13 +616,15 @@ export function PodcastStudioModal({ visible, onClose, onPodcastCreatedOrUpdated
               {/* Submit Button */}
               <TouchableOpacity
                 style={styles.submitBtn}
-                onPress={handleCreatePodcast}
+                onPress={handleCreateOrUpdatePodcast}
                 disabled={submittingPod}
               >
                 {submittingPod ? (
                   <ActivityIndicator size="small" color="#000000" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Submit Podcast for Approval</Text>
+                  <Text style={styles.submitBtnText}>
+                    {myPodcasts.length > 0 ? 'Save & Update Show' : 'Submit Podcast for Approval'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
