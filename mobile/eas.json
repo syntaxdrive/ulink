@@ -5,13 +5,11 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "npmClient": "npm",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "npmClient": "npm",
       "android": {
         "buildType": "apk"
       }
