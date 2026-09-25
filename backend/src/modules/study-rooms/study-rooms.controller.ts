@@ -22,7 +22,6 @@ import { CreateStudyRoomDto } from './dto/create-study-room.dto';
  */
 @ApiTags('Study Rooms')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('study-rooms')
 export class StudyRoomsController {
   constructor(private readonly studyRoomsService: StudyRoomsService) {}
@@ -40,24 +39,28 @@ export class StudyRoomsController {
   }
 
   @ApiOperation({ summary: 'Create a new study room' })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createRoom(@Request() req: any, @Body() dto: CreateStudyRoomDto) {
     return this.studyRoomsService.createRoom(req.user.userId, dto);
   }
 
   @ApiOperation({ summary: 'Join a study room' })
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/join')
   joinRoom(@Request() req: any, @Param('id') roomId: string) {
     return this.studyRoomsService.joinRoom(req.user.userId, roomId);
   }
 
   @ApiOperation({ summary: 'Leave a study room' })
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id/leave')
   leaveRoom(@Request() req: any, @Param('id') roomId: string) {
     return this.studyRoomsService.leaveRoom(req.user.userId, roomId);
   }
 
   @ApiOperation({ summary: 'Update status in room (e.g. Focusing, Break)' })
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id/status')
   updateStatus(
     @Request() req: any,
@@ -68,6 +71,7 @@ export class StudyRoomsController {
   }
 
   @ApiOperation({ summary: 'Close a study room (host only)' })
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id/close')
   closeRoom(@Request() req: any, @Param('id') roomId: string) {
     return this.studyRoomsService.closeRoom(req.user.userId, roomId);

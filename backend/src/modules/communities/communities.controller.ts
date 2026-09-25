@@ -21,7 +21,6 @@ import { CreateCommunityDto } from './dto/create-community.dto';
  */
 @ApiTags('Communities')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('communities')
 export class CommunitiesController {
   constructor(private readonly communitiesService: CommunitiesService) {}
@@ -35,22 +34,25 @@ export class CommunitiesController {
   @ApiOperation({ summary: 'Get community by slug' })
   @Get(':slug')
   getCommunityBySlug(@Request() req: any, @Param('slug') slug: string) {
-    return this.communitiesService.getCommunityBySlug(slug, req.user.userId);
+    return this.communitiesService.getCommunityBySlug(slug, req?.user?.userId);
   }
 
   @ApiOperation({ summary: 'Create a new community' })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createCommunity(@Request() req: any, @Body() dto: CreateCommunityDto) {
     return this.communitiesService.createCommunity(req.user.userId, dto);
   }
 
   @ApiOperation({ summary: 'Join a community' })
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/join')
   joinCommunity(@Request() req: any, @Param('id') communityId: string) {
     return this.communitiesService.joinCommunity(req.user.userId, communityId);
   }
 
   @ApiOperation({ summary: 'Leave a community' })
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id/leave')
   leaveCommunity(@Request() req: any, @Param('id') communityId: string) {
     return this.communitiesService.leaveCommunity(req.user.userId, communityId);

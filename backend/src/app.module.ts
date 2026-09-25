@@ -15,6 +15,7 @@ import { CommunitiesModule } from './modules/communities/communities.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ConnectionsModule } from './modules/connections/connections.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { RestModule } from './modules/rest/rest.module';
 import { HealthController } from './health.controller';
 
 /**
@@ -52,6 +53,7 @@ import { HealthController } from './health.controller';
     JobsModule,
     ConnectionsModule,
     UploadModule,
+    RestModule,
   ],
   controllers: [HealthController],
   providers: [

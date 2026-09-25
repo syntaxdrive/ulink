@@ -22,7 +22,6 @@ import { CreateCourseDto } from './dto/create-course.dto';
  */
 @ApiTags('Courses')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
@@ -47,6 +46,7 @@ export class CoursesController {
    * Get the authenticated user's saved course library (liked courses).
    */
   @ApiOperation({ summary: "Get the current user's saved course library" })
+  @UseGuards(AuthGuard('jwt'))
   @Get('library')
   getUserLibrary(@Request() req: any) {
     return this.coursesService.getUserLibrary(req.user.userId);
@@ -77,6 +77,7 @@ export class CoursesController {
    * Create a new course.
    */
   @ApiOperation({ summary: 'Create a new course' })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createCourse(@Request() req: any, @Body() dto: CreateCourseDto) {
     return this.coursesService.createCourse(req.user.userId, dto);
@@ -87,6 +88,7 @@ export class CoursesController {
    * Toggle a like (save/unsave) on a course.
    */
   @ApiOperation({ summary: 'Toggle like (save/unsave) a course' })
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/like')
   toggleLike(@Request() req: any, @Param('id') courseId: string) {
     return this.coursesService.toggleLike(req.user.userId, courseId);
@@ -97,6 +99,7 @@ export class CoursesController {
    * Record a document download event.
    */
   @ApiOperation({ summary: 'Record a document download' })
+  @UseGuards(AuthGuard('jwt'))
   @Patch('documents/:documentId/download')
   recordDownload(
     @Request() req: any,
@@ -110,6 +113,7 @@ export class CoursesController {
    * Delete a course (author only).
    */
   @ApiOperation({ summary: 'Delete a course (author only)' })
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   deleteCourse(@Request() req: any, @Param('id') courseId: string) {
     return this.coursesService.deleteCourse(req.user.userId, courseId);

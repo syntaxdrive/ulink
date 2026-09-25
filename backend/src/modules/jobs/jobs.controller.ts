@@ -21,7 +21,6 @@ import { CreateJobDto } from './dto/create-job.dto';
  */
 @ApiTags('Jobs')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
@@ -46,12 +45,14 @@ export class JobsController {
   }
 
   @ApiOperation({ summary: 'Post a new job or internship listing' })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createJob(@Request() req: any, @Body() dto: CreateJobDto) {
     return this.jobsService.createJob(req.user.userId, dto);
   }
 
   @ApiOperation({ summary: 'Delete a job listing' })
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   deleteJob(@Request() req: any, @Param('id') jobId: string) {
     return this.jobsService.deleteJob(req.user.userId, jobId);

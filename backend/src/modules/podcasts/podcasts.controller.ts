@@ -22,7 +22,6 @@ import { CreateEpisodeDto } from './dto/create-episode.dto';
  */
 @ApiTags('Podcasts')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('podcasts')
 export class PodcastsController {
   constructor(private readonly podcastsService: PodcastsService) {}
@@ -41,16 +40,18 @@ export class PodcastsController {
   @ApiOperation({ summary: 'Get details of a single podcast' })
   @Get(':id')
   getPodcastById(@Request() req: any, @Param('id') podcastId: string) {
-    return this.podcastsService.getPodcastById(podcastId, req.user.userId);
+    return this.podcastsService.getPodcastById(podcastId, req?.user?.userId);
   }
 
   @ApiOperation({ summary: 'Create a new Podcast channel' })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createPodcast(@Request() req: any, @Body() dto: CreatePodcastDto) {
     return this.podcastsService.createPodcast(req.user.userId, dto);
   }
 
   @ApiOperation({ summary: 'Follow or unfollow a podcast channel' })
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/follow')
   toggleFollow(@Request() req: any, @Param('id') podcastId: string) {
     return this.podcastsService.toggleFollow(req.user.userId, podcastId);
@@ -66,6 +67,7 @@ export class PodcastsController {
   }
 
   @ApiOperation({ summary: 'Create a new episode for a podcast (creator only)' })
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/episodes')
   createEpisode(
     @Request() req: any,
