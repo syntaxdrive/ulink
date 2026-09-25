@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { api } from '../../../lib/api';
 import type { Post } from '../../../types';
 import { useFeedStore } from '../../../stores/useFeedStore';
 import { useAuthModalStore } from '../../../stores/useAuthModalStore';
@@ -8,16 +9,28 @@ import { cloudinaryService, getOptimizedMediaUrl } from '../../../services/cloud
 
 function optimizePostMedia(post: any): any {
     if (!post) return post;
+    const author = post.author || post.profiles;
     return {
         ...post,
         image_url: getOptimizedMediaUrl(post.image_url),
         image_urls: post.image_urls ? post.image_urls.map((u: string) => getOptimizedMediaUrl(u)) : null,
         video_url: getOptimizedMediaUrl(post.video_url),
-        profiles: post.profiles ? {
-            ...post.profiles,
-            avatar_url: getOptimizedMediaUrl(post.profiles.avatar_url),
-            background_image_url: getOptimizedMediaUrl(post.profiles.background_image_url)
-        } : null,
+        profiles: author ? {
+            id: author.id,
+            name: author.name || 'Student',
+            username: author.username || 'student',
+            avatar_url: getOptimizedMediaUrl(author.avatar_url),
+            background_image_url: getOptimizedMediaUrl(author.background_image_url),
+            is_verified: author.is_verified || false,
+            university: author.university || null,
+            headline: author.headline || null,
+            role: author.role || 'student'
+        } : {
+            name: 'Student',
+            username: 'student',
+            avatar_url: null,
+            is_verified: false,
+        },
         community: post.community ? {
             ...post.community,
             icon_url: getOptimizedMediaUrl(post.community.icon_url),
@@ -51,49 +64,21 @@ export function useFeed(communityId?: string) {
 
     useEffect(() => {
         const init = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-            if (user) {
-                setCurrentUserId(user.id);
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points')
-                    .eq('id', user.id)
-                    .single();
-                if (data) {
-                    setCurrentUserProfile(data);
+            const storedUser = localStorage.getItem('ulink_user');
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    setCurrentUserId(user.id);
+                    setCurrentUserProfile(user);
                     await fetchPosts(user.id);
-                } else {
-                    await fetchPosts(user.id);
-                }
-            } else {
-                setCurrentUserId(null);
-                setCurrentUserProfile(null);
-                await fetchPosts();
+                    return;
+                } catch {}
             }
+            setCurrentUserId(null);
+            setCurrentUserProfile(null);
+            await fetchPosts();
         };
         init();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-                setCurrentUserId(session.user.id);
-                supabase
-                    .from('profiles')
-                    .select('id, name, username, avatar_url, background_image_url, role, is_admin, is_verified, university, location, headline, about, industry, skills, website, website_url, github_url, linkedin_url, instagram_url, twitter_url, facebook_url, points')
-                    .eq('id', session.user.id)
-                    .single()
-                    .then(({ data }) => {
-                        if (data) setCurrentUserProfile(data);
-                    });
-            } else if (event === 'SIGNED_OUT') {
-                setCurrentUserId(null);
-                setCurrentUserProfile(null);
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
     }, [communityId]);
 
     useEffect(() => {
@@ -149,95 +134,31 @@ export function useFeed(communityId?: string) {
         // Cursor-based pagination: each page fetches exactly POSTS_PER_PAGE new rows
         const cursor = isLoadMore ? feedCursor : null;
 
-        // ── Database Fetch ──────────────────────────────────────────────────
-        let query = supabase
-            .from('posts')
-            .select(`
-                *,
-                profiles:author_id (id, name, username, avatar_url, is_verified, headline, role),
-                community:community_id (id, name, slug, icon_url),
-                original_post:original_post_id (
-                    id, content, image_url, image_urls, video_url, created_at, author_id,
-                    profiles:author_id (id, name, username, avatar_url, is_verified)
-                ),
-                actual_likes:likes(count),
-                actual_comments:comments(count)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(POSTS_PER_PAGE);
+        // ── Fetch Posts via NestJS API ──────────────────────────────────────
+        const params = new URLSearchParams();
+        if (cursor) params.set('cursor', cursor);
+        params.set('limit', String(POSTS_PER_PAGE));
 
-        if (cursor) query = query.lt('created_at', cursor);
+        const { data: feedResult, error: feedError } = await api.get<{ posts: any[]; nextCursor?: string }>(`/feed?${params.toString()}`);
 
-        if (communityId) {
-            query = query.eq('community_id', communityId);
-        } else {
-            query = query.or('community_id.is.null,shared_to_feed.eq.true');
-        }
-
-        let { data, error } = await query;
-
-        if (error) {
-            console.error('Error fetching posts:', error);
+        if (feedError) {
+            console.error('Error fetching posts via API:', feedError);
             if (isInitial) setLoading(false);
             return;
         }
 
-        if (data) {
-            const VIP_EMAILS = ['oyasordaniel@gmail.com', 'akeledivine1@gmail.com'];
+        const rawPosts = feedResult?.posts || [];
 
-            // ── Minimal Aux Fetch (Only what's NOT cached in posts table) ──
-            // We only need to know if the CURRENT USER liked or voted.
-            // Global counts (likes_count, comments_count) are already in the 'data' from posts table!
-            
-            let userEngagementMap: Record<string, { userLiked: boolean; userVote: number | null }> = {};
-            
-            if (userId && data.length > 0) {
-                const postIds = data.map((p: any) => p.id);
-                
-                const [likesResult, votesResult] = await Promise.all([
-                    supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', userId),
-                    supabase.from('poll_votes').select('post_id, option_index').in('post_id', postIds).eq('user_id', userId)
-                ]);
-
-                if (likesResult.data) {
-                    likesResult.data.forEach((l: any) => {
-                        if (!userEngagementMap[l.post_id]) userEngagementMap[l.post_id] = { userLiked: false, userVote: null };
-                        userEngagementMap[l.post_id].userLiked = true;
-                    });
-                }
-                if (votesResult.data) {
-                    votesResult.data.forEach((v: any) => {
-                        if (!userEngagementMap[v.post_id]) userEngagementMap[v.post_id] = { userLiked: false, userVote: null };
-                        userEngagementMap[v.post_id].userVote = v.option_index;
-                    });
-                }
-            }
-
-            let formatted = data.map((post: any) => optimizePostMedia({
+        if (rawPosts.length > 0 || !isLoadMore) {
+            let formatted = rawPosts.map((post: any) => optimizePostMedia({
                 ...post,
-                // Source of truth: actual count from table (Fallback to cached column)
-                likes_count: post.actual_likes?.[0]?.count ?? post.likes_count ?? 0,
-                comments_count: post.actual_comments?.[0]?.count ?? post.comments_count ?? 0,
-                reposts_count: post.reposts_count || 0,
-                // User-specific engagement
-                user_has_liked: userEngagementMap[post.id]?.userLiked || false,
-                user_vote: userEngagementMap[post.id]?.userVote ?? null,
-                is_vip: VIP_EMAILS.includes(post.profiles?.email)
+                likes_count: post.likes_count ?? 0,
+                comments_count: post.comments_count ?? 0,
+                reposts_count: post.reposts_count ?? 0,
+                user_has_liked: post.user_has_liked || false,
+                user_vote: null,
+                is_vip: false,
             }));
-
-            // ── Engagement Algorithm ──
-            const now = Date.now();
-            formatted.forEach((post: any) => {
-                const ageHours = (now - new Date(post.created_at).getTime()) / (1000 * 60 * 60);
-                let score = 100;
-                if (ageHours < 48) score += 50 * (1 - (ageHours / 48));
-                if (post.is_vip && ageHours < 24) score += 200;
-                if (post.profiles?.gold_verified) score *= 1.15;
-                score += (post.likes_count * 1) + (post.comments_count * 3) + (post.reposts_count * 5);
-                post._algorithmic_score = score;
-            });
-
-            formatted.sort((a: any, b: any) => b._algorithmic_score - a._algorithmic_score);
 
             if (isLoadMore) {
                 setPosts([...useFeedStore.getState().posts, ...formatted], currentContext);
@@ -245,10 +166,9 @@ export function useFeed(communityId?: string) {
                 setPosts(formatted, currentContext);
             }
 
-            setHasMore(formatted.length >= POSTS_PER_PAGE);
-            if (formatted.length > 0) {
-                const oldest = formatted.reduce((a: any, b: any) => a.created_at < b.created_at ? a : b);
-                setFeedCursor(oldest.created_at);
+            setHasMore(!!feedResult?.nextCursor);
+            if (feedResult?.nextCursor) {
+                setFeedCursor(feedResult.nextCursor);
             }
         }
         if (isInitial) setLoading(false);
@@ -499,35 +419,24 @@ export function useFeed(communityId?: string) {
 
             const mainImageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
 
-            const { data, error } = await supabase
-                .from('posts')
-                .insert({
-                    author_id: user.id,
-                    content: content,
-                    image_url: mainImageUrl, // Legacy
-                    image_urls: imageUrls,
-                    video_url: videoUrl,
-                    community_id: finalCommunityId,
-                    poll_options: pollOptions && pollOptions.length > 1 ? pollOptions : null,
-                    poll_counts: pollOptions && pollOptions.length > 1 ? new Array(pollOptions.length).fill(0) : null
-                })
-                .select(`*, profiles: author_id(*), likes(user_id), comments(id)`)
-                .single();
+            const { data, error } = await api.post<any>('/posts', {
+                content,
+                imageUrl: mainImageUrl,
+                imageUrls,
+                videoUrl,
+                communityId: finalCommunityId,
+            });
 
-            if (error) throw error;
-            if (data) {
-                const newPost = optimizePostMedia({
-                    ...data,
-                    likes_count: 0,
-                    comments_count: 0,
-                    user_has_liked: false,
-                    profiles: currentUserProfile || { id: user.id, name: 'You' }
-                });
-                addPost(newPost);
+            if (error || !data) throw new Error(error || 'Failed to create post');
 
-                // Notify mentioned users
-                notifyMentionedUsers(content, data.id, user.id, 'post');
-            }
+            const newPost = optimizePostMedia({
+                ...data,
+                likes_count: 0,
+                comments_count: 0,
+                user_has_liked: false,
+                profiles: currentUserProfile || { id: user.id, name: 'You' }
+            });
+            addPost(newPost);
         } catch (error) {
             console.error('Error creating post:', JSON.stringify(error, null, 2));
             alert('Failed to create post: ' + ((error as any).message || 'Unknown error'));
@@ -537,22 +446,18 @@ export function useFeed(communityId?: string) {
 
     const deletePost = async (postId: string) => {
         removePost(postId);
-        const { error } = await supabase.from('posts').delete().eq('id', postId);
-        if (error) {
-            console.error('Error deleting post:', error);
-        }
+        await api.delete(`/posts/${postId}`);
     };
 
     const toggleLike = async (post: Post) => {
-        const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-        if (!user) {
+        const token = localStorage.getItem('ulink_jwt_token');
+        if (!token) {
             useAuthModalStore.getState().openAuthModal('Sign in to like this post');
             return;
         }
 
         const isLiked = post.user_has_liked;
-        const newLikeCount = isLiked ? (post.likes_count || 0) - 1 : (post.likes_count || 0) + 1;
+        const newLikeCount = isLiked ? Math.max((post.likes_count || 0) - 1, 0) : (post.likes_count || 0) + 1;
 
         updatePost({
             ...post,
@@ -560,18 +465,16 @@ export function useFeed(communityId?: string) {
             likes_count: newLikeCount
         });
 
-        try {
-            if (isLiked) {
-                const { error } = await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
-                if (error) throw error;
-            }
-        } catch (error) {
+        const { data, error } = await api.post<any>(`/posts/${post.id}/like`, {});
+        if (error) {
             console.error('Error toggling like:', error);
-            // Rollback optimistic update
             updatePost(post);
+        } else if (data && typeof data.liked === 'boolean') {
+            updatePost({
+                ...post,
+                user_has_liked: data.liked,
+                likes_count: data.likes_count ?? newLikeCount,
+            });
         }
     };
 

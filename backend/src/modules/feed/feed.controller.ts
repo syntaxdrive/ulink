@@ -6,7 +6,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('feed')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller()
 export class FeedController {
   constructor(private readonly feedService: FeedService) {}
@@ -22,6 +21,7 @@ export class FeedController {
     return this.feedService.getFeed(userId, cursor, parsedLimit);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('posts')
   @HttpCode(HttpStatus.CREATED)
   createPost(@Request() req: any, @Body() dto: CreatePostDto) {
@@ -29,6 +29,7 @@ export class FeedController {
     return this.feedService.createPost(userId, dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('posts/:id/like')
   @HttpCode(HttpStatus.OK)
   likePost(@Request() req: any, @Param('id') id: string) {
@@ -46,6 +47,7 @@ export class FeedController {
     return this.feedService.getPostComments(id, cursor, parsedLimit);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('posts/:id/comments')
   @HttpCode(HttpStatus.CREATED)
   addComment(
@@ -62,6 +64,7 @@ export class FeedController {
     return this.feedService.getPodcastStories();
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('posts/:id/repost')
   @HttpCode(HttpStatus.CREATED)
   repostPost(
@@ -73,6 +76,7 @@ export class FeedController {
     return this.feedService.repostPost(userId, id, comment);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete('posts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deletePost(@Request() req: any, @Param('id') id: string) {
