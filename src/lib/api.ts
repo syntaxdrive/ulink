@@ -10,7 +10,7 @@ function getBaseUrl(): string {
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return 'http://localhost:3000/api/v1';
   }
-  return 'https://unilink-api.onrender.com/api/v1';
+  return 'https://unilink-api-s6b9.onrender.com/api/v1';
 }
 
 function getToken(): string | null {
