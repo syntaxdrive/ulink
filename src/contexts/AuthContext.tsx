@@ -97,13 +97,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (cached) {
       try {
         setUserState(JSON.parse(cached));
+        setLoading(false);
       } catch {
         // ignore bad cache
       }
     }
 
+    // Safety timeout: never stay in loading state for more than 1.5s
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+
     // Validate token with NestJS in background
     api.get<any>('/auth/me').then(({ data, error }) => {
+      clearTimeout(timer);
       if (error || !data) {
         // Token expired or invalid — sign out
         setUser(null);
@@ -112,6 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserState(authUser);
         localStorage.setItem('ulink_user', JSON.stringify(authUser));
       }
+      setLoading(false);
+    }).catch(() => {
+      clearTimeout(timer);
       setLoading(false);
     });
   }, [setUser]);

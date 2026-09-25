@@ -1,13 +1,24 @@
 /**
  * NestJS API Client
  * Replaces all direct Supabase data calls.
- * URL is set via VITE_API_URL env var in Cloudflare Pages.
+ * Auto-detects localhost vs production Render URL.
  */
 
-const BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://unilink-api.onrender.com/api/v1';
+function getBaseUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl) return envUrl;
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:3000/api/v1';
+  }
+  return 'https://unilink-api.onrender.com/api/v1';
+}
 
 function getToken(): string | null {
-  return localStorage.getItem('ulink_jwt_token');
+  try {
+    return localStorage.getItem('ulink_jwt_token');
+  } catch {
+    return null;
+  }
 }
 
 async function request<T>(
@@ -20,11 +31,15 @@ async function request<T>(
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout max
+
+    const res = await fetch(`${getBaseUrl()}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: res.statusText }));
