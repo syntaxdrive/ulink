@@ -1,0 +1,55 @@
+rules:
+  - id: supabase-unpaginated-query
+    patterns:
+      - pattern: supabase.from(...).select(...)
+      - pattern-not-inside: supabase.from(...).select(...).limit(...)
+      - pattern-not-inside: supabase.from(...).select(...).single(...)
+      - pattern-not-inside: supabase.from(...).select(...).maybeSingle(...)
+    message: "Missing pagination! Always use .limit() when querying lists to avoid exhausting Supabase compute and egress."
+    severity: ERROR
+    languages: [javascript, typescript]
+
+  - id: supabase-global-websocket
+    patterns:
+      - pattern: $CHANNEL = supabase.channel(...)
+      - pattern-inside: |
+          useEffect(() => {
+            ...
+            $CHANNEL = supabase.channel(...)
+            ...
+          }, [])
+    message: "Potential global WebSocket connection. Ensure you aren't opening channels on app-wide layouts without strict contextual necessity."
+    severity: WARNING
+    languages: [javascript, typescript]
+
+  - id: supabase-interval-polling
+    patterns:
+      - pattern: setInterval(...)
+      - pattern-inside: |
+          setInterval(..., $TIME)
+    message: "setInterval detected. Do not use polling loops to ping the Supabase database. Use Realtime WebSockets or Push Notifications instead."
+    severity: ERROR
+    languages: [javascript, typescript]
+
+  - id: supabase-raw-storage-upload
+    patterns:
+      - pattern: supabase.storage.from(...).upload($PATH, $FILE, ...)
+      - pattern-not-inside: |
+          ...
+          compressImage(...)
+          ...
+          supabase.storage.from(...).upload($PATH, $FILE, ...)
+    message: "Uploading raw media to Supabase Storage will quickly exhaust the 250GB egress limit. Compress images on the client side before uploading."
+    severity: WARNING
+    languages: [javascript, typescript]
+
+  - id: supabase-manual-join-n-plus-1
+    patterns:
+      - pattern: supabase.from(...).select(...).in('id', ...)
+      - pattern-inside: |
+          $LIST = await supabase.from(...).select(...)
+          ...
+          supabase.from(...).select(...).in('id', ...)
+    message: "Manual Relational Join detected. Do not fetch a list and then query a second table using the extracted IDs. Use Supabase Foreign Key joins instead."
+    severity: ERROR
+    languages: [javascript, typescript]

@@ -1,0 +1,1254 @@
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { type Profile } from '../../types';
+import { Loader2, Mail, School, Globe, MapPin, Briefcase, Github, Linkedin, BadgeCheck, ArrowLeft, Heart, MessageCircle, Award, ExternalLink, Trash2, Flag, UserPlus, Check, Clock, Share, UserMinus, Ban, Instagram, Twitter, UserCheck, Info, Maximize, X, User, Plus,  Play as PlayIcon, ChevronRight } from 'lucide-react';
+import { useFollow } from './hooks/useFollow';
+import { updateMetaTags, resetMetaTags } from '../../utils/metaTags';
+import { SEO } from '../../components/SEO/SEO';
+import { nativeShare } from '../../utils/shareUtils';
+import { getBaseUrl } from '../../config';
+import { getOptimizedMediaUrl } from '../../services/cloudinaryService';
+
+export default function UserProfilePage() {
+    const { userId } = useParams();
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const [posts, setPosts] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [isAddingCert, setIsAddingCert] = useState(false);
+    const [newCert, setNewCert] = useState({ title: '', issuing_org: '', issue_date: '', credential_url: '' });
+    const [connectionsCount, setConnectionsCount] = useState(0);
+
+    // Connection Logic
+    const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected' | 'received' | 'rejected' | 'blocked'>('none');
+    const [actionLoading, setActionLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState<'posts' | 'jobs' | 'stories'>('posts');
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isViewingBackground, setIsViewingBackground] = useState(false);
+    const [orgJobs, setOrgJobs] = useState<any[]>([]);
+    const [userStories, setUserStories] = useState<any[]>([]);
+
+    // Helper to check if profile is organization
+    const isOrganization = profile?.role === 'org';
+
+    // Follow Logic - Use profile.id (not userId which could be username)
+    const { isFollowing, followersCount, followingCount, toggleFollow, canFollow, loading: followLoading } = useFollow(profile?.id || '');
+
+    const fetchConnectionStatus = async (targetId: string) => {
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user) return;
+
+        const { data } = await supabase
+            .from('connections')
+            .select('id,requester_id,recipient_id,status')
+            .or(`and(requester_id.eq.${user.id},recipient_id.eq.${targetId}),and(requester_id.eq.${targetId},recipient_id.eq.${user.id})`)
+            .maybeSingle();
+
+        if (data) {
+            if (data.status === 'blocked') {
+                if (data.requester_id === user.id) {
+                    setConnectionStatus('blocked'); // I blocked them
+                } else {
+                    setConnectionStatus('none'); // They blocked me (appear as none)
+                }
+            } else if (data.status === 'accepted') {
+                setConnectionStatus('connected');
+            } else if (data.status === 'rejected') {
+                setConnectionStatus('rejected');
+            } else if (data.requester_id === user.id) {
+                setConnectionStatus('pending');
+            } else {
+                setConnectionStatus('received');
+            }
+        } else {
+            setConnectionStatus('none');
+        }
+    };
+
+    const handleConnect = async () => {
+        setActionLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user || !profile) return;
+
+        if (connectionStatus === 'none' || connectionStatus === 'rejected') {
+            // Delete prior connection record (if rejected/cancelled) to allow inserting a clean new request
+            await supabase
+                .from('connections')
+                .delete()
+                .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${user.id})`);
+
+            const { error } = await supabase
+                .from('connections')
+                .insert({
+                    requester_id: user.id,
+                    recipient_id: profile.id,
+                    status: 'pending'
+                });
+
+            if (error) {
+                alert(error.message || 'Failed to send connection request');
+            } else {
+                setConnectionStatus('pending');
+            }
+        } else if (connectionStatus === 'received') {
+            // Accept request logic
+            const { error } = await supabase
+                .from('connections')
+                .update({ status: 'accepted' })
+                .eq('recipient_id', user.id)
+                .eq('requester_id', profile.id);
+            if (!error) setConnectionStatus('connected');
+        } else if (connectionStatus === 'blocked') {
+            // Unblock logic (delete the block record)
+            const { error } = await supabase
+                .from('connections')
+                .delete()
+                // We know we are the requester if status is 'blocked' (from fetch logic)
+                .match({ requester_id: user.id, recipient_id: profile.id });
+
+            if (!error) setConnectionStatus('none');
+        }
+
+        setActionLoading(false);
+    };
+
+    const handleDisconnect = async () => {
+        if (!confirm('Are you sure you want to disconnect?')) return;
+        setActionLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user || !profile) return;
+
+        // Delete the connection record regardless of who started it
+        const { error } = await supabase
+            .from('connections')
+            .delete()
+            .or(`and(requester_id.eq.${user.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${user.id})`);
+
+        if (!error) setConnectionStatus('none');
+        setActionLoading(false);
+    };
+
+    const handleBlock = async () => {
+        if (!confirm('Are you sure you want to block this user? They will not be able to contact you.')) return;
+        setActionLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user || !profile) return;
+
+        // Upsert a block record: Current user is requester, Status is blocked
+        // This overwrites any existing connection
+        const { error } = await supabase
+            .from('connections')
+            .upsert({
+                requester_id: user.id,
+                recipient_id: profile.id,
+                status: 'blocked'
+            });
+
+        if (!error) setConnectionStatus('blocked');
+        setActionLoading(false);
+    };
+
+    const handleAddCertificate = async () => {
+        if (!newCert.title || !newCert.issuing_org) return; // Basic validation
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user) return;
+
+        const { error } = await supabase.from('certificates').insert({
+            user_id: user.id,
+            ...newCert,
+            issue_date: newCert.issue_date || null
+        });
+
+        if (!error) {
+            setIsAddingCert(false);
+            setNewCert({ title: '', issuing_org: '', issue_date: '', credential_url: '' });
+            if (userId) fetchProfile(userId); // Refresh profile
+        } else {
+            console.error('Error adding cert:', error);
+            alert('Failed to add certificate.');
+        }
+    };
+
+    const fetchProfile = async (idOrUsername: string) => {
+        try {
+            console.log('Fetching profile for:', idOrUsername);
+            let query = supabase.from('profiles').select('*, certificates(*)').limit(50);
+
+            // Simple UUID check
+            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrUsername);
+
+            if (isUUID) {
+                console.log('Searching by UUID');
+                query = query.eq('id', idOrUsername);
+            } else {
+                console.log('Searching by username');
+                query = query.eq('username', idOrUsername.toLowerCase());
+            }
+
+            const { data, error } = await query.single();
+
+            if (error || !data) {
+                console.error('Profile not found:', { error, idOrUsername, isUUID });
+                setProfile(null);
+            } else {
+                console.log('Profile found:', data.name);
+                setProfile(data);
+            }
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+            setProfile(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchUserStories = async (id: string) => {
+        const { data } = await supabase
+            .from('stories')
+            .select('*')
+            .eq('creator_id', id)
+            .eq('is_published', true)
+            .order('created_at', { ascending: false });
+        if (data) setUserStories(data);
+    };
+
+    const fetchUserPosts = async (id: string) => {
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+
+        const { data } = await supabase
+            .from('posts')
+            .select(`
+                id,author_id,content,image_url,image_urls,video_url,created_at,likes_count,comments_count,is_repost,
+                profiles:author_id (id,name,username,avatar_url,is_verified,role),
+                actual_likes:likes(count),
+                actual_comments:comments(count)
+            `)
+            .eq('author_id', id)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (data) {
+            const postIds = data.map((p: any) => p.id);
+            const { data: userLikes } = user 
+                ? await supabase.from('likes').select('post_id').in('post_id', postIds).eq('user_id', user.id)
+                : { data: [] };
+            
+            const likedSet = new Set(userLikes?.map(l => l.post_id));
+
+            const formattedPosts = data.map((post: any) => ({
+                ...post,
+                likes_count: post.actual_likes?.[0]?.count ?? post.likes_count ?? 0,
+                comments_count: post.actual_comments?.[0]?.count ?? post.comments_count ?? 0,
+                user_has_liked: likedSet.has(post.id)
+            }));
+            setPosts(formattedPosts);
+        }
+    };
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user));
+    }, []);
+
+    useEffect(() => {
+        if (userId) {
+            fetchProfile(userId);
+        }
+    }, [userId]);
+
+    // Update meta tags for social sharing
+    useEffect(() => {
+        if (profile) {
+            updateMetaTags({
+                title: profile.name,
+                description: profile.headline || profile.about || `${profile.name} on UniLink - Connect with students across Nigerian universities`,
+                image: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=random`,
+                url: window.location.href
+            });
+        }
+
+        return () => resetMetaTags();
+    }, [profile]);
+    useEffect(() => {
+        if (profile?.id) {
+            fetchUserPosts(profile.id);
+            fetchUserStories(profile.id);
+            fetchConnectionStatus(profile.id);
+
+            const fetchConnectionsCount = () => {
+                supabase.from('connections')
+                    .select('*', { count: 'exact', head: true })
+                    .or(`requester_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
+                    .eq('status', 'accepted')
+                    .then(({ count }) => setConnectionsCount(count || 0));
+            };
+
+            fetchConnectionsCount();
+
+            // Replaced expensive Realtime WebSockets with slow polling
+            const pollInterval = setInterval(() => {
+                fetchConnectionsCount();
+            }, 60000);
+
+            return () => {
+                clearInterval(pollInterval);
+            };
+        }
+    }, [profile?.id]);
+
+    // Fetch organization jobs
+    useEffect(() => {
+        if (profile?.id && isOrganization) {
+            const fetchOrgJobs = async () => {
+                const { data } = await supabase
+                    .from('jobs')
+                    .select('id,title,company,location,type,salary_range,created_at,is_active,description')
+                    .eq('creator_id', profile.id)
+                    .order('created_at', { ascending: false });
+                if (data) setOrgJobs(data);
+            };
+            fetchOrgJobs();
+        }
+    }, [profile?.id, isOrganization]);
+
+    // Handle ESC key to close full-screen viewer
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (isFullScreen) setIsFullScreen(false);
+                if (isViewingBackground) setIsViewingBackground(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFullScreen, isViewingBackground]);
+
+    const toggleLike = async (post: any) => {
+        const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+        if (!user) return;
+
+        // Optimistic Update
+        const isLiked = post.user_has_liked;
+        const newLikeCount = isLiked ? (post.likes_count || 0) - 1 : (post.likes_count || 0) + 1;
+
+        setPosts(prev => prev.map(p =>
+            p.id === post.id
+                ? { ...p, user_has_liked: !isLiked, likes_count: newLikeCount }
+                : p
+        ));
+        
+        try {
+            if (isLiked) {
+                const { error } = await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+            // Rollback
+            setPosts(prev => prev.map(p =>
+                p.id === post.id
+                    ? { ...p, user_has_liked: isLiked, likes_count: post.likes_count }
+                    : p
+            ));
+        }
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
+
+        const { error } = await supabase.from('posts').delete().eq('id', postId);
+        if (error) {
+            console.error('Error deleting post:', error);
+            alert('Failed to delete post.');
+        } else {
+            setPosts(prev => prev.filter(p => p.id !== postId));
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-[#FAFAFA]">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAFA] px-4">
+                <div className="text-center max-w-md">
+                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
+                        <User className="w-10 h-10 text-slate-400" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Profile Not Found</h1>
+                    <p className="text-slate-600 dark:text-zinc-400 mb-6">
+                        This user doesn't exist or may have been removed.
+                    </p>
+                    <Link
+                        to="/app"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Home
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+
+
+    return (
+        <div className="max-w-5xl mx-auto pb-20">
+            {/* OG/Twitter card meta via Helmet */}
+            <SEO
+                title={profile.name}
+                description={profile.headline || profile.about || `${profile.name} on UniLink — Connect with students across Nigerian universities`}
+                ogImage={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=random`}
+                ogType="profile"
+                canonicalUrl={`${window.location.origin}/app/profile/${profile.username || profile.id}`}
+            />
+
+            <Link to="/app/network" className="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 hover:text-slate-800 mb-6 transition-colors font-medium">
+                <ArrowLeft className="w-4 h-4" /> Back to Network
+            </Link>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LEFT COLUMN */}
+                <div className="lg:col-span-1 space-y-6">
+                    {/* Identity Card */}
+                    <div className="bg-white dark:bg-bg-cardDark p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+                        {profile.background_image_url ? (
+                            <div
+                                className="absolute top-0 left-0 right-0 h-32 group/bg cursor-pointer"
+                                onClick={() => setIsViewingBackground(true)}
+                                title="Click to view full screen"
+                            >
+                                <img src={profile.background_image_url} alt="Background" className="w-full h-full object-cover opacity-90 group-hover/bg:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/90 dark:to-bg-cardDark/90"></div>
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/bg:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Maximize className="w-8 h-8 text-white" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-br from-indigo-500 to-emerald-600 opacity-10"></div>
+                        )}
+                        <div className="flex flex-col items-center text-center relative z-10 pt-8">
+                            <div className="relative mb-4 inline-block group/avatar">
+                                <div
+                                    onClick={() => setIsFullScreen(true)}
+                                    className={`w-40 h-40 ${isOrganization ? 'rounded-2xl' : 'rounded-full'} border-4 border-white dark:border-zinc-900 shadow-xl overflow-hidden bg-white dark:bg-zinc-900 relative z-10 cursor-pointer group hover:ring-8 hover:ring-indigo-500/10 transition-all duration-300`}
+                                >
+                                    <img
+                                        src={getOptimizedMediaUrl(profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=512&background=${isOrganization ? 'f97316' : '10b981'}&color=fff`)}
+                                        alt={profile.name}
+                                        className={`w-full h-full ${isOrganization ? 'object-contain p-2' : 'object-cover'} group-hover:scale-110 transition-transform duration-300`}
+                                    />
+                                    {/* Overlay hint on hover */}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Maximize className="w-8 h-8 text-white" />
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const profileUrl = `${window.location.origin}/app/profile/${profile.username || profile.id}`;
+                                        const shareData = {
+                                            title: `${profile.name} on UniLink Nigeria`,
+                                            text: profile.headline || `Check out ${profile.name}'s profile on UniLink Nigeria!`,
+                                            url: profileUrl,
+                                        };
+                                        if (navigator.share) {
+                                            try { await navigator.share(shareData); return; } catch { /* cancelled */ }
+                                        }
+                                        // Fallback: clipboard
+                                        try {
+                                            await navigator.clipboard.writeText(profileUrl);
+                                            alert('Profile link copied to clipboard!');
+                                        } catch {
+                                            prompt('Copy this link:', profileUrl);
+                                        }
+                                    }}
+                                    className="absolute bottom-0 right-0 z-20 p-2.5 bg-white dark:bg-bg-cardDark text-slate-500 dark:text-zinc-400 hover:text-indigo-600 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 hover:shadow-xl"
+                                    title="Share Profile"
+                                >
+                                    <Share className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-1.5 justify-center">
+                                {profile.name}
+                                {profile.gold_verified ? (
+                                    <BadgeCheck className="w-5 h-5 text-yellow-500 fill-yellow-50" />
+                                ) : profile.is_verified ? (
+                                    <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
+                                ) : null}
+                            </h1>
+                            <p className="text-indigo-600 dark:text-indigo-400 font-bold text-sm mb-3">@{profile.username || profile.id.slice(0, 6)}</p>
+
+                            {/* Organization Badge */}
+                            {isOrganization && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-semibold mb-3">
+                                    <Briefcase className="w-3.5 h-3.5" />
+                                    Organization
+                                </div>
+                            )}
+
+                            {/* Alumni Badge */}
+                            {!isOrganization && profile.expected_graduation_year && profile.expected_graduation_year <= new Date().getFullYear() && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full text-xs font-semibold mb-3 ml-2">
+                                    <School className="w-3.5 h-3.5" />
+                                    Alumni
+                                </div>
+                            )}
+
+                            {/* Industry (Organizations only) */}
+                            {isOrganization && profile.industry && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-xs font-semibold mb-3 ml-2">
+                                    {profile.industry}
+                                </div>
+                            )}
+
+                            {profile.headline && (
+                                <p className="text-slate-600 dark:text-zinc-400 font-medium mt-1 mb-3 text-sm">{profile.headline}</p>
+                            )}
+
+                            {profile.location && (
+                                <div className={`flex items-center gap-1.5 text-sm mb-2 ${isOrganization ? 'text-slate-600 dark:text-zinc-400 font-medium' : 'text-slate-400'}`}>
+                                    <MapPin className="w-4 h-4" />
+                                    {profile.location}
+                                </div>
+                            )}
+
+                            {!isOrganization && profile.university && (
+                                <div className="flex items-center gap-1 text-slate-400 text-sm">
+                                    <School className="w-3.5 h-3.5" />
+                                    {profile.university}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Stats */}
+                        <div className="flex justify-center gap-6 mt-6 border-t border-b border-stone-100 py-4 w-full">
+                            <div className="text-center">
+                                <div className="font-bold text-slate-900 dark:text-white text-lg">{connectionsCount}</div>
+                                <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium uppercase tracking-wide">{isOrganization ? 'Contacts' : 'Connections'}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="font-bold text-slate-900 dark:text-white text-lg">{followersCount}</div>
+                                <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium uppercase tracking-wide">Followers</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="font-bold text-slate-900 dark:text-white text-lg">{followingCount}</div>
+                                <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium uppercase tracking-wide">Following</div>
+                            </div>
+                        </div>
+
+
+
+                        {/* Socials & Share */}
+                        <div className="mt-6 flex justify-center gap-3">
+                            {profile.instagram_url && (
+                                <a href={profile.instagram_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-all">
+                                    <Instagram className="w-5 h-5" />
+                                </a>
+                            )}
+                            {profile.twitter_url && (
+                                <a href={profile.twitter_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-sky-500 hover:bg-sky-50 rounded-full transition-all">
+                                    <Twitter className="w-5 h-5" />
+                                </a>
+                            )}
+                            {profile.github_url && (
+                                <a href={profile.github_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-50 rounded-full transition-all">
+                                    <Github className="w-5 h-5" />
+                                </a>
+                            )}
+                            {profile.linkedin_url && (
+                                <a href={profile.linkedin_url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all">
+                                    <Linkedin className="w-5 h-5" />
+                                </a>
+                            )}
+                            {profile.website && (
+                                <a href={profile.website} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
+                                    <Globe className="w-5 h-5" />
+                                </a>
+                            )}
+                            <a href={`mailto:${profile.email}`} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all">
+                                <Mail className="w-5 h-5" />
+                            </a>
+                            <button
+                                onClick={async () => {
+                                    if (profile) {
+                                        const url = `${getBaseUrl()}/app/profile/${profile.username || profile.id}`;
+                                        const title = `${profile.name} on UniLink`;
+                                        const text = `Check out ${profile.name}'s profile on UniLink! ${profile.headline || profile.university || ''}`;
+                                        const shared = await nativeShare(title, text, url);
+                                        if (!shared) {
+                                            navigator.clipboard.writeText(url);
+                                            alert('Profile link copied to clipboard!');
+                                        }
+                                    }
+                                }}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all"
+                                title="Share Profile"
+                            >
+                                <Share className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Action Buttons */}
+                        {currentUser && currentUser.id === profile.id ? (
+                            <div className="mt-6 px-6 w-full">
+                                <div className="mt-6 px-6 w-full">
+                                    <Link
+                                        to="/app/profile"
+                                        className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:bg-slate-800 shadow-lg shadow-slate-200 hover:shadow-slate-300 dark:shadow-none dark:hover:shadow-none"
+                                    >
+                                        <Briefcase className="w-4 h-4" /> Edit Profile
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : currentUser && (
+                            <div className="mt-6 px-6 w-full space-y-3">
+                                {connectionStatus === 'connected' ? (
+                                    <>
+                                        <button
+                                            disabled
+                                            className="w-full py-2.5 rounded-xl bg-green-50 text-green-600 font-semibold text-sm flex items-center justify-center gap-2 cursor-default border border-green-200"
+                                        >
+                                            <Check className="w-4 h-4" /> Connected
+                                        </button>
+                                        <button
+                                            onClick={handleDisconnect}
+                                            disabled={actionLoading}
+                                            className="w-full py-2.5 rounded-xl bg-white dark:bg-bg-cardDark text-stone-500 font-medium text-sm flex items-center justify-center gap-2 border border-stone-200 hover:bg-stone-50 hover:text-red-600 transition-colors"
+                                        >
+                                            <UserMinus className="w-4 h-4" /> Disconnect
+                                        </button>
+                                    </>
+                                ) : connectionStatus === 'pending' ? (
+                                    <button
+                                        disabled
+                                        className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-500 dark:text-zinc-400 font-medium text-sm flex items-center justify-center gap-2 cursor-default border border-slate-200 dark:border-zinc-800"
+                                    >
+                                        <Clock className="w-4 h-4" /> Pending
+                                    </button>
+                                ) : connectionStatus === 'received' ? (
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                                        Accept Request
+                                    </button>
+                                ) : connectionStatus === 'blocked' ? (
+                                    <button
+                                        onClick={handleConnect} // Reuse handleConnect for unblock as it handles 'blocked' status
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-200"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                        Unblock User
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={actionLoading}
+                                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300"
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                                        Connect
+                                    </button>
+                                )}
+
+                                {/* Follow Button */}
+                                {canFollow && (
+                                    <button
+                                        onClick={toggleFollow}
+                                        disabled={followLoading}
+                                        className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isFollowing
+                                            ? 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-indigo-300'
+                                            }`}
+                                    >
+                                        {followLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : isFollowing ? (
+                                            <>
+                                                <UserCheck className="w-4 h-4" />
+                                                Following
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UserPlus className="w-4 h-4" />
+                                                Follow
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+
+                                {connectionStatus !== 'blocked' && (
+                                    <>
+                                        <button
+                                            onClick={async () => {
+                                                const reason = prompt(`Why are you reporting ${profile.name}?`);
+                                                if (!reason) return;
+
+                                                const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+                                                if (!user) return;
+
+                                                const { error } = await supabase
+                                                    .from('reports')
+                                                    .insert({
+                                                        reporter_id: user.id,
+                                                        reported_id: profile.id,
+                                                        reason: reason,
+                                                        status: 'pending'
+                                                    });
+
+                                                if (error) {
+                                                    console.error(error);
+                                                    alert('Failed to submit report.');
+                                                } else {
+                                                    alert('Report submitted successfully. We will review this account.');
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-stone-50 text-stone-500 hover:bg-stone-100 rounded-xl transition-all font-medium text-sm border border-stone-200"
+                                        >
+                                            <Flag className="w-4 h-4" />
+                                            Report Account
+                                        </button>
+
+                                        <button
+                                            onClick={handleBlock}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-transparent text-stone-400 hover:text-red-600 rounded-xl transition-all font-medium text-sm"
+                                        >
+                                            <Ban className="w-4 h-4" />
+                                            Block User
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Skills */}
+                    <div className="bg-white dark:bg-bg-cardDark p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Briefcase className="w-5 h-5 text-indigo-500" />
+                            Skills
+                        </h3>
+                        {profile.skills && profile.skills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {profile.skills.map(skill => (
+                                    <span key={skill} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">
+                                        {skill}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-slate-400 italic text-sm">No skills listed.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* About Section */}
+                    {profile.about && (
+                        <div className="bg-white dark:bg-bg-cardDark p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm relative">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Info className="w-5 h-5 text-indigo-500" /> About
+                            </h3>
+                            <p className="text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">
+                                {profile.about}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Experience (New) */}
+                    {profile.experience && profile.experience.length > 0 && (
+                        <div className="bg-white dark:bg-bg-cardDark p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                                <Briefcase className="w-5 h-5 text-indigo-500" /> Experience
+                            </h3>
+                            <div className="space-y-6">
+                                {profile.experience.map((exp: any, i: number) => (
+                                    <div key={i} className="flex gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
+                                            <Briefcase className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 dark:text-white text-lg">{exp.title}</h4>
+                                            <p className="font-medium text-slate-700">{exp.company}</p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 font-medium bg-slate-100 inline-block px-2 py-0.5 rounded-full">
+                                                {new Date(exp.start_date).getFullYear()} -
+                                                {exp.current ? 'Present' : (exp.end_date ? new Date(exp.end_date).getFullYear() : '')}
+                                            </p>
+                                            {exp.description && <p className="text-sm text-slate-600 dark:text-zinc-400 mt-2 leading-relaxed">{exp.description}</p>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+
+
+                    {/* Certificates */}
+                    {(currentUser?.id === profile.id || (profile.certificates && profile.certificates.length > 0)) && (
+                        <div className="bg-white dark:bg-bg-cardDark p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm relative">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <Award className="w-5 h-5 text-indigo-500" /> Certificates
+                                </h3>
+                                {currentUser?.id === profile.id && (
+                                    <button
+                                        onClick={() => setIsAddingCert(true)}
+                                        className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        + Add
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                {profile.certificates && profile.certificates.length > 0 ? (
+                                    profile.certificates.map((cert) => (
+                                        <div key={cert.id} className="flex gap-4 p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                                            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0 border border-orange-100">
+                                                <Award className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 dark:text-white">{cert.title}</h4>
+                                                <p className="font-medium text-slate-700">{cert.issuing_org}</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                                                    Issued {cert.issue_date ? new Date(cert.issue_date).toLocaleDateString() : 'Unknown date'}
+                                                </p>
+                                                {cert.credential_url && (
+                                                    <a href={cert.credential_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 mt-2 hover:underline">
+                                                        Verify Credential <ExternalLink className="w-3 h-3" />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 italic text-sm">No certificates added yet.</p>
+                                )}
+                            </div>
+
+                            {/* Add Certificate Form (Inline or Modal could work, simplistic inline here/modal overlay better for aesthetics) */}
+                            {isAddingCert && (
+                                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                    <div className="bg-white dark:bg-bg-cardDark rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Add Certificate</h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Certificate Title</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full px-3 py-2 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                    value={newCert.title}
+                                                    onChange={e => setNewCert({ ...newCert, title: e.target.value })}
+                                                    placeholder="e.g. AWS Certified Developer"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Issuing Organization</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full px-3 py-2 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                    value={newCert.issuing_org}
+                                                    onChange={e => setNewCert({ ...newCert, issuing_org: e.target.value })}
+                                                    placeholder="e.g. Amazon Web Services"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Issue Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full px-3 py-2 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                    value={newCert.issue_date}
+                                                    onChange={e => setNewCert({ ...newCert, issue_date: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Credential URL (Optional)</label>
+                                                <input
+                                                    type="url"
+                                                    className="w-full px-3 py-2 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                    value={newCert.credential_url}
+                                                    onChange={e => setNewCert({ ...newCert, credential_url: e.target.value })}
+                                                    placeholder="https://..."
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-3 mt-6">
+                                            <button
+                                                onClick={() => setIsAddingCert(false)}
+                                                className="px-4 py-2 text-slate-500 dark:text-zinc-400 hover:text-slate-800 font-medium transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleAddCertificate}
+                                                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                                            >
+                                                Save Certificate
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* About */}
+                    <div className="bg-white dark:bg-bg-cardDark p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">About</h3>
+                        {profile.about ? (
+                            <p className="text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line">
+                                {profile.about}
+                            </p>
+                        ) : (
+                            <p className="text-slate-400 italic">No bio provided.</p>
+                        )}
+                    </div>
+
+                    {/* Projects */}
+                    {profile.projects && profile.projects.length > 0 && (
+                        <div className="bg-white dark:bg-bg-cardDark p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Projects</h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                {profile.projects.map((project, idx) => (
+                                    <div key={idx} className="p-5 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                                        <h4 className="font-bold text-slate-900 dark:text-white text-lg">{project.title}</h4>
+                                        <p className="text-slate-600 dark:text-zinc-400 text-sm mt-1">{project.description}</p>
+                                        {project.link && (
+                                            <a href={project.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 mt-3 hover:underline">
+                                                View Project <Globe className="w-3 h-3" />
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tabs switcher for everyone if stories exist or is org */}
+                    {(isOrganization || userStories.length > 0) && (
+                        <div className="flex gap-2 border-b border-stone-200 mb-6 px-4">
+                            <button
+                                onClick={() => setActiveTab('posts')}
+                                className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'posts'
+                                    ? 'text-emerald-600'
+                                    : 'text-stone-500 hover:text-stone-700'
+                                    }`}
+                            >
+                                Posts
+                                {activeTab === 'posts' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                )}
+                            </button>
+                            {userStories.length > 0 && (
+                                <button
+                                    onClick={() => setActiveTab('stories')}
+                                    className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'stories'
+                                        ? 'text-emerald-600'
+                                        : 'text-stone-500 hover:text-stone-700'
+                                        }`}
+                                >
+                                    Stories ({userStories.length})
+                                    {activeTab === 'stories' && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                    )}
+                                </button>
+                            )}
+                            {isOrganization && (
+                                <button
+                                    onClick={() => setActiveTab('jobs')}
+                                    className={`px-6 py-3 font-semibold text-sm transition-all relative ${activeTab === 'jobs'
+                                        ? 'text-emerald-600'
+                                        : 'text-stone-500 hover:text-stone-700'
+                                        }`}
+                                >
+                                    Jobs ({orgJobs.length})
+                                    {activeTab === 'jobs' && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600"></div>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Posts Tab */}
+                    {activeTab === 'posts' && posts.length > 0 && (
+                        <div className="space-y-6">
+                            {(!isOrganization && userStories.length === 0) && <h3 className="text-xl font-bold text-slate-900 dark:text-white px-2">Recent Activity</h3>}
+                            {posts.map((post) => (
+                                <article key={post.id} className="bg-white dark:bg-bg-cardDark rounded-[2rem] p-6 shadow-sm border border-stone-100">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-stone-100">
+                                                <img
+                                                    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=random`}
+                                                    alt={profile.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-stone-900 text-sm">{profile.name}</h3>
+                                                <p className="text-xs text-stone-400">{new Date(post.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                        {currentUser?.id === profile.id && (
+                                            <button
+                                                onClick={() => handleDeletePost(post.id)}
+                                                className="text-stone-400 hover:text-red-500 transition-colors p-1"
+                                                title="Delete Post"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-stone-600 leading-relaxed mb-4 text-sm">
+                                        {post.content || ''}
+                                    </p>
+                                    <div className="flex items-center gap-4 text-stone-400 text-xs font-medium">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => toggleLike(post)}
+                                                className={`flex items-center gap-1 hover:text-red-500 transition-colors ${post.user_has_liked ? 'text-red-500' : ''}`}
+                                            >
+                                                <Heart className={`w-4 h-4 ${post.user_has_liked ? 'fill-current' : ''}`} />
+                                                <span>{post.likes_count}</span>
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <MessageCircle className="w-4 h-4" /> {post.comments_count}
+                                        </div>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Stories Tab Content */}
+                    {activeTab === 'stories' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {userStories.map((story) => (
+                                <Link 
+                                    key={story.id} 
+                                    to="/app/story" 
+                                    className="flex flex-col bg-white dark:bg-bg-cardDark rounded-3xl overflow-hidden border border-stone-100 shadow-sm hover:border-emerald-200 transition-all group"
+                                >
+                                    <div className="aspect-video relative overflow-hidden bg-stone-100">
+                                        <img 
+                                            src={story.coverUrl || `https://source.unsplash.com/800x600/?${story.genre},story`} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            alt=""
+                                        />
+                                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-bold uppercase tracking-widest text-emerald-600 shadow-sm">
+                                            {story.genre}
+                                        </div>
+                                    </div>
+                                    <div className="p-5">
+                                        <h4 className="font-bold text-stone-900 dark:text-white group-hover:text-emerald-600 transition-colors line-clamp-1">{story.title}</h4>
+                                        <p className="text-xs text-stone-500 mt-1 line-clamp-2 font-serif italic">{story.description}</p>
+                                        <div className="mt-4 flex items-center justify-between border-t border-stone-50 pt-4">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400">
+                                                <PlayIcon className="w-3 h-3" /> {story.plays_count || 0} Reads
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                                                Play <ChevronRight className="w-3 h-3" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Jobs Tab (Organizations Only) */}
+                    {isOrganization && activeTab === 'jobs' && (
+                        <div className="space-y-6">
+                            {currentUser?.id === profile.id && (
+                                <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-5 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                                    <div>
+                                        <h4 className="font-bold text-emerald-900 dark:text-emerald-100">Grow your team</h4>
+                                        <p className="text-sm text-emerald-700 dark:text-emerald-400">Post a new career opportunity for students.</p>
+                                    </div>
+                                    <Link
+                                        to="/app/jobs?action=post"
+                                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 dark:shadow-none flex items-center gap-2 whitespace-nowrap"
+                                    >
+                                        <Plus className="w-4 h-4" /> Post a Job
+                                    </Link>
+                                </div>
+                            )}
+                            {orgJobs.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {orgJobs.map((job) => (
+                                        <div key={job.id} className="bg-white dark:bg-bg-cardDark p-6 rounded-2xl border border-stone-100 shadow-sm hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600">
+                                                    <Briefcase className="w-6 h-6" />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {job.status === 'closed' && (
+                                                        <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                                            Closed
+                                                        </span>
+                                                    )}
+                                                    <span className="bg-stone-50 text-stone-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                                        {job.type}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-stone-900 mb-1">{job.title}</h3>
+                                            <p className="text-stone-500 font-medium text-sm mb-3">{job.company}</p>
+                                            {job.location && (
+                                                <div className="flex items-center gap-2 text-stone-500 text-sm mb-2">
+                                                    <MapPin className="w-4 h-4 text-stone-400" />
+                                                    {job.location}
+                                                </div>
+                                            )}
+                                            {job.description && (
+                                                <p className="text-stone-600 text-sm line-clamp-2 leading-relaxed mb-3">
+                                                    {job.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center justify-between pt-3 border-t border-stone-100">
+                                                <span className="text-xs text-stone-400">
+                                                    Posted {new Date(job.created_at).toLocaleDateString()}
+                                                </span>
+                                                <Link
+                                                    to="/app/jobs"
+                                                    className="text-emerald-600 text-sm font-semibold hover:text-emerald-700 transition-colors"
+                                                >
+                                                    View Details →
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 bg-white dark:bg-bg-cardDark rounded-2xl border border-dashed border-stone-200">
+                                    <Briefcase className="w-12 h-12 text-stone-200 mx-auto mb-4" />
+                                    <p className="text-stone-400 font-medium">No jobs posted yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div >
+
+            {/* Full-Screen Avatar Viewer */}
+            {isFullScreen && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setIsFullScreen(false)}
+                >
+                    {/* Close Button */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
+                        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 active:scale-95 z-[110] border border-white/20 backdrop-blur-md"
+                        title="Close (ESC)"
+                    >
+                        <X className="w-7 h-7" />
+                    </button>
+
+                    {/* Profile Info Overlay */}
+                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-3 rounded-xl text-white z-10">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            {profile.name}
+                            {profile.gold_verified ? (
+                                <BadgeCheck className="w-5 h-5 text-yellow-500 fill-yellow-50" />
+                            ) : profile.is_verified ? (
+                                <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
+                            ) : null}
+                        </h3>
+                        <p className="text-sm text-white/70">@{profile.username || profile.id.slice(0, 6)}</p>
+                    </div>
+
+                    {/* Image Container */}
+                    <div
+                        className="relative w-full max-w-2xl aspect-square animate-in zoom-in duration-300 flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className={`w-full h-full ${isOrganization ? 'rounded-3xl' : 'rounded-full'} overflow-hidden border-4 border-white/10 shadow-2xl bg-zinc-900`}>
+                            <img
+                                src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=${isOrganization ? 'f97316' : '10b981'}&color=fff&size=1024`}
+                                alt={profile.name}
+                                className={`w-full h-full ${isOrganization ? 'object-contain p-8' : 'object-cover'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                        Click anywhere or press ESC to close
+                    </div>
+                </div>
+            )}
+
+            {/* Full-Screen Background Image Viewer */}
+            {isViewingBackground && profile.background_image_url && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setIsViewingBackground(false)}
+                >
+                    {/* Close Button */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setIsViewingBackground(false); }}
+                        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110 active:scale-95 z-[110] border border-white/20 backdrop-blur-md"
+                        title="Close (ESC)"
+                    >
+                        <X className="w-7 h-7" />
+                    </button>
+
+                    {/* Profile Info Overlay */}
+                    <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-3 rounded-xl text-white z-10">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            {profile.name}'s Background
+                        </h3>
+                        <p className="text-sm text-white/70">@{profile.username || profile.id.slice(0, 6)}</p>
+                    </div>
+
+                    {/* Image Container */}
+                    <div
+                        className="relative max-w-6xl max-h-[90vh] animate-in zoom-in duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <img
+                            src={profile.background_image_url}
+                            alt={`${profile.name}'s background`}
+                            className="max-w-full max-h-[90vh] rounded-2xl object-contain shadow-2xl"
+                        />
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                        Click anywhere or press ESC to close
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

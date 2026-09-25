@@ -1,0 +1,115 @@
+# Netlify Configuration for UniLink
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Build command
+  command = "npm run build"
+  
+  # Directory to publish (Vite default output)
+  publish = "dist"
+  
+  # Functions directory (if you add serverless functions later)
+  # functions = "netlify/functions"
+
+[build.environment]
+  # Node version
+  NODE_VERSION = "20"
+  
+  # Disable npm audit during builds for faster deployment
+  NPM_FLAGS = "--no-audit --no-fund"
+
+# Single Page Application (SPA) routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  
+  # Don't redirect these paths (assets and API calls)
+  conditions = {Role = ["static"], Host = [":host"]}
+
+# Redirect HTTP to HTTPS
+[[redirects]]
+  from = "http://unilink.ng/*"
+  to = "https://unilink.ng/:splat"
+  status = 301
+  force = true
+
+# Custom headers for security and PWA
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Security headers
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Content Security Policy (adjust as needed)
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com;
+      frame-src 'self' https://accounts.google.com https://www.youtube.com;
+      media-src 'self' blob: https:;
+      worker-src 'self' blob:;
+    """
+    
+    # Permissions Policy
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache manifest and service worker with shorter duration
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+# PWA icon caching
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Dev context (for preview deployments)
+[context.deploy-preview]
+  command = "npm run build"
+
+[context.branch-deploy]
+  command = "npm run build"
+
+# Production context
+[context.production]
+  command = "npm run build"
+  
+  # Production-only environment variables can be set here
+  # [context.production.environment]
+  # NODE_ENV = "production"
+
+# Plugin configuration (optional but recommended)
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+  
+  # Lighthouse CI for performance monitoring
+  [plugins.inputs]
+    output_path = "reports/lighthouse.html"

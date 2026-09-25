@@ -1,0 +1,2 @@
+id,seller_id,title,description,price,category,condition,images,is_sold,contact_info,university,created_at,updated_at
+dc09e9f2-6ee8-400d-9834-9480eea3ccf9,8798340d-7df4-4160-942a-5d222ea427b6,food guru,"FOOD_DATA:{""options"":[{""name"":""yam"",""price"":600}],""description"":""""}",200.00,Food,New,[],true,,University of Ibadan,2026-04-27 18:15:30.491452+00,2026-04-28 13:42:15.991691+00

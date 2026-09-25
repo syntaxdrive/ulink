@@ -1,0 +1,2 @@
+﻿src/features/communities/CommunityDetailsPage.tsx(3,67): error TS6133: 'MessageCircle' is declared but its value is never read.
+src/features/jobs/JobsPage.tsx(4,151): error TS6133: 'MessageCircle' is declared but its value is never read.

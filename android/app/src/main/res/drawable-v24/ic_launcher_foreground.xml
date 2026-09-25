@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UniLink branded icon foreground: white "U" connecting two circles (link metaphor) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Letter U — bold white -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,30 L34,58 C34,69.05 42.95,78 54,78 C65.05,78 74,69.05 74,58 L74,30 L64,30 L64,58 C64,63.52 59.52,68 54,68 C48.48,68 44,63.52 44,58 L44,30 Z" />
+
+    <!-- Left accent dot — draw a circle using path arcs -->
+    <path
+        android:fillColor="#A7F3D0"
+        android:pathData="M34,54 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+
+    <!-- Right accent dot -->
+    <path
+        android:fillColor="#A7F3D0"
+        android:pathData="M74,54 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+
+</vector>

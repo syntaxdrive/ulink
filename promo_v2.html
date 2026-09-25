@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniLink Full Promo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'] },
+                    colors: { emerald: { 500: '#10b981', 600: '#059669', 900: '#064e3b' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: #0f172a;
+            overflow: hidden;
+        }
+
+        .phone-frame {
+            box-shadow: 0 0 0 10px #1e293b, 0 20px 50px rgba(0, 0, 0, 0.5);
+            border-radius: 40px;
+            overflow: hidden;
+            background: #f8fafc;
+            position: relative;
+        }
+
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 30px;
+            background: #1e293b;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            z-index: 50;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: absolute;
+            width: 280px;
+            left: 50%;
+            margin-left: -140px;
+        }
+
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.4;
+            animation: float 10s infinite alternate;
+        }
+
+        @keyframes float {
+            from {
+                transform: translate(0, 0);
+            }
+
+            to {
+                transform: translate(20px, -20px);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center h-screen relative">
+
+    <!-- Background Ambience -->
+    <div class="floating-orb bg-emerald-500 w-96 h-96 top-0 left-0"></div>
+    <div class="floating-orb bg-blue-500 w-96 h-96 bottom-0 right-0"></div>
+
+    <!-- Main Container -->
+    <div class="w-full max-w-6xl flex items-center justify-between px-10 relative z-10">
+
+        <!-- Typography Section -->
+        <div class="w-1/2 space-y-6">
+            <div id="logo-container" class="flex items-center gap-3 opacity-0 translate-y-4">
+                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-lg">
+                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                </div>
+                <span class="text-3xl font-display font-bold text-white tracking-tight">UniLink</span>
+            </div>
+
+            <h1 id="main-headline"
+                class="text-6xl font-display font-bold text-white leading-tight opacity-0 translate-y-8">
+                The Ultimate <br>
+                <span class="text-emerald-400">Student Network</span>
+            </h1>
+
+            <p id="sub-headline" class="text-xl text-slate-400 max-w-md opacity-0 translate-y-4 font-light">
+                Connect, collaborate, and thrive on campus. Everything you need in one app.
+            </p>
+
+            <div id="feature-list" class="space-y-4 mt-8 opacity-0">
+                <div
+                    class="feature-item flex items-center gap-3 text-slate-300 transform translate-x-[-20px] opacity-0">
+                    <div
+                        class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        ✓</div>
+                    <span class="text-lg">Campus Marketplace</span>
+                </div>
+                <div
+                    class="feature-item flex items-center gap-3 text-slate-300 transform translate-x-[-20px] opacity-0">
+                    <div
+                        class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        ✓</div>
+                    <span class="text-lg">Real-time Messaging</span>
+                </div>
+                <div
+                    class="feature-item flex items-center gap-3 text-slate-300 transform translate-x-[-20px] opacity-0">
+                    <div
+                        class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        ✓</div>
+                    <span class="text-lg">Internships & Jobs</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phone Demo Section -->
+        <div
+            class="w-[360px] h-[720px] phone-frame shadow-2xl scale-90 md:scale-100 flex-shrink-0 relative bg-slate-50">
+            <div class="notch"></div>
+
+            <!-- SCREENS -->
+
+            <!-- Screen 1: Feed/Home -->
+            <div id="screen-home" class="absolute inset-0 bg-slate-50 pt-12 px-4 opacity-1">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="font-display font-bold text-xl text-slate-900">Feed</h2>
+                    <div class="w-8 h-8 bg-slate-200 rounded-full"></div>
+                </div>
+                <!-- Posts -->
+                <div class="post-card bg-white p-4 rounded-2xl shadow-sm mb-4 transform translate-y-10 opacity-0">
+                    <div class="flex gap-3 mb-2">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-full"></div>
+                        <div>
+                            <div class="h-3 w-24 bg-slate-200 rounded mb-1"></div>
+                            <div class="h-2 w-16 bg-slate-100 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="h-32 bg-slate-100 rounded-xl mb-2"></div>
+                    <div class="h-3 w-4/5 bg-slate-100 rounded"></div>
+                </div>
+                <div class="post-card bg-white p-4 rounded-2xl shadow-sm transform translate-y-10 opacity-0">
+                    <div class="flex gap-3 mb-2">
+                        <div class="w-10 h-10 bg-pink-100 rounded-full"></div>
+                        <div>
+                            <div class="h-3 w-24 bg-slate-200 rounded mb-1"></div>
+                            <div class="h-3 w-full bg-slate-100 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 2: Marketplace -->
+            <div id="screen-market" class="absolute inset-0 bg-slate-50 pt-12 px-4 opacity-0 flex flex-col">
+                <h2 class="font-display font-bold text-xl text-slate-900 mb-6">Marketplace</h2>
+                <div class="product-grid grid grid-cols-2 gap-4">
+                    <div class="product-card bg-white p-3 rounded-xl shadow-sm transform scale-90 opacity-0">
+                        <div class="h-24 bg-emerald-50 rounded-lg mb-2 flex items-center justify-center text-4xl">📚
+                        </div>
+                        <div class="h-3 w-full bg-slate-200 rounded mb-1"></div>
+                        <div class="text-emerald-600 font-bold text-sm">₦5,000</div>
+                    </div>
+                    <div class="product-card bg-white p-3 rounded-xl shadow-sm transform scale-90 opacity-0">
+                        <div class="h-24 bg-orange-50 rounded-lg mb-2 flex items-center justify-center text-4xl">💻
+                        </div>
+                        <div class="h-3 w-full bg-slate-200 rounded mb-1"></div>
+                        <div class="text-emerald-600 font-bold text-sm">₦45,000</div>
+                    </div>
+                    <div class="product-card bg-white p-3 rounded-xl shadow-sm transform scale-90 opacity-0">
+                        <div class="h-24 bg-blue-50 rounded-lg mb-2 flex items-center justify-center text-4xl">👟</div>
+                        <div class="h-3 w-full bg-slate-200 rounded mb-1"></div>
+                        <div class="text-emerald-600 font-bold text-sm">₦12,000</div>
+                    </div>
+                    <div class="product-card bg-white p-3 rounded-xl shadow-sm transform scale-90 opacity-0">
+                        <div class="h-24 bg-purple-50 rounded-lg mb-2 flex items-center justify-center text-4xl">🎸
+                        </div>
+                        <div class="h-3 w-full bg-slate-200 rounded mb-1"></div>
+                        <div class="text-emerald-600 font-bold text-sm">₦20,000</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 3: Chat -->
+            <div id="screen-chat" class="absolute inset-0 bg-slate-50 pt-12 px-4 opacity-0">
+                <h2 class="font-display font-bold text-xl text-slate-900 mb-6">Messages</h2>
+                <div class="space-y-4">
+                    <div
+                        class="chat-msg bg-white p-3 rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm w-[80%] transform -translate-x-10 opacity-0">
+                        Hey! Is the textbook still available?
+                    </div>
+                    <div
+                        class="chat-msg bg-emerald-500 text-white p-3 rounded-tl-2xl rounded-bl-2xl rounded-br-2xl shadow-sm w-[80%] ml-auto transform translate-x-10 opacity-0">
+                        Yes it is! Can meet at the SU building?
+                    </div>
+                    <div
+                        class="chat-msg bg-white p-3 rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm w-[60%] transform -translate-x-10 opacity-0">
+                        Perfect, see you in 10 mins!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Nav -->
+            <div
+                class="absolute bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex justify-around items-center px-4">
+                <div class="w-6 h-6 bg-slate-200 rounded-full"></div>
+                <div class="w-6 h-6 bg-slate-200 rounded-full"></div>
+                <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white">+</div>
+                <div class="w-6 h-6 bg-slate-200 rounded-full"></div>
+                <div class="w-6 h-6 bg-slate-200 rounded-full"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Animation Script -->
+    <script>
+        const tl = gsap.timeline();
+
+        // 1. Reveal Brand (0-2s)
+        tl.to('#logo-container', { opacity: 1, y: 0, duration: 1, ease: 'power2.out' })
+            .to('#main-headline', { opacity: 1, y: 0, duration: 1, ease: 'power2.out' }, '-=0.5')
+            .to('#sub-headline', { opacity: 1, y: 0, duration: 1, ease: 'power2.out' }, '-=0.5');
+
+        // 2. Animate Phone Feed (2-5s)
+        tl.to('.post-card', { opacity: 1, y: 0, duration: 0.8, stagger: 0.3, ease: 'back.out(1.7)' });
+
+        // 3. Transition to Marketplace (5-9s)
+        tl.to('#main-headline', {
+            text: "Buy & Sell\n<span class='text-emerald-400'>On Campus</span>", duration: 0.5, opacity: 0, y: -20, onComplete: () => {
+                document.querySelector('#main-headline').innerHTML = "Buy & Sell<br><span class='text-emerald-400'>On Campus</span>";
+            }
+        })
+            .to('#main-headline', { opacity: 1, y: 0, duration: 0.5 })
+
+            .to('#screen-home', { opacity: 0, duration: 0.5 }, '-=0.5')
+            .to('#screen-market', { opacity: 1, duration: 0.5 }, '-=0.5')
+            .to('.product-card', { opacity: 1, scale: 1, duration: 0.5, stagger: 0.2, ease: 'back.out(1.2)' });
+
+        // Show Checkmark 1
+        tl.to('.feature-item:nth-child(1)', { opacity: 1, x: 0, duration: 0.5 }, '-=1');
+
+        // 4. Transition to Chat (9-13s)
+        tl.to('#main-headline', {
+            opacity: 0, y: -20, duration: 0.5, onComplete: () => {
+                document.querySelector('#main-headline').innerHTML = "Chat &<br><span class='text-emerald-400'>Connect</span>";
+            }
+        })
+            .to('#main-headline', { opacity: 1, y: 0, duration: 0.5 })
+
+            .to('#screen-market', { opacity: 0, duration: 0.5 }, '-=0.5')
+            .to('#screen-chat', { opacity: 1, duration: 0.5 }, '-=0.5')
+            .to('.chat-msg', { opacity: 1, x: 0, duration: 0.6, stagger: 0.5, ease: 'power2.out' });
+
+        // Show Checkmark 2
+        tl.to('.feature-item:nth-child(2)', { opacity: 1, x: 0, duration: 0.5 }, '-=1');
+
+        // 5. Final CTA (13s+)
+        tl.to('#screen-chat', { opacity: 0.2, filter: 'blur(2px)', duration: 1 })
+            .to('#logo-container', { scale: 1.5, x: 300, y: 100, duration: 1, ease: 'power3.inOut' }, '-=1') // Move logo to center roughly
+            .to('#main-headline', { opacity: 0, duration: 0.5 }, '-=1')
+            .to('#sub-headline', { opacity: 0, duration: 0.5 }, '-=1')
+            .to('#feature-list', { opacity: 0, duration: 0.5 }, '-=1')
+
+            // Create Final Text dynamically
+            .add(() => {
+                const h1 = document.querySelector('#main-headline');
+                h1.innerHTML = "Join UniLink<br>Today";
+                h1.style.textAlign = 'center';
+                h1.style.position = 'absolute';
+                h1.style.left = '50%';
+                h1.style.top = '50%';
+                h1.style.transform = 'translate(-50%, -50%)';
+                h1.classList.remove('opacity-0');
+            })
+            .fromTo('#main-headline', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 1, ease: 'elastic.out(1, 0.3)' });
+
+    </script>
+</body>
+
+</html>

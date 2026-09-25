@@ -1,0 +1,253 @@
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Users, Mic2, Heart, Loader2, Radio, Share2, Trash2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { supabase } from '../../lib/supabase';
+import { fetchEpisodes, fetchIsFollowing, followPodcast, unfollowPodcast, deletePodcast, deletePodcastEpisode } from './hooks/usePodcasts';
+import EpisodeItem from './components/EpisodeItem';
+import type { Podcast, PodcastEpisode } from '../../types';
+import { nativeShare } from '../../utils/shareUtils';
+
+export default function PodcastChannelPage() {
+    const { podcastId } = useParams<{ podcastId: string }>();
+    const navigate = useNavigate();
+
+    const [podcast, setPodcast] = useState<Podcast | null>(null);
+    const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [followLoading, setFollowLoading] = useState(false);
+    const [uid, setUid] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    useEffect(() => {
+        if (!podcastId) return;
+
+        Promise.all([
+            supabase
+                .from('podcasts')
+                .select('*, creator:profiles!creator_id(id, name, username, avatar_url, is_verified)')
+                .eq('id', podcastId)
+                .single(),
+            fetchEpisodes(podcastId),
+            fetchIsFollowing(podcastId),
+            supabase.auth.getUser()
+        ])
+            .then(([{ data }, eps, following, authResult]) => {
+                if (data) setPodcast(data as Podcast);
+                setEpisodes(eps);
+                setIsFollowing(following);
+                setUid(authResult.data.user?.id || null);
+            })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, [podcastId]);
+
+    const handleDeletePodcast = async () => {
+        if (!podcastId || !podcast) return;
+        if (!window.confirm(`Are you sure you want to delete "${podcast.title}"? This cannot be undone.`)) return;
+        setDeleting(true);
+        try {
+            await deletePodcast(podcastId);
+            navigate('/app/podcasts');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete podcast.');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleDeleteEpisode = async (episodeId: string) => {
+        try {
+            await deletePodcastEpisode(episodeId);
+            setEpisodes(prev => prev.filter(ep => ep.id !== episodeId));
+        } catch (err) {
+            console.error(err);
+            throw err; // propagates to item component
+        }
+    };
+
+    const handleFollow = async () => {
+        if (!podcastId) return;
+        setFollowLoading(true);
+        try {
+            if (isFollowing) {
+                await unfollowPodcast(podcastId);
+                setIsFollowing(false);
+                setPodcast(p => p ? { ...p, followers_count: Math.max(0, p.followers_count - 1) } : p);
+            } else {
+                await followPodcast(podcastId);
+                setIsFollowing(true);
+                setPodcast(p => p ? { ...p, followers_count: p.followers_count + 1 } : p);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setFollowLoading(false);
+        }
+    };
+
+    const handleShare = async () => {
+        if (!podcast) return;
+        const title = `${podcast.title} on UniLink`;
+        const text = `Check out ${podcast.title} by ${podcast.creator?.name} on UniLink Podcasts!`;
+        const url = window.location.href;
+        const imageUrl = podcast.cover_url || undefined;
+        
+        const shared = await nativeShare(title, text, url, imageUrl);
+        if (!shared) {
+            await navigator.clipboard.writeText(url);
+            alert('Podcast link copied to clipboard!');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-64">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            </div>
+        );
+    }
+
+    if (!podcast) {
+        return (
+            <div className="text-center py-16">
+                <p className="text-slate-500 dark:text-zinc-400">Podcast not found.</p>
+                <button
+                    onClick={() => navigate('/app/podcasts')}
+                    className="mt-4 text-emerald-600 font-semibold hover:underline text-sm"
+                >
+                    Browse podcasts
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen pb-32">
+            <Helmet>
+                <title>{podcast.title} - UniLink Podcasts</title>
+                <meta name="description" content={`Listen to ${podcast.title} by ${podcast.creator?.name} on UniLink.`} />
+                <meta property="og:title" content={`${podcast.title} - UniLink`} />
+                <meta property="og:description" content={podcast.description || `Listen to ${podcast.title} by ${podcast.creator?.name} on UniLink.`} />
+                {podcast.cover_url && <meta property="og:image" content={podcast.cover_url} />}
+                <meta property="og:type" content="music.radio_station" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={`${podcast.title} - UniLink`} />
+                {podcast.cover_url && <meta name="twitter:image" content={podcast.cover_url} />}
+            </Helmet>
+
+            {/* Back */}
+            <button
+                onClick={() => navigate('/app/podcasts')}
+                className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 mb-6 transition-colors"
+            >
+                <ArrowLeft className="w-4 h-4" /> Podcasts
+            </button>
+
+            {/* Channel header */}
+            <div className="flex gap-5 mb-6">
+                <div className="w-28 h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 shadow-lg">
+                    {podcast.cover_url ? (
+                        <img src={podcast.cover_url} alt={podcast.title} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
+                            <Mic2 className="w-10 h-10 text-white/80" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <h1 className="text-xl font-bold text-slate-900 dark:text-white truncate">{podcast.title}</h1>
+                            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                                by {podcast.creator?.name}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {uid === podcast.creator_id && (
+                                <button
+                                    onClick={handleDeletePodcast}
+                                    disabled={deleting}
+                                    className="p-2 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-50"
+                                    title="Delete Podcast"
+                                >
+                                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                </button>
+                            )}
+                            <button
+                                onClick={handleShare}
+                                className="p-2 rounded-full text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                                title="Share Podcast"
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleFollow}
+                                disabled={followLoading}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all disabled:opacity-60 ${
+                                    isFollowing
+                                        ? 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'
+                                }`}
+                            >
+                                <Heart className={`w-4 h-4 ${isFollowing ? 'fill-current' : ''}`} />
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-3 text-xs text-slate-400 dark:text-zinc-500">
+                        <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5" /> {podcast.followers_count.toLocaleString()} followers
+                        </span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1">
+                            <Radio className="w-3.5 h-3.5" /> {podcast.episodes_count} episodes
+                        </span>
+                    </div>
+
+                    <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-full">
+                        {podcast.category}
+                    </span>
+                </div>
+            </div>
+
+            {podcast.description && (
+                <p className="text-sm text-slate-600 dark:text-zinc-400 mb-8 leading-relaxed">
+                    {podcast.description}
+                </p>
+            )}
+
+            {/* Episodes */}
+            <div>
+                <h2 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3">
+                    Episodes
+                </h2>
+
+                {episodes.length === 0 ? (
+                    <div className="text-center py-12">
+                        <Mic2 className="w-10 h-10 text-slate-300 dark:text-zinc-700 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 dark:text-zinc-500">No episodes yet.</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                        {episodes.map((ep, i) => (
+                            <EpisodeItem
+                                key={ep.id}
+                                episode={ep}
+                                podcastTitle={podcast.title}
+                                podcastCover={podcast.cover_url}
+                                queue={episodes}
+                                queueIndex={i}
+                                onDelete={uid === podcast.creator_id ? handleDeleteEpisode : undefined}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

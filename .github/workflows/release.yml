@@ -1,0 +1,77 @@
+name: Build & Release Android App
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  build_and_release:
+    name: Build & Release APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '21'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Android APK (Debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk UniLink-Nigeria.apk
+
+      - name: Create Release and Upload
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: UniLink-Nigeria.apk
+          name: UniLink Nigeria ${{ github.ref_name }}
+          body: |
+            ### 🚀 Professional Campus Network Update
+            
+            This release includes the latest stability fixes and UI enhancements for the UniLink Nigeria network.
+            
+            #### ✨ What's New
+            - **Premium Glassy Design**: New translucent UI for feed, leaderboard, and profile.
+            - **Performance Improvements**: Optimized bundle size for faster loading.
+            - **Bug Fixes**: Resolved points system and leaderboard navigation issues.
+            
+            #### 📦 Installation
+            1. Download the `UniLink-Nigeria.apk` below.
+            2. If prompted, allow "Install from Unknown Sources".
+            3. Sign in to join your campus.
+          draft: false
+          prerelease: false
+        env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

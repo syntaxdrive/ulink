@@ -1,0 +1,4 @@
+id,room_id,created_by,question,options,is_active,created_at
+5e514dd6-d8b6-4233-8736-5a00c53a037f,23aaa1d2-8c4b-4784-87e7-d42443b290bb,8798340d-7df4-4160-942a-5d222ea427b6,hi,"[{""id"":""o0"",""text"":""yes?""},{""id"":""o1"",""text"":""no?""}]",true,2026-03-14 21:57:05.229601+00
+7044d948-b31b-4260-9552-b45a993190ef,ab1ac5e5-93f2-4357-9b1b-610084346aab,8798340d-7df4-4160-942a-5d222ea427b6,Is the earth flat?,"[{""id"":""o0"",""text"":""Yes""},{""id"":""o1"",""text"":""No""}]",true,2026-04-02 19:10:46.507419+00
+7aa986f0-99aa-4339-a6ed-79f2d7210595,15c74cfd-695d-4004-9516-43b4df842b4d,8798340d-7df4-4160-942a-5d222ea427b6,Breakfast,"[{""id"":""o0"",""text"":""Beans""},{""id"":""o1"",""text"":""Bread""}]",true,2026-03-28 18:44:42.762705+00

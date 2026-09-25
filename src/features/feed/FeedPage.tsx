@@ -1,0 +1,700 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Search, UserRound, Globe, Zap, Trophy, Users, Flame, TrendingUp, Sparkles, Mic2 } from 'lucide-react';
+import { useNavigate, NavLink, useLocation } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { useAudioStore } from '../../stores/useAudioStore';
+import CreatePost from './components/CreatePost';
+import PostItem from './components/PostItem';
+import SuggestedConnections from './components/SuggestedConnections';
+import WelcomeMessage from './components/WelcomeMessage';
+import EmptyFeedState from './components/EmptyFeedState';
+import { FeedLoadingState } from './components/PostSkeleton';
+import { useFeed } from './hooks/useFeed';
+import { useFeedStore } from '../../stores/useFeedStore';
+import { useSponsoredPosts } from '../../hooks/useSponsoredPosts';
+import SponsoredPostItem from './components/SponsoredPostItem';
+import ProfileCompletionBanner from './components/ProfileCompletionBanner';
+import NewsSlider from './components/NewsSlider';
+import GettingStartedChecklist from './components/GettingStartedChecklist';
+import FirstPostPrompt from './components/FirstPostPrompt';
+import { useUIStore } from '../../stores/useUIStore';
+
+
+
+
+const _podcastSidebarCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const _podcastStripCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const _activeUsersCache: { data: any[]; ts: number } = { data: [], ts: 0 };
+const WIDGET_TTL = 10 * 60 * 1000; // 10 minutes
+
+
+function PodcastSidebarWidget() {
+    const [podcasts, setPodcasts] = useState<any[]>(_podcastSidebarCache.data);
+
+    useEffect(() => {
+        if (_podcastSidebarCache.data.length > 0 && Date.now() - _podcastSidebarCache.ts < WIDGET_TTL) return;
+        supabase
+            .from('podcasts')
+            .select('id, title, cover_url, episodes_count, creator:profiles!creator_id(name)')
+            .eq('status', 'approved')
+            .order('followers_count', { ascending: false })
+            .limit(3)
+            .then(({ data }) => {
+                if (data?.length) {
+                    _podcastSidebarCache.data = data;
+                    _podcastSidebarCache.ts = Date.now();
+                    setPodcasts(data);
+                }
+            });
+    }, []);
+
+    if (podcasts.length === 0) return null;
+
+    return (
+        <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+            <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 flex items-center gap-2">
+                    <Mic2 className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                    Campus Podcasts
+                </h3>
+                <NavLink to="/app/podcasts" className="text-xs text-emerald-600 dark:text-emerald-500 font-semibold hover:underline">
+                    See all
+                </NavLink>
+            </div>
+            <div className="space-y-2">
+                {podcasts.map(p => (
+                    <NavLink
+                        key={p.id}
+                        to={`/app/podcasts/${p.id}`}
+                        className="flex items-center gap-3 group hover:bg-stone-50 dark:hover:bg-zinc-800 rounded-xl p-1.5 -mx-1.5 transition-colors"
+                    >
+                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                            {p.cover_url ? (
+                                <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
+                                    <Mic2 className="w-5 h-5 text-white/80" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-stone-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                {p.title}
+                            </p>
+                            <p className="text-xs text-stone-400 dark:text-zinc-500">
+                                {p.creator?.name} · {p.episodes_count} ep{p.episodes_count !== 1 ? 's' : ''}
+                            </p>
+                        </div>
+                    </NavLink>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ── Mobile podcast strip (visible below lg breakpoint only) ────
+function MobilePodcastStrip() {
+    const navigate = useNavigate();
+    const [podcasts, setPodcasts] = useState<any[]>(_podcastStripCache.data);
+    const { currentTrack, isPlaying } = useAudioStore();
+
+    useEffect(() => {
+        if (_podcastStripCache.data.length > 0 && Date.now() - _podcastStripCache.ts < WIDGET_TTL) return;
+        supabase
+            .from('podcasts')
+            .select('id, title, cover_url, category, creator:profiles!creator_id(name)')
+            .eq('status', 'approved')
+            .order('followers_count', { ascending: false })
+            .limit(8)
+            .then(({ data }) => {
+                if (data?.length) {
+                    _podcastStripCache.data = data;
+                    _podcastStripCache.ts = Date.now();
+                    setPodcasts(data);
+                }
+            });
+    }, []);
+
+    if (podcasts.length === 0) return null;
+
+    const GRADIENTS: Record<string, string> = {
+        Technology: 'from-blue-600 to-cyan-500', Business: 'from-amber-500 to-orange-600',
+        Education: 'from-emerald-600 to-violet-500', Entertainment: 'from-pink-500 to-rose-600',
+        Health: 'from-green-500 to-emerald-600', Sports: 'from-orange-500 to-red-500',
+        News: 'from-red-600 to-rose-500', Comedy: 'from-yellow-400 to-orange-400',
+        Arts: 'from-violet-500 to-emerald-600', Other: 'from-slate-500 to-zinc-600',
+    };
+
+    return (
+        <div className="lg:hidden px-4 mb-2">
+            <div className="flex items-center justify-between mb-2.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-black uppercase text-stone-400 dark:text-zinc-500 tracking-widest">
+                    <Mic2 className="w-3 h-3 text-emerald-500" /> Campus Podcasts
+                </span>
+                <NavLink to="/app/podcasts" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-500">
+                    See all
+                </NavLink>
+            </div>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+                {podcasts.map(p => {
+                    const isActive = currentTrack?.source === p.title;
+                    const g = GRADIENTS[p.category] ?? GRADIENTS.Other;
+                    return (
+                        <button
+                            key={p.id}
+                            onClick={() => navigate(`/app/podcasts/${p.id}`)}
+                            className="group shrink-0 w-28 text-left"
+                        >
+                            <div className={`aspect-square w-28 rounded-2xl overflow-hidden bg-gradient-to-br ${g} mb-1.5 shadow-sm`}>
+                                {p.cover_url ? (
+                                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Mic2 className="w-7 h-7 text-white/60" />
+                                    </div>
+                                )}
+                                {isActive && isPlaying && (
+                                    <div className="absolute bottom-2 right-2 flex gap-0.5 items-end h-3">
+                                        {[0.6,1,0.8,0.4].map((h,j) => (
+                                            <div key={j} className="w-0.5 bg-white rounded-full animate-bounce" style={{ height: `${h*100}%`, animationDuration: `${0.4+j*0.15}s` }} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs font-bold text-stone-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                {p.title}
+                            </p>
+                            <p className="text-[10px] text-stone-400 dark:text-zinc-500 truncate">{p.creator?.name}</p>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+export default function FeedPage() {
+    const navigate = useNavigate();
+    const {
+        posts,
+        loading,
+        currentUserId,
+        createPost,
+        deletePost,
+        toggleLike,
+        toggleRepost,
+        toggleComments,
+        activeCommentPostId,
+        comments,
+        loadingComments,
+        postComment,
+        deleteComment,
+        reportPost,
+        votePoll,
+        searchPosts,
+        currentUserProfile,
+        hasMore,
+        loadingMore,
+        loadMorePosts,
+    } = useFeed();
+
+    const { posts: sponsoredPosts } = useSponsoredPosts();
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
+    const [peopleResults, setPeopleResults] = useState<any[]>([]);
+    const [activeUsers, setActiveUsers] = useState<any[]>([]);
+    const [shareContent, setShareContent] = useState<string | null>(null);
+    const [shareImages, setShareImages] = useState<File[]>([]);
+
+    const location = useLocation();
+
+    const { setPostDrawerOpen } = useUIStore();
+
+    // PWA Share Target & Native Intent — intercept ?title, ?text, ?url or location state
+    useEffect(() => {
+        // 1. Check for URL parameters (PWA style)
+        const params = new URLSearchParams(window.location.search);
+        const title = params.get('title') || '';
+        const text = params.get('text') || '';
+        const url = params.get('url') || '';
+
+        if (title || text || url) {
+            const parts: string[] = [];
+            if (title) parts.push(title);
+            if (text && text !== title && text !== url) parts.push(text);
+            if (url) parts.push(url);
+            const content = parts.join('\n\n');
+            setShareContent(content);
+            
+            // Open mobile drawer if on mobile
+            if (window.innerWidth < 768) {
+                setPostDrawerOpen(true, content);
+            }
+
+            // Remove params from the URL
+            window.history.replaceState(null, '', window.location.pathname);
+            return;
+        }
+
+        // 2. Check for location state (Native Intent style)
+        if (location.state?.shareContent || location.state?.shareImages) {
+            const content = location.state.shareContent;
+            const images = location.state.shareImages;
+
+            if (content) setShareContent(content);
+            if (images) setShareImages(images);
+
+            // Open mobile drawer if on mobile
+            if (window.innerWidth < 768) {
+                setPostDrawerOpen(true, content, images);
+            }
+
+            // Clear state so it doesn't re-trigger on navigation
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, navigate, setPostDrawerOpen]);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const closeMenu = () => setActiveMenuPostId(null);
+        document.addEventListener('click', closeMenu);
+        return () => document.removeEventListener('click', closeMenu);
+    }, []);
+
+    // Load some recently active users for sidebar — cached for 10 minutes
+    useEffect(() => {
+        if (_activeUsersCache.data.length > 0 && Date.now() - _activeUsersCache.ts < WIDGET_TTL) {
+            setActiveUsers(_activeUsersCache.data);
+            return;
+        }
+        supabase
+            .from('profiles')
+            .select('id, name, username, avatar_url, role').limit(50)
+            .order('updated_at', { ascending: false })
+            .limit(5)
+            .then(({ data }) => {
+                if (data) {
+                    _activeUsersCache.data = data;
+                    _activeUsersCache.ts = Date.now();
+                    setActiveUsers(data);
+                }
+            });
+    }, []);
+
+    // Server-side Search Debounce
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            searchPosts(searchQuery);
+            if (searchQuery.trim().length >= 2) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('id, name, username, avatar_url, headline, university, role, is_verified').limit(50)
+                    .or(`name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%,university.ilike.%${searchQuery}%`)
+                    .limit(4);
+                setPeopleResults(data || []);
+            } else {
+                setPeopleResults([]);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const toggleMenu = (postId: string) => {
+        setActiveMenuPostId(prev => (prev === postId ? null : postId));
+    };
+
+    // Hashtag Logic - Use all store posts to get more trends
+    const { posts: allStorePosts } = useFeedStore();
+    const trendingTags = allStorePosts.reduce((acc: Record<string, number>, post: any) => {
+        const tags = (post.content || '').match(/#[a-z0-9_]+/gi) || [];
+        tags.forEach((tag: string) => {
+            acc[tag] = (acc[tag] || 0) + 1;
+        });
+        return acc;
+    }, {} as Record<string, number>);
+
+    const sortedTags = Object.entries(trendingTags)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
+        .slice(0, 8)
+        .map(([tag]) => tag);
+
+    // Smart slider positions
+    const sliderPositions = useMemo(() => {
+        const positions = new Set<number>();
+        posts.forEach((post, index) => {
+            if (!post.id) return;
+            const hash = post.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const interval = 5 + (hash % 3);
+            if ((index + 1) % interval === 0 && index < posts.length - 1) {
+                positions.add(index);
+            }
+        });
+        return positions;
+    }, [posts]);
+
+    const quickNavItems = [
+        { to: '/app/network', icon: Users, label: 'Network', color: 'blue' },
+        { to: '/app/communities', icon: Globe, label: 'Communities', color: 'emerald' },
+        { to: '/app/challenge', icon: Zap, label: 'Challenge', color: 'yellow' },
+        { to: '/app/leaderboard', icon: Trophy, label: 'Leaderboard', color: 'orange' },
+    ];
+
+    if (loading) {
+        return (
+            <div className="max-w-7xl mx-auto pb-20">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="lg:col-span-8 space-y-4">
+                        <div className="h-9 bg-stone-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
+                        <FeedLoadingState />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto pb-20">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                {/* Main Feed Column */}
+                <div className="lg:col-span-8 space-y-3">
+
+                    {/* Search Bar */}
+                    <div className="sticky top-4 z-30 mb-1 px-4 lg:px-0">
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-stone-400 dark:text-zinc-600 group-focus-within:text-emerald-500 transition-colors" />
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-10 pr-4 py-2.5 bg-white/90 dark:bg-black/90 backdrop-blur-sm border border-stone-200/60 dark:border-zinc-800/60 rounded-xl text-sm text-stone-900 dark:text-white placeholder:text-stone-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 shadow-sm transition-all"
+                                placeholder="Search posts, people, topics…"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Quick Nav Chips */}
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 px-4 lg:px-0">
+                        {quickNavItems.map(({ to, icon: Icon, label }) => (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0 ${isActive
+                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                        : 'bg-white dark:bg-black text-stone-600 dark:text-zinc-300 border-stone-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
+                                    }`
+                                }
+                            >
+                                <Icon className="w-3 h-3" />
+                                {label}
+                            </NavLink>
+                        ))}
+                    </div>
+
+                    {/* Mobile Trending Tags */}
+                    {!searchQuery && sortedTags.length > 0 && (
+                        <div className="lg:hidden px-4 mb-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                <span className="text-[10px] font-black uppercase text-stone-400 dark:text-zinc-600 tracking-widest">Trending</span>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                {sortedTags.map(tag => (
+                                    <button
+                                        key={tag}
+                                        onClick={() => setSearchQuery(tag)}
+                                        className="px-3 py-1.5 rounded-full bg-stone-100 dark:bg-black text-stone-600 dark:text-zinc-300 text-[11px] font-bold border border-stone-200 dark:border-zinc-800 whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5"
+                                    >
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Welcome / Streak Card */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <WelcomeMessage userName={currentUserProfile.name.split(' ')[0]} />
+                        </div>
+                    )}
+
+                    {/* Getting Started Onboarding Checklist */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <GettingStartedChecklist 
+                                user={currentUserProfile} 
+                                userPostCount={posts.filter(p => p.author_id === currentUserId).length}
+                            />
+                        </div>
+                    )}
+
+                    {/* First Post Quick Prompts */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <FirstPostPrompt user={currentUserProfile} />
+                        </div>
+                    )}
+
+                    {/* Profile Completion Reminder */}
+                    {currentUserProfile && (
+                        <div className="px-4 lg:px-0">
+                            <ProfileCompletionBanner profile={currentUserProfile} />
+                        </div>
+                    )}
+
+                    {/* Create Post - Hidden on Mobile, Drawer takes over */}
+                    {currentUserId && (
+                        <div className="mb-1 hidden md:block">
+                            <CreatePost 
+                                onCreate={createPost} 
+                                user={currentUserProfile} 
+                                initialContent={shareContent ?? undefined} 
+                                initialImages={shareImages}
+                            />
+                        </div>
+                    )}
+
+                    {/* News Slider (Curated Curations) */}
+                    <div className="mb-2">
+                        {searchQuery && (
+                            <div className="px-5 mb-3 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-widest">Recommended News</h3>
+                            </div>
+                        )}
+                        <NewsSlider />
+                    </div>
+
+                    {/* Mobile Podcast Strip */}
+                    {!searchQuery && <MobilePodcastStrip />}
+
+                    {/* People Search Results */}
+                    {searchQuery.trim().length >= 2 && peopleResults.length > 0 && (
+                        <div className="bg-white dark:bg-bg-cardDark border border-stone-200/80 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="px-4 pt-3 pb-1">
+                                <p className="text-xs font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <UserRound className="w-3.5 h-3.5" /> People
+                                </p>
+                            </div>
+                            {peopleResults.map(person => (
+                                <button
+                                    key={person.id}
+                                    onClick={() => navigate(`/app/profile/${person.username || person.id}`)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    <img
+                                        src={person.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=random`}
+                                        alt={person.name}
+                                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-sm font-semibold text-stone-900 dark:text-white truncate">{person.name}</p>
+                                        <p className="text-xs text-stone-400 dark:text-zinc-500 truncate">{person.headline || person.university || person.role}</p>
+                                    </div>
+                                    {person.is_verified && <span className="text-emerald-500 text-xs font-bold">✓ Verified</span>}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Feed Posts */}
+                    <div className="space-y-2">
+                        {posts.length === 0 ? (
+                            searchQuery ? (
+                                <div className="text-center py-12 bg-white dark:bg-bg-cardDark border-y border-stone-200/80 dark:border-zinc-800 rounded-2xl">
+                                    <p className="text-stone-500 dark:text-zinc-400 mb-2">No posts found for "{searchQuery}"</p>
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="text-emerald-600 dark:text-emerald-500 font-bold hover:underline"
+                                    >
+                                        Clear search
+                                    </button>
+                                </div>
+                            ) : (
+                                <EmptyFeedState onCreatePost={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+                            )
+                        ) : (
+                            posts.map((post, index) => {
+                                const showSponsored = (index + 1) % 8 === 0 && sponsoredPosts.length > 0;
+                                const sponsoredPost = showSponsored ? sponsoredPosts[Math.floor(index / 8) % sponsoredPosts.length] : null;
+                                // Stagger animation delay for the first 8 posts
+                                const animDelay = index < 8 ? `${index * 60}ms` : '0ms';
+
+                                return (
+                                    <div
+                                        key={post.id}
+                                        style={{ animationDelay: animDelay, animationFillMode: 'both' }}
+                                        className="animate-[feedIn_0.4s_ease_forwards]"
+                                    >
+                                        <PostItem
+                                            post={post}
+                                            currentUserId={currentUserId}
+                                            isActiveCommentSection={activeCommentPostId === post.id}
+                                            isActiveMenu={activeMenuPostId === post.id}
+                                            comments={comments[post.id] || []}
+                                            loadingComments={loadingComments && activeCommentPostId === post.id}
+                                            onDelete={deletePost}
+                                            onLike={toggleLike}
+                                            onRepost={toggleRepost}
+                                            onToggleComments={toggleComments}
+                                            onToggleMenu={toggleMenu}
+                                            onPostComment={postComment}
+                                            onSearchTag={setSearchQuery}
+                                            onReport={reportPost}
+                                            onDeleteComment={deleteComment}
+                                            onVotePoll={votePoll}
+                                        />
+
+                                        {/* Sponsored Post Injection */}
+                                        {sponsoredPost && (
+                                            <div className="my-4 animate-[feedIn_0.5s_ease_forwards]">
+                                                <SponsoredPostItem post={sponsoredPost} />
+                                            </div>
+                                        )}
+
+                                        {/* Suggested Connections */}
+                                        {!searchQuery && sliderPositions.has(index) && !showSponsored && (
+                                            <div className="my-4">
+                                                <SuggestedConnections />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+
+                        {/* Load More Button */}
+                        {!loading && !searchQuery && posts.length > 0 && hasMore && (
+                            <div className="py-6 flex justify-center">
+                                <button
+                                    onClick={loadMorePosts}
+                                    disabled={loadingMore}
+                                    className="px-6 py-2.5 bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-stone-600 dark:text-zinc-300 rounded-full font-semibold text-sm shadow-sm hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {loadingMore ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        'Load More'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+
+                        {!loading && !searchQuery && posts.length > 0 && !hasMore && (
+                            <div className="py-8 text-center text-stone-400 dark:text-zinc-500 text-sm font-medium">
+                                You've reached the end of the feed! 🚀
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Sidebar Column */}
+                <div className="hidden lg:block lg:col-span-4 sticky top-4 space-y-4">
+
+                    {/* Who's Active Now */}
+                    {activeUsers.length > 0 && (
+                        <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                            <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                Active on campus
+                            </h3>
+                            <div className="space-y-2.5">
+                                {activeUsers.map(user => (
+                                    <button
+                                        key={user.id}
+                                        onClick={() => navigate(`/app/profile/${user.username || user.id}`)}
+                                        className="w-full flex items-center gap-3 group hover:bg-stone-50 dark:hover:bg-zinc-800 rounded-xl p-2 -mx-2 transition-colors"
+                                    >
+                                        <div className="relative">
+                                            <img
+                                                src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
+                                                alt={user.name}
+                                                className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full" />
+                                        </div>
+                                        <span className="text-sm font-medium text-stone-700 dark:text-zinc-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                                            {user.name}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Podcast Preview */}
+                    <PodcastSidebarWidget />
+
+                    {/* Trending Topics */}
+                    <div className="bg-white/80 dark:bg-bg-cardDark/80 dark-card backdrop-blur-md rounded-2xl p-5 shadow-sm border border-stone-200/50 dark:border-zinc-700/50">
+                        <h3 className="font-bold text-sm text-stone-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                            Trending topics
+                        </h3>
+                        <div className="space-y-1">
+                            {sortedTags.length === 0 ? (
+                                <p className="text-stone-400 dark:text-zinc-500 text-sm py-2">No trends yet — start a hashtag!</p>
+                            ) : (
+                                sortedTags.map((tag, i) => (
+                                    <button
+                                        key={tag}
+                                        onClick={() => setSearchQuery(tag)}
+                                        className="w-full flex items-center justify-between group p-2 hover:bg-stone-50 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-stone-300 dark:text-zinc-600 w-4 text-right">{i + 1}</span>
+                                            <span className="font-semibold text-sm text-stone-700 dark:text-zinc-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                                {tag}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-stone-400 dark:text-zinc-600 bg-stone-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 group-hover:text-emerald-600 transition-colors">
+                                            {trendingTags[tag]}
+                                        </span>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Quick Actions CTA */}
+                    <div className="relative overflow-hidden bg-white/70 dark:bg-bg-cardDark/70 dark-card backdrop-blur-xl border border-stone-200/50 dark:border-zinc-800/50 rounded-2xl p-5 shadow-xl shadow-stone-200/20 dark:shadow-black/20">
+                        {/* Highlights */}
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                        <div className="relative flex items-center gap-2 mb-2">
+                            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                            <span className="font-extrabold text-sm text-stone-900 dark:text-white uppercase tracking-wider">Campus Challenge</span>
+                        </div>
+                        <p className="relative text-stone-600 dark:text-zinc-400 text-xs leading-relaxed font-medium mb-4">
+                            Earn points, climb the leaderboard, and win prizes. New challenge every week!
+                        </p>
+                        <NavLink
+                            to="/app/challenge"
+                            className="relative inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
+                        >
+                            <Flame className="w-3.5 h-3.5 text-orange-400" />
+                            Join Challenge
+                        </NavLink>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="text-xs text-stone-400 dark:text-zinc-500 px-2 leading-relaxed">
+                        &copy; 2025 UniLink Nigeria &bull;{' '}
+                        <span className="hover:text-stone-600 dark:hover:text-zinc-400 cursor-pointer">Privacy</span> &bull;{' '}
+                        <span className="hover:text-stone-600 dark:hover:text-zinc-400 cursor-pointer">Terms</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+}

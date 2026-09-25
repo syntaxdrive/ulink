@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Email</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9fafb;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+            /* Soft premium shadow */
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            /* Emerald gradient matching app theme */
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .content {
+            padding: 40px 30px;
+            color: #374151;
+            text-align: center;
+        }
+
+        .content p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            color: #4b5563;
+        }
+
+        .button-container {
+            margin: 32px 0;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #10b981;
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 16px 32px;
+            border-radius: 50px;
+            /* Pill shape for modern feel */
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .button:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+        }
+
+        .footer {
+            background-color: #f3f4f6;
+            padding: 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .footer a {
+            color: #6b7280;
+            text-decoration: none;
+        }
+
+        .code-block {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            color: #374151;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>UniLink</h1>
+        </div>
+        <div class="content">
+            <h2 style="color: #111827; margin-top: 0; font-size: 24px;">Welcome to the Network! 🚀</h2>
+            <p>
+                We're excited to have you join <strong>UniLink</strong>, the premier platform connecting students and
+                organizations.
+            </p>
+            <p>
+                Please confirm your email address to verify your account and start building your connections.
+            </p>
+
+            <div class="button-container">
+                <!-- Supabase replaces {{ .ConfirmationURL }} with the actual link -->
+                <a href="{{ .ConfirmationURL }}" class="button">Confirm Email Address</a>
+            </div>
+
+            <p style="font-size: 14px; color: #9ca3af; margin-top: 30px;">
+                If you didn't request this, you can safely ignore this email.
+            </p>
+
+            <!-- Fallback link for accessibility/issues -->
+            <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <p style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Button not working? Copy and paste this
+                    link:</p>
+                <p style="font-size: 12px; color: #10b981; word-break: break-all;">
+                    <a href="{{ .ConfirmationURL }}" style="color: #10b981;">{{ .ConfirmationURL }}</a>
+                </p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 UniLink Inc. All rights reserved.</p>
+            <p>Lagos, Nigeria</p>
+        </div>
+    </div>
+</body>
+
+</html>

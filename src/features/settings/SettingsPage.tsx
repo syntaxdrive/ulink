@@ -1,0 +1,286 @@
+import { ChevronRight, Shield, FileText, Cookie, Scale, LogOut, User, Bell, Download, Info, RefreshCw, Users as UsersIcon } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import InstallGuideModal from '../../components/InstallGuideModal';
+
+export default function SettingsPage() {
+    const { isInstallable, install, showInstallModal, setShowInstallModal, isIOs } = usePWAInstall();
+    const [notifPermission, setNotifPermission] = useState(
+        'Notification' in window ? Notification.permission : 'denied'
+    );
+    const [isClearing, setIsClearing] = useState(false);
+
+
+
+    const requestNotificationPermission = async () => {
+        if (!('Notification' in window)) return;
+        const result = await Notification.requestPermission();
+        setNotifPermission(result);
+        if (result === 'granted') {
+            new Notification('UniLink', { body: 'Notifications enabled successfully!' });
+        }
+    };
+
+    const clearCache = async () => {
+        setIsClearing(true);
+        try {
+            // Clear all caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(reg => reg.unregister()));
+            }
+
+            // Reload the page
+            window.location.reload();
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+            setIsClearing(false);
+            alert('Failed to clear cache. Please try again.');
+        }
+    };
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+    };
+
+    const sections = [
+        {
+            title: "Account",
+            items: [
+                { icon: User, label: "Personal Information", path: "/app/profile", description: "Update your profile details" },
+                { icon: Bell, label: "Notifications", path: "/app/notifications", description: "Manage your alert preferences" },
+            ]
+        },
+        {
+            title: "Support",
+            items: [
+                { icon: FileText, label: "Contact Support", path: "mailto:unilinkrep@gmail.com", description: "Get help with your account" },
+                { icon: Shield, label: "Report a Problem", path: "mailto:unilinkrep@gmail.com?subject=Report%20Problem", description: "Found a bug? Let us know." },
+                { icon: Info, label: "About UniLink", path: "/about", description: "Our mission and story" },
+            ]
+        },
+        {
+            title: "Legal & Policies",
+            items: [
+                { icon: Shield, label: "Privacy Policy", path: "/app/legal/privacy", description: "How we handle your data" },
+                { icon: FileText, label: "Terms of Service", path: "/app/legal/terms", description: "Usage agreement" },
+                { icon: Cookie, label: "Cookie Policy", path: "/app/legal/cookies", description: "Cookie usage and preferences" },
+                { icon: Scale, label: "Copyright Policy", path: "/app/legal/copyright", description: "Intellectual property rights" },
+            ]
+        }
+    ];
+
+    return (
+        <div className="max-w-2xl mx-auto pb-20">
+            <h1 className="text-3xl font-bold text-stone-900 mb-8 font-display">Settings</h1>
+
+            <div className="space-y-8">
+                {sections.map((section, idx) => (
+                    <div key={idx} className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+                            <h2 className="font-semibold text-stone-900">{section.title}</h2>
+                        </div>
+                        <div className="divide-y divide-stone-100">
+                            {section.items.map((item, i) => {
+                                const isExternal = item.path.startsWith('http') || item.path.startsWith('mailto:');
+                                const content = (
+                                    <>
+                                        <div className="p-2 bg-stone-100 rounded-xl text-stone-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                                            <item.icon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-medium text-stone-900">{item.label}</h3>
+                                            <p className="text-xs text-stone-500">{item.description}</p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                                    </>
+                                );
+
+                                if (isExternal) {
+                                    return (
+                                        <a
+                                            key={i}
+                                            href={item.path}
+                                            className="flex items-center gap-4 p-4 hover:bg-stone-50 transition-colors group"
+                                        >
+                                            {content}
+                                        </a>
+                                    );
+                                }
+
+                                return (
+                                    <Link
+                                        key={i}
+                                        to={item.path}
+                                        className="flex items-center gap-4 p-4 hover:bg-stone-50 transition-colors group"
+                                    >
+                                        {content}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+
+                {/* Dark Mode Toggle Card - DISABLED (UI not fully implemented)
+                <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-stone-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                    <div className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl text-slate-700 dark:text-slate-300">
+                                    {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-stone-900 dark:text-white">Dark Mode</h2>
+                                    <p className="text-xs text-stone-500 dark:text-zinc-400">
+                                        {isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={toggleDarkMode}
+                                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${isDarkMode ? 'bg-emerald-600' : 'bg-stone-300'
+                                    }`}
+                                role="switch"
+                                aria-checked={isDarkMode}
+                            >
+                                <span
+                                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${isDarkMode ? 'translate-x-7' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                */}
+
+                {/* Notification Permission Card */}
+                {notifPermission === 'default' && !Capacitor.isNativePlatform() && (
+                    <div className="bg-blue-50 rounded-[2rem] border border-blue-100 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
+                                <Bell className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-blue-900">Enable Notifications</h2>
+                                <p className="text-xs text-blue-700">Stay updated with messages and alerts</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={requestNotificationPermission}
+                            className="w-full bg-blue-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-blue-700 transition-all text-sm"
+                        >
+                            Allow Notifications
+                        </button>
+                    </div>
+                )}
+
+                {/* Install App Section - Hide if Native APK */}
+                {!Capacitor.isNativePlatform() && (
+                    <div className="bg-emerald-50 rounded-[2rem] border border-emerald-100 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
+                                <Download className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-emerald-900">Install UniLink App</h2>
+                                <p className="text-xs text-emerald-700">
+                                    {isInstallable ? 'One-click install available!' : 'Add to your home screen'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={isInstallable ? install : () => setShowInstallModal(true)}
+                            className="w-full bg-emerald-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-emerald-700 transition-all text-sm"
+                        >
+                            {isInstallable ? 'Install Now' : 'Show Install Guide'}
+                        </button>
+                    </div>
+                )}
+
+                {/* Platform Founders Section */}
+                <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50 flex items-center gap-2">
+                        <UsersIcon className="w-4 h-4 text-stone-500" />
+                        <h2 className="font-semibold text-stone-900">Platform Credits</h2>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                                DO
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900 text-sm">Daniel Oyasor</h3>
+                                <p className="text-[10px] text-stone-500 uppercase tracking-widest font-black">Founder & Visionary</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                AD
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900 text-sm">Akele Dive</h3>
+                                <p className="text-[10px] text-stone-500 uppercase tracking-widest font-black">Co-Founder & Technical Lead</p>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-stone-400 leading-relaxed italic border-t border-stone-50 pt-4">
+                            UniLink is built with ❤️ in Nigeria to empower the next generation of African students and innovators.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Clear Cache Button */}
+                <div className="bg-orange-50 rounded-[2rem] border border-orange-100 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
+                            <RefreshCw className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-orange-900">Clear Cache & Refresh</h2>
+                            <p className="text-xs text-orange-700">Force update to see the latest version</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={clearCache}
+                        disabled={isClearing}
+                        className="w-full bg-orange-600 rounded-xl shadow-sm p-3 text-white font-medium hover:bg-orange-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isClearing ? 'animate-spin' : ''}`} />
+                        {isClearing ? 'Clearing...' : 'Clear Cache & Reload'}
+                    </button>
+                </div>
+
+                <button
+                    onClick={handleLogout}
+                    className="w-full bg-white rounded-[2rem] border border-stone-200 shadow-sm p-4 flex items-center justify-center gap-3 text-red-600 font-medium hover:bg-red-50 hover:border-red-100 transition-all"
+                >
+                    <LogOut className="w-5 h-5" />
+                    Log Out
+                </button>
+
+                <div className="text-center text-xs text-stone-400">
+                    <p>UniLink Version 1.0.0</p>
+                    <p>&copy; {new Date().getFullYear()} UniLink Nigeria</p>
+                </div>
+            </div>
+
+            <InstallGuideModal
+                isOpen={showInstallModal}
+                onClose={() => setShowInstallModal(false)}
+                isIOS={isIOs}
+            />
+        </div>
+    );
+}
