@@ -27,12 +27,16 @@ const queryClient = new QueryClient({
   },
 })
 
+import { AuthProvider } from './contexts/AuthContext'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <HelmetProvider>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </HelmetProvider>
       </QueryClientProvider>
     </ErrorBoundary>

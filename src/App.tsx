@@ -83,9 +83,8 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <HelmetProvider>
-        <BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
           <DeepLinkHelper />
           <ShareIntentHelper />
           <ShareTargetChoiceModal />
@@ -141,7 +140,6 @@ function App() {
           </Suspense>
         </BrowserRouter>
       </HelmetProvider>
-    </AuthProvider>
   );
 }
 
