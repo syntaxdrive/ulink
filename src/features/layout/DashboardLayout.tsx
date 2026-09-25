@@ -23,18 +23,10 @@ import { getOptimizedMediaUrl } from '../../services/cloudinaryService';
 import { useAuth } from '../../contexts/AuthContext';
 
 export interface DashboardLayoutProps {
-    isLoggedIn: boolean;
+    isLoggedIn?: boolean;
 }
 
-function isOnboardingComplete(profile: Profile) {
-    if (!profile.name?.trim() || profile.name === 'null') return false;
-    if (!profile.username?.trim() || profile.username === 'null') return false;
-    if (!profile.role || (profile.role as string) === 'null') return false;
-    if (profile.role === 'student' && (!profile.university?.trim() || profile.university === 'null')) return false;
-    return true;
-}
-
-export default function DashboardLayout({ isLoggedIn }: DashboardLayoutProps) {
+export default function DashboardLayout(_props: DashboardLayoutProps) {
     const { user: authUser, signOut: authSignOut } = useAuth();
 
     const navigate = useNavigate();
@@ -251,11 +243,10 @@ export default function DashboardLayout({ isLoggedIn }: DashboardLayoutProps) {
             }
         };
 
-        const cleanup = setupRealtime();
+        setupRealtime();
 
         return () => {
             cancelled = true;
-            cleanup.then(unsub => unsub && unsub());
         };
     }, [authUser?.id]);
 
