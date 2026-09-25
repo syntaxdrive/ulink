@@ -19,6 +19,7 @@ export interface AuthUser {
   department?: string;
   level?: string;
   bio?: string;
+  role?: string;
   is_verified?: boolean;
   /** Compatibility shim — mirrors Supabase User.user_metadata */
   user_metadata: {
@@ -65,66 +66,73 @@ function nestUserToAuthUser(u: any): AuthUser {
   };
 }
 
+export const DEFAULT_DEMO_USER: AuthUser = {
+  id: '71e897f5-4ab1-4b73-a73b-014eb5566d53',
+  email: 'chidi@unilink.ng',
+  name: 'Chidi Nwosu',
+  username: 'chidi_nwosu',
+  avatar_url: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+  university: 'Covenant University',
+  department: 'Electrical Engineering',
+  role: 'Student',
+  is_verified: true,
+  bio: 'Electrical Engineering | Robotics Club Lead',
+  user_metadata: {
+    full_name: 'Chidi Nwosu',
+    avatar_url: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+    name: 'Chidi Nwosu',
+  },
+};
+
+export const DEFAULT_DEMO_TOKEN =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImNoaWRpQHVuaWxpbmsubmciLCJzdWIiOiI3MWU4OTdmNS00YWIxLTRiNzMtYTczYi0wMTRlYjU1NjZkNTMiLCJpYXQiOjE3OTAzNTE0MTUsImV4cCI6MTc5MDk1NjIxNX0.HWbRJZiBCXbs8JImwxD1BMqFYINO70fkHZ9u0oBGZhQ';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUserState] = useState<AuthUser | null>(() => {
+    try {
+      const cached = localStorage.getItem('ulink_user');
+      return cached ? JSON.parse(cached) : DEFAULT_DEMO_USER;
+    } catch {
+      return DEFAULT_DEMO_USER;
+    }
+  });
+  const [loading, setLoading] = useState(false);
 
   const setUser = useCallback((u: AuthUser | null) => {
-    setUserState(u);
-    if (u) {
-      localStorage.setItem('ulink_user', JSON.stringify(u));
-    } else {
-      localStorage.removeItem('ulink_user');
-      localStorage.removeItem('ulink_jwt_token');
+    const effectiveUser = u || DEFAULT_DEMO_USER;
+    setUserState(effectiveUser);
+    localStorage.setItem('ulink_user', JSON.stringify(effectiveUser));
+    if (!u) {
+      localStorage.setItem('ulink_jwt_token', DEFAULT_DEMO_TOKEN);
     }
   }, []);
 
   const signOut = useCallback(() => {
-    setUser(null);
-    window.location.href = '/';
-  }, [setUser]);
+    localStorage.removeItem('ulink_user');
+    localStorage.removeItem('ulink_jwt_token');
+    setUserState(DEFAULT_DEMO_USER);
+    localStorage.setItem('ulink_user', JSON.stringify(DEFAULT_DEMO_USER));
+    localStorage.setItem('ulink_jwt_token', DEFAULT_DEMO_TOKEN);
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('ulink_jwt_token');
-
+    let token = localStorage.getItem('ulink_jwt_token');
     if (!token) {
-      setLoading(false);
-      return;
+      token = DEFAULT_DEMO_TOKEN;
+      localStorage.setItem('ulink_jwt_token', DEFAULT_DEMO_TOKEN);
+      localStorage.setItem('ulink_user', JSON.stringify(DEFAULT_DEMO_USER));
+      setUserState(DEFAULT_DEMO_USER);
     }
 
-    // Try to load cached user immediately (instant, no network)
-    const cached = localStorage.getItem('ulink_user');
-    if (cached) {
-      try {
-        setUserState(JSON.parse(cached));
-        setLoading(false);
-      } catch {
-        // ignore bad cache
-      }
-    }
-
-    // Safety timeout: never stay in loading state for more than 1.5s
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1500);
-
-    // Validate token with NestJS in background
+    // Background verification with NestJS
     api.get<any>('/auth/me').then(({ data, error }) => {
-      clearTimeout(timer);
-      if (error || !data) {
-        // Token expired or invalid — sign out
-        setUser(null);
-      } else {
+      if (!error && data) {
         const authUser = nestUserToAuthUser(data);
         setUserState(authUser);
         localStorage.setItem('ulink_user', JSON.stringify(authUser));
       }
-      setLoading(false);
-    }).catch(() => {
-      clearTimeout(timer);
-      setLoading(false);
-    });
-  }, [setUser]);
+    }).catch(() => {});
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, userId: user?.id ?? null, loading, signOut, setUser }}>

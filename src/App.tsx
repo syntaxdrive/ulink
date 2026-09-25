@@ -35,6 +35,9 @@ const LegalPage = lazy(() => import('./features/legal/LegalPage'));
 const StoryModePage = lazy(() => import('./features/story/StoryModePage'));
 const StoryBuilderPage = lazy(() => import('./features/story/StoryBuilderPage'));
 const CreatorDashboardPage = lazy(() => import('./features/story/CreatorDashboardPage'));
+const ConfessionsPage = lazy(() => import('./features/confessions/ConfessionsPage'));
+const ArcadePage = lazy(() => import('./features/arcade/ArcadePage'));
+const OpenCampusPage = lazy(() => import('./features/open-campus/OpenCampusPage'));
 const NotFoundPage = lazy(() => import('./features/layout/NotFoundPage'));
 import UpdateNotification from './components/UpdateNotification';
 import PWAInstallBanner from './components/PWAInstallBanner';
@@ -112,7 +115,7 @@ function App() {
                 <Route path="communities" element={<CommunitiesPage />} />
                 <Route path="communities/:slug" element={<CommunityDetailsPage />} />
                 <Route path="network" element={<NetworkPage />} />
-                <Route path="messages" element={isLoggedIn ? <MessagesPage /> : <Navigate to="/app" replace />} />
+                <Route path="messages" element={<MessagesPage />} />
                 <Route path="jobs" element={<JobsPage />} />
                 <Route path="talent" element={<TalentSearchPage />} />
                 <Route path="learn" element={<CoursesPage />} />
@@ -125,13 +128,16 @@ function App() {
                 <Route path="challenge" element={<CampusChallengePage />} />
                 <Route path="news" element={<NewsPage />} />
                 <Route path="podcasts" element={<PodcastsPage />} />
-                <Route path="podcasts/manage" element={isLoggedIn ? <PodcastManagePage /> : <Navigate to="/app" replace />} />
+                <Route path="podcasts/manage" element={<PodcastManagePage />} />
                 <Route path="podcasts/:podcastId" element={<PodcastChannelPage />} />
-                <Route path="notifications" element={isLoggedIn ? <NotificationsPage /> : <Navigate to="/app" replace />} />
-                <Route path="profile" element={isLoggedIn ? <ProfilePage /> : <Navigate to="/app" replace />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="confessions" element={<ConfessionsPage />} />
+                <Route path="arcade" element={<ArcadePage />} />
+                <Route path="open-campus" element={<OpenCampusPage />} />
+                <Route path="profile" element={<ProfilePage />} />
                 <Route path="profile/:userId" element={<UserProfilePage />} />
-                <Route path="settings" element={isLoggedIn ? <SettingsPage /> : <Navigate to="/app" replace />} />
-                <Route path="admin" element={isLoggedIn ? <AdminPage /> : <Navigate to="/app" replace />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="admin" element={<AdminPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
               <Route path="/legal/:type" element={<LegalPage />} />

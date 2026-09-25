@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus } from 'lucide-react';
+import { LayoutGrid, Users, MessageCircle, Briefcase, LogOut, User, Bell, Menu, X, Search, Settings, Shield, Globe, Download, GraduationCap, Trophy, Zap, Sun, Moon, Newspaper, Mic2, Library, RefreshCw, Plus, ShoppingBag, Gamepad2, Compass, MessageSquareLock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
 import { supabase } from '../../lib/supabase';
@@ -299,25 +299,27 @@ export default function DashboardLayout(_props: DashboardLayoutProps) {
         { icon: LayoutGrid, label: 'Home', path: '/app' },
         { icon: Users, label: 'Network', path: '/app/network' },
         { icon: Globe, label: 'Communities', path: '/app/communities' },
-        { icon: Zap, label: 'Challenge', path: '/app/challenge' },
-        ...(!isGuest ? [
-            { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
-            { icon: Bell, label: 'Notifications', path: '/app/notifications' },
-            { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' }
-        ] : []),
+        { icon: ShoppingBag, label: 'Marketplace', path: '/app/marketplace' },
+        { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+        { icon: Bell, label: 'Notifications', path: '/app/notifications' },
+        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' },
     ];
 
     const secondaryNavItems = [
         { icon: Briefcase, label: 'Career', path: '/app/jobs' },
-        { icon: Newspaper, label: 'News Feed', path: '/app/news' },
+        { icon: GraduationCap, label: 'Courses', path: '/app/learn' },
+        { icon: Library, label: 'Study Rooms', path: '/app/study' },
         { icon: Mic2, label: 'Podcasts', path: '/app/podcasts' },
-        { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard'},
-        { icon: GraduationCap, label: 'Courses', path: '/app/learn'},
-        { icon: Library, label: 'Study Rooms', path: '/app/study'},
+        { icon: MessageSquareLock, label: 'Confessions', path: '/app/confessions' },
+        { icon: Gamepad2, label: 'Arcade', path: '/app/arcade' },
+        { icon: Compass, label: 'Open Campus', path: '/app/open-campus' },
+        { icon: Zap, label: 'Challenge', path: '/app/challenge' },
+        { icon: Trophy, label: 'Leaderboard', path: '/app/leaderboard' },
+        { icon: Newspaper, label: 'News Feed', path: '/app/news' },
+        { icon: Settings, label: 'Settings', path: '/app/settings' },
         ...(!Capacitor.isNativePlatform() ? [{ icon: Download, label: 'Download App', path: '/download' }] : []),
-        ...(!isGuest ? [{icon: Settings, label: 'Settings', path: '/app/settings'}] : []),
         ...(userProfile?.role === 'org' ? [{ icon: Search, label: 'Talent', path: '/app/talent' }] : []),
-        ...(!isGuest && userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
+        ...(userProfile?.is_admin ? [{ icon: Shield, label: 'Admin', path: '/app/admin' }] : []),
     ];
 
     const navItems = [...primaryNavItems, ...secondaryNavItems];
@@ -328,9 +330,13 @@ export default function DashboardLayout(_props: DashboardLayoutProps) {
         return 0;
     };
 
-    const bottomNavItems = navItems.filter(item =>
-        ['Home', 'Network', 'Messages', 'Profile'].includes(item.label)
-    );
+    const bottomNavItems = [
+        { icon: LayoutGrid, label: 'Home', path: '/app' },
+        { icon: Users, label: 'Network', path: '/app/network' },
+        { icon: ShoppingBag, label: 'Market', path: '/app/marketplace' },
+        { icon: MessageCircle, label: 'Messages', path: '/app/messages' },
+        { icon: User, label: 'Profile', path: userProfile ? `/app/profile/${userProfile.username || userProfile.id}` : '/app/profile' }
+    ];
 
 
 

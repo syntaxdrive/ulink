@@ -81,40 +81,54 @@ export const supabase = createClient(
 const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
 const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
 
+const DEFAULT_DEMO_USER_FALLBACK = {
+  id: '71e897f5-4ab1-4b73-a73b-014eb5566d53',
+  email: 'chidi@unilink.ng',
+  name: 'Chidi Nwosu',
+  avatar_url: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+  user_metadata: {
+    full_name: 'Chidi Nwosu',
+    name: 'Chidi Nwosu',
+    avatar_url: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
+  },
+};
+
 function getLocalAuthData() {
   if (typeof window === 'undefined') return { user: null, session: null };
   const rawUser = localStorage.getItem('ulink_user');
-  const token = localStorage.getItem('ulink_jwt_token');
+  const token = localStorage.getItem('ulink_jwt_token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImNoaWRpQHVuaWxpbmsubmciLCJzdWIiOiI3MWU4OTdmNS00YWIxLTRiNzMtYTczYi0wMTRlYjU1NjZkNTMiLCJpYXQiOjE3OTAzNTE0MTUsImV4cCI6MTc5MDk1NjIxNX0.HWbRJZiBCXbs8JImwxD1BMqFYINO70fkHZ9u0oBGZhQ';
 
-  if (!rawUser) return { user: null, session: null };
-
-  try {
-    const parsed = JSON.parse(rawUser);
-    const sbUser = {
-      id: parsed.id,
-      email: parsed.email,
-      app_metadata: {},
-      user_metadata: parsed.user_metadata || {
-        full_name: parsed.name,
-        name: parsed.name,
-        avatar_url: parsed.avatar_url,
-      },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    };
-
-    const session = {
-      access_token: token || 'mock_jwt_token',
-      token_type: 'bearer',
-      user: sbUser,
-      expires_in: 3600,
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
-    };
-
-    return { user: sbUser, session };
-  } catch {
-    return { user: null, session: null };
+  let parsed = DEFAULT_DEMO_USER_FALLBACK;
+  if (rawUser) {
+    try {
+      parsed = JSON.parse(rawUser);
+    } catch {
+      parsed = DEFAULT_DEMO_USER_FALLBACK;
+    }
   }
+
+  const sbUser = {
+    id: parsed.id,
+    email: parsed.email,
+    app_metadata: {},
+    user_metadata: parsed.user_metadata || {
+      full_name: parsed.name,
+      name: parsed.name,
+      avatar_url: parsed.avatar_url,
+    },
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+  };
+
+  const session = {
+    access_token: token,
+    token_type: 'bearer',
+    user: sbUser,
+    expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+  };
+
+  return { user: sbUser, session };
 }
 
 (supabase.auth as any).getSession = async () => {
