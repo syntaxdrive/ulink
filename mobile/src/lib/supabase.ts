@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const PRIMARY_NEST_URL = process.env.EXPO_PUBLIC_API_URL || 'http://158.158.120.244/api/v1';
+const PRIMARY_NEST_URL = process.env.EXPO_PUBLIC_API_URL || 'https://158-158-120-244.sslip.io/api/v1';
 const FALLBACK_NEST_URL = process.env.EXPO_PUBLIC_FALLBACK_API_URL || 'https://unilink-api-s6b9.onrender.com/api/v1';
 
 const TOKEN_KEY = 'ulink_auth_token';

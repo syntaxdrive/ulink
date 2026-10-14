@@ -104,7 +104,7 @@ export default function CommunitiesScreen() {
 
       const formatted: Community[] = (comms || []).map((c: any) => ({
         ...c,
-        members_count: c.community_members?.[0]?.count || 0,
+        members_count: c.members_count ?? c.community_members?.[0]?.count ?? 1,
       }));
 
       setCommunities(formatted);

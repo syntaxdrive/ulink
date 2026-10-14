@@ -37,6 +37,9 @@ export class RestService {
   }
 
   private parseFilterValue(val: string): any {
+    if (typeof val === 'string') {
+      val = val.replace(/^["']|["']$/g, '').trim();
+    }
     if (val === 'true') return true;
     if (val === 'false') return false;
     if (val === 'null') return null;
@@ -287,6 +290,8 @@ export class RestService {
           ...item,
           requester: item.requester,
           recipient: item.recipient,
+          'profiles!requester_id': item.requester,
+          'profiles!recipient_id': item.recipient,
         };
       }
       // Marketplace compatibility shim: map seller to profiles & profiles:seller_id
@@ -302,6 +307,13 @@ export class RestService {
         return {
           ...item,
           profiles: item.author,
+        };
+      }
+      // Communities compatibility shim: provide community_members count
+      if (tbl === 'communities') {
+        return {
+          ...item,
+          community_members: [{ count: item.members_count || 1 }],
         };
       }
       return item;

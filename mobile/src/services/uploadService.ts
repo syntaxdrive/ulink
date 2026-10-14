@@ -145,65 +145,44 @@ export const uploadService = {
       console.warn('NestJS/R2 upload failed, using Supabase Storage fallback:', r2Err);
     }
 
-    // 2. Fallback: Supabase Storage
-    const uniquePath = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
-    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/uploads/${uniquePath}`;
-
-    // Get current auth token if available
-    let authToken = SUPABASE_ANON_KEY;
+    // 2. Direct Azure VM Storage Fallback
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        authToken = session.access_token;
-      }
-    } catch {
-      // Use anon key fallback
-    }
+      const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+      const azureUploadUrl = `https://158-158-120-244.sslip.io/api/v1/upload/file/${folder}/${uniqueName}`;
 
-    let binaryData: any;
-
-    if (Platform.OS !== 'web' && typeof File === 'function') {
-      try {
-        const file = new File(uri);
-        const bytes = await file.bytes();
-        binaryData = bytes;
-      } catch {
+      let binaryData: any;
+      if (Platform.OS !== 'web' && typeof File === 'function') {
+        try {
+          const file = new File(uri);
+          binaryData = await file.bytes();
+        } catch {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          binaryData = await new Response(blob).arrayBuffer();
+        }
+      } else {
         const response = await fetch(uri);
         const blob = await response.blob();
         binaryData = await new Response(blob).arrayBuffer();
       }
-    } else {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      binaryData = await new Response(blob).arrayBuffer();
-    }
 
-    // Direct REST upload with pure binary stream payload
-    const res = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': media.mimeType || 'image/jpeg',
-        'x-upsert': 'true',
-      },
-      body: binaryData,
-    });
+      const azureRes = await fetch(azureUploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': media.mimeType || (media.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+        },
+        body: binaryData,
+      });
 
-    if (!res.ok) {
-      let errorMsg = `Upload failed with status ${res.status}`;
-      try {
-        const errJson = await res.json();
-        if (errJson.message || errJson.error) {
-          errorMsg = errJson.message || errJson.error;
-        }
-      } catch {
-        // Ignore
+      if (azureRes.ok) {
+        const resData = await azureRes.json();
+        return resData.publicUrl || `https://158-158-120-244.sslip.io/uploads/${folder}/${uniqueName}`;
       }
-      throw new Error(errorMsg);
+    } catch (azureErr) {
+      console.warn('Azure direct upload fallback error:', azureErr);
     }
 
-    return `${SUPABASE_URL}/storage/v1/object/public/uploads/${uniquePath}`;
+    throw new Error('Media upload failed. Please try again.');
   },
 
   /**

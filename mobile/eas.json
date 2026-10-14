@@ -11,8 +11,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://unilink-api-s6b9.onrender.com/api/v1",
-        "EXPO_PUBLIC_AZURE_API_URL": "http://158.158.120.244/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://158-158-120-244.sslip.io/api/v1",
+        "EXPO_PUBLIC_AZURE_API_URL": "https://158-158-120-244.sslip.io/api/v1",
         "EXPO_PUBLIC_FALLBACK_API_URL": "https://unilink-api-s6b9.onrender.com/api/v1"
       }
     },
@@ -22,8 +22,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://unilink-api-s6b9.onrender.com/api/v1",
-        "EXPO_PUBLIC_AZURE_API_URL": "http://158.158.120.244/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://158-158-120-244.sslip.io/api/v1",
+        "EXPO_PUBLIC_AZURE_API_URL": "https://158-158-120-244.sslip.io/api/v1",
         "EXPO_PUBLIC_FALLBACK_API_URL": "https://unilink-api-s6b9.onrender.com/api/v1"
       }
     }

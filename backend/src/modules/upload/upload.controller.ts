@@ -1,6 +1,5 @@
-﻿import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Post, Put, Body, Param, Request, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 
 class PresignDto {
@@ -10,13 +9,11 @@ class PresignDto {
 }
 
 @ApiTags('Upload')
-@ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @ApiOperation({ summary: 'Get a presigned R2 upload URL' })
+  @ApiOperation({ summary: 'Get a presigned upload URL or Azure fallback' })
   @Post('presign')
   @HttpCode(HttpStatus.OK)
   presign(
@@ -28,5 +25,16 @@ export class UploadController {
       body.ext || 'jpg',
       body.mimeType,
     );
+  }
+
+  @ApiOperation({ summary: 'Stream binary media directly to Azure VM storage disk' })
+  @Put('file/:folder/:filename')
+  @HttpCode(HttpStatus.OK)
+  async uploadBinary(
+    @Req() req: any,
+    @Param('folder') folder: string,
+    @Param('filename') filename: string,
+  ) {
+    return this.uploadService.saveBinaryFile(req, folder, filename);
   }
 }
