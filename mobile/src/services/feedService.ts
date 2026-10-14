@@ -133,7 +133,7 @@ export const FeedService = {
     try {
       const res = await apiClient.get('/feed', {
         params: { limit },
-        timeout: 4500, // Quick timeout to fallback seamlessly if backend is unreachable
+        timeout: 10000,
       });
       const nestPosts = res.data?.posts || [];
       if (Array.isArray(nestPosts) && nestPosts.length > 0) {

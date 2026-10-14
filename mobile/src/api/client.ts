@@ -3,31 +3,14 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../store/authStore';
 
-/**
- * API base URL resolution:
- * 1. Use EXPO_PUBLIC_API_URL if set in EAS env (production backend URL)
- * 2. Otherwise use a non-crashing placeholder — the app primarily uses Supabase directly.
- *    NestJS is only a fallback and its unavailability should not crash the app.
- *
- * NOTE: Constants.expoConfig.hostUri is ONLY available in Expo Go dev mode.
- * In standalone APK builds it is always null/undefined. The old code silently
- * fell back to a hardcoded local LAN IP (10.149.190.193) which fails in production.
- */
-const getBaseURL = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  // All primary data comes from Supabase directly.
-  // NestJS API calls fail gracefully (caught by try/catch in callers).
-  return 'http://localhost:3000/api/v1';
-};
+const PRIMARY_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unilink-api-s6b9.onrender.com/api/v1';
+const AZURE_URL = 'http://158.158.120.244/api/v1';
 
-const baseURL = getBaseURL();
 const TOKEN_KEY = 'ulink_auth_token';
 
 export const apiClient = axios.create({
-  baseURL,
-  timeout: 8000,
+  baseURL: PRIMARY_URL,
+  timeout: 12000,
 });
 
 apiClient.interceptors.request.use(
@@ -52,8 +35,23 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Automatic Failover between Render HTTPS and Azure VM on network error / timeout
+    if (originalRequest && !originalRequest._retry && !error.response) {
+      originalRequest._retry = true;
+      const currentBase = originalRequest.baseURL || PRIMARY_URL;
+      const altBase = currentBase.includes('onrender.com') ? AZURE_URL : PRIMARY_URL;
+      originalRequest.baseURL = altBase;
+      try {
+        return await axios(originalRequest);
+      } catch (retryErr) {
+        return Promise.reject(retryErr);
+      }
+    }
+
+    if (error.response?.status === 401 && !originalRequest?.url?.includes('/auth/login')) {
       useAuthStore.getState().logout();
     }
     return Promise.reject(error);

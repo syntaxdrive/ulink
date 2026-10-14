@@ -6,7 +6,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('profiles')
 export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
@@ -20,6 +19,7 @@ export class ProfilesController {
     return this.profilesService.searchUsers(q || '', parsedLimit);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Patch('me')
   updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
     return this.profilesService.updateProfile(req.user.id, dto);
@@ -27,15 +27,18 @@ export class ProfilesController {
 
   @Get(':id')
   getProfile(@Request() req: any, @Param('id') id: string) {
-    return this.profilesService.getProfile(id, req.user.id);
+    const currentUserId = req?.user?.id;
+    return this.profilesService.getProfile(id, currentUserId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post(':id/follow')
   @HttpCode(HttpStatus.OK)
   followUser(@Request() req: any, @Param('id') id: string) {
     return this.profilesService.followUser(req.user.id, id);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id/follow')
   @HttpCode(HttpStatus.OK)
   unfollowUser(@Request() req: any, @Param('id') id: string) {

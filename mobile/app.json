@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.syntaxdrive.unilink",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",

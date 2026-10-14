@@ -52,8 +52,13 @@ export class FeedService {
 
     const mappedPosts = posts.map((post) => {
       const { likes, ...rest } = post as any;
+      const images = Array.isArray(rest.image_urls) && rest.image_urls.length > 0
+        ? rest.image_urls
+        : (rest.image_url ? [rest.image_url] : []);
       return {
         ...rest,
+        image_urls: images,
+        image_url: rest.image_url || (images.length > 0 ? images[0] : null),
         user_has_liked: Array.isArray(likes) && likes.length > 0,
       };
     });

@@ -107,51 +107,22 @@ export default function LoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       if (isLogin) {
-        // 1. Primary: Try NestJS (Neon DB)
         try {
           const res = await apiClient.post('/auth/login', {
             email: trimmedEmail,
             password: trimmedPassword,
           });
           if (res.data?.access_token) {
-            await setToken(res.data.access_token);
+            await setToken(res.data.access_token, res.data.user?.id);
             return;
           }
         } catch (apiErr: any) {
           if (apiErr?.response?.status === 401) {
-            throw new Error('Invalid email or password. If you forgot your password or previously used Google, tap "Forgot Password?" below.');
+            throw new Error('Invalid email or password. Please verify your credentials.');
           }
-        }
-
-        // 2. Fallback: Supabase Sign In (if NestJS was unreachable)
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: trimmedEmail,
-            password: trimmedPassword,
-          });
-
-          if (error) {
-            throw new Error('Invalid email or password. If you forgot your password or previously used Google, tap "Forgot Password?" below.');
-          }
-
-          if (data?.session && data?.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('university, name')
-              .eq('id', data.user.id)
-              .single();
-
-            if (!profile?.university) {
-              navigation.navigate('ProfileOnboarding', { userId: data.user.id });
-            } else {
-              await setToken(data.session.access_token, data.user.id);
-            }
-          }
-        } catch (sbErr: any) {
-          throw new Error('Invalid email or password. If you forgot your password or previously used Google, tap "Forgot Password?" below.');
+          throw new Error(apiErr?.response?.data?.message || apiErr?.message || 'Unable to connect to server. Please try again.');
         }
       } else {
-        // 1. Primary: Try NestJS (Neon DB)
         try {
           const res = await apiClient.post('/auth/register', {
             email: trimmedEmail,
@@ -159,42 +130,14 @@ export default function LoginScreen({ navigation }: any) {
             name: name.trim(),
           });
           if (res.data?.access_token) {
-            await setToken(res.data.access_token);
+            await setToken(res.data.access_token, res.data.user?.id);
             return;
           }
         } catch (apiErr: any) {
           if (apiErr?.response?.status === 409) {
             throw new Error('An account with this email already exists.');
           }
-        }
-
-        // 2. Fallback: Supabase Sign Up
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email: trimmedEmail,
-            password: trimmedPassword,
-            options: {
-              emailRedirectTo: 'unilink://auth/callback',
-              data: {
-                name: name.trim(),
-                full_name: name.trim(),
-              },
-            },
-          });
-
-          if (error) throw error;
-
-          if (data.session && data.user) {
-            navigation.navigate('ProfileOnboarding', { userId: data.user.id });
-          } else if (data.user && !data.session) {
-            Alert.alert(
-              'Check Your Email ✉️',
-              'We sent a confirmation code to your email address. Please verify to log in!'
-            );
-            setIsLogin(true);
-          }
-        } catch (sbErr: any) {
-          throw new Error(sbErr.message || 'Registration failed. Please try again.');
+          throw new Error(apiErr?.response?.data?.message || apiErr?.message || 'Registration failed. Please try again.');
         }
       }
     } catch (error: any) {

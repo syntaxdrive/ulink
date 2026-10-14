@@ -49,6 +49,7 @@ interface AuthState {
 }
 
 const TOKEN_KEY = 'ulink_auth_token';
+const USER_ID_KEY = 'ulink_auth_user_id';
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
@@ -59,17 +60,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (Platform.OS === 'web') {
       if (token) {
         localStorage.setItem(TOKEN_KEY, token);
+        if (userId) localStorage.setItem(USER_ID_KEY, userId);
       } else {
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_ID_KEY);
       }
     } else {
       if (token) {
         await SecureStore.setItemAsync(TOKEN_KEY, token);
+        if (userId) await SecureStore.setItemAsync(USER_ID_KEY, userId);
       } else {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await SecureStore.deleteItemAsync(USER_ID_KEY);
       }
     }
-    set({ token, userId });
+    set({ token, userId: userId || get().userId });
   },
 
   createSessionFromUrl: async (url: string) => {
@@ -216,14 +221,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // 2. Check stored local token
+      // 2. Check stored local token & userId
       let token: string | null = null;
+      let userId: string | null = null;
       if (Platform.OS === 'web') {
         token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+        userId = typeof localStorage !== 'undefined' ? localStorage.getItem(USER_ID_KEY) : null;
       } else {
         token = await SecureStore.getItemAsync(TOKEN_KEY);
+        userId = await SecureStore.getItemAsync(USER_ID_KEY);
       }
-      set({ token, isLoading: false });
+      set({ token, userId, isLoading: false });
     } catch (error) {
       console.error('Failed to load token', error);
       set({ token: null, userId: null, isLoading: false });
@@ -238,9 +246,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(TOKEN_KEY);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_ID_KEY);
+      }
     } else {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_ID_KEY);
     }
     set({ token: null, userId: null });
   },
