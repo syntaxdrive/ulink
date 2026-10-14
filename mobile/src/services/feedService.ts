@@ -133,15 +133,15 @@ export const FeedService = {
     try {
       const res = await apiClient.get('/feed', {
         params: { limit },
-        timeout: 10000,
+        timeout: 30000,
       });
       const nestPosts = res.data?.posts || [];
       if (Array.isArray(nestPosts) && nestPosts.length > 0) {
         return nestPosts;
       }
-    } catch (nestError) {
+    } catch (nestError: any) {
       // Graceful fallback to Supabase query if NestJS is down or offline
-      console.warn('NestJS getFeed unavailable, falling back to Supabase directly:', nestError);
+      console.warn('NestJS getFeed unavailable, falling back to Supabase directly:', nestError?.message || nestError);
     }
 
     try {

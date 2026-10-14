@@ -33,11 +33,11 @@ import { HealthController } from './health.controller';
     // Global Prisma singleton — shared across all modules
     PrismaModule,
 
-    // Multi-Tier Rate Limiting (Burst, Standard, Sustained)
+    // Multi-Tier Rate Limiting (Mobile-Optimized to prevent 429 errors)
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1000, limit: 5 },       // 5 requests / sec (burst protection)
-      { name: 'medium', ttl: 60000, limit: 60 },    // 60 requests / min (standard feeds, search)
-      { name: 'long', ttl: 900000, limit: 300 },    // 300 requests / 15 min (sustained window)
+      { name: 'short', ttl: 1000, limit: 100 },      // 100 req/sec (smooth burst for screen initial load)
+      { name: 'medium', ttl: 60000, limit: 1000 },   // 1000 req/min (feed refreshes & navigation)
+      { name: 'long', ttl: 900000, limit: 10000 },   // 10000 req/15 min (sustained window)
     ]),
 
     // Feature modules

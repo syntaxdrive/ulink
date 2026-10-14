@@ -10,7 +10,7 @@ const TOKEN_KEY = 'ulink_auth_token';
 
 export const apiClient = axios.create({
   baseURL: PRIMARY_URL,
-  timeout: 12000,
+  timeout: 30000,
 });
 
 apiClient.interceptors.request.use(
@@ -37,6 +37,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Retry once on rate limit (429) after brief jitter delay
+    if (error.response?.status === 429 && originalRequest && !originalRequest._retry429) {
+      originalRequest._retry429 = true;
+      await new Promise((r) => setTimeout(r, 700));
+      return apiClient(originalRequest);
+    }
 
     // Automatic Failover between Render HTTPS and Azure VM on network error / timeout
     if (originalRequest && !originalRequest._retry && !error.response) {
