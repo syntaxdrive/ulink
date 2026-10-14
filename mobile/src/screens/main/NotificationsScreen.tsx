@@ -341,7 +341,7 @@ export default function NotificationsScreen() {
 
     // 5. Posts / Likes / Comments / Reposts -> Feed
     if (type === 'like' || type === 'comment' || type === 'repost' || url.includes('/post/') || url.includes('/posts/')) {
-      navigation.navigate('Feed');
+      navigation.navigate('Home');
       return;
     }
 

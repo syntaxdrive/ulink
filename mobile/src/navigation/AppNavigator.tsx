@@ -100,7 +100,7 @@ export default function AppNavigator() {
       screens: {
         MainTabs: {
           screens: {
-            Feed: 'post/:postId?',
+            Home: 'post/:postId?',
             Communities: 'communities',
             Messages: 'messages',
             Profile: 'profile/:userId?',
