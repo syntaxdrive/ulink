@@ -20,6 +20,7 @@ import CommunityDetailScreen from '../screens/main/CommunityDetailScreen';
 import StudyScreen from '../screens/main/StudyScreen';
 import SearchScreen from '../screens/main/SearchScreen';
 import AdminScreen from '../screens/main/AdminScreen';
+import FeedScreen from '../screens/main/FeedScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import { GlobalAudioEngine } from '../components/GlobalAudioEngine';
 import { GlobalMiniPlayer } from '../components/GlobalMiniPlayer';
@@ -43,6 +44,7 @@ function MainNavigator() {
       <Stack.Screen name="Study"           component={StudyScreen} />
       <Stack.Screen name="Search"          component={SearchScreen} />
       <Stack.Screen name="Admin"           component={AdminScreen} />
+      <Stack.Screen name="Feed"            component={FeedScreen} />
     </Stack.Navigator>
   );
 }
