@@ -33,6 +33,8 @@ import {
   UserPlus,
 } from 'lucide-react-native';
 import { colors, useTheme } from '../../theme/colors';
+import { useAuthStore } from '../../store/authStore';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../../lib/supabase';
 import { uploadService } from '../../services/uploadService';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
@@ -120,13 +122,22 @@ export default function MessagesScreen() {
 
   // 1. Load current user session & profile
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setCurrentUserId(session.user.id);
+    const init = async () => {
+      let uid = useAuthStore.getState().userId;
+      if (!uid && Platform.OS !== 'web') {
+        uid = await SecureStore.getItemAsync('ulink_auth_user_id');
+      }
+      if (!uid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        uid = session?.user?.id;
+      }
+
+      if (uid) {
+        setCurrentUserId(uid);
         const { data: profile } = await supabase
           .from('profiles')
           .select('username, name, avatar_url, headline')
-          .eq('id', session.user.id)
+          .eq('id', uid)
           .single();
         if (profile?.username) {
           setCurrentUsername(profile.username);
@@ -142,7 +153,7 @@ export default function MessagesScreen() {
         const { data: peers } = await supabase
           .from('profiles')
           .select('id, name, username, avatar_url, is_verified, headline')
-          .neq('id', session.user.id)
+          .neq('id', uid)
           .limit(8);
 
         if (peers && peers.length > 0) {
@@ -155,7 +166,8 @@ export default function MessagesScreen() {
           );
         }
       }
-    });
+    };
+    init();
   }, []);
 
   // 2. Fetch User's Accepted Connections
@@ -197,8 +209,14 @@ export default function MessagesScreen() {
   // 3. Fetch Inbox Conversations
   const fetchInbox = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUid = session?.user?.id || currentUserId;
+      let currentUid = currentUserId || useAuthStore.getState().userId;
+      if (!currentUid && Platform.OS !== 'web') {
+        currentUid = await SecureStore.getItemAsync('ulink_auth_user_id');
+      }
+      if (!currentUid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUid = session?.user?.id;
+      }
 
       if (!currentUid) {
         setLoading(false);

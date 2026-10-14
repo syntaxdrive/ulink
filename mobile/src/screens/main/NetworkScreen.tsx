@@ -25,6 +25,8 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, useTheme } from '../../theme/colors';
+import { useAuthStore } from '../../store/authStore';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../../lib/supabase';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 
@@ -102,9 +104,16 @@ export default function NetworkScreen() {
   /* ── Init: get session ── */
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUserId(session.user.id);
+      let uid = useAuthStore.getState().userId;
+      if (!uid && Platform.OS !== 'web') {
+        uid = await SecureStore.getItemAsync('ulink_auth_user_id');
+      }
+      if (!uid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        uid = session?.user?.id;
+      }
+      if (uid) {
+        setUserId(uid);
       }
     };
     init();

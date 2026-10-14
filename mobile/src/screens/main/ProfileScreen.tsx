@@ -63,6 +63,7 @@ import {
 } from 'lucide-react-native';
 import { colors, useTheme } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../../lib/supabase';
 import { ReportModal, BugReportModal } from '../../components/ReportModal';
 import { LegalModal, LegalDocType } from '../../components/LegalModal';
@@ -287,14 +288,21 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const fetchProfileData = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUid = session?.user?.id;
+      let currentUid = useAuthStore.getState().userId;
+      if (!currentUid && Platform.OS !== 'web') {
+        currentUid = await SecureStore.getItemAsync('ulink_auth_user_id');
+      }
+      if (!currentUid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUid = session?.user?.id;
+      }
       if (currentUid) setCurrentUserId(currentUid);
 
       const targetUid = routeUserId || currentUid;
 
       if (targetUid) {
-        // 1. Fetch profile from Supabase
+        // 1. Fetch profile from Supabase bridge
+        let userProf: UserProfile | null = null;
         const { data: profData, error: profError } = await supabase
           .from('profiles')
           .select('*')
@@ -302,7 +310,23 @@ export default function ProfileScreen({ navigation, route }: any) {
           .single();
 
         if (profData && !profError) {
-          const userProf = profData as UserProfile;
+          userProf = profData as UserProfile;
+        } else {
+          // Direct REST shim fallback
+          try {
+            const { apiClient } = await import('../../api/client');
+            const res = await apiClient.get(`/rest/profiles?id=eq.${targetUid}`);
+            if (Array.isArray(res.data) && res.data.length > 0) {
+              userProf = res.data[0] as UserProfile;
+            } else if (res.data && res.data.id) {
+              userProf = res.data as UserProfile;
+            }
+          } catch (e) {
+            console.warn('[ProfileScreen] Direct profile fallback error:', e);
+          }
+        }
+
+        if (userProf) {
           setProfile(userProf);
           setFollowersCount(userProf.followers_count ?? 0);
           setFollowingCount(userProf.following_count ?? 0);
@@ -334,7 +358,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           FeedService.getSavedPosts(targetUid),
         ]);
 
-        if (postsRes.data) {
+        if (postsRes.data && Array.isArray(postsRes.data)) {
           const fetchedPosts = postsRes.data as UserPost[];
           setPosts(fetchedPosts);
           setPostsCount(fetchedPosts.filter((p: any) => !p.is_repost).length);

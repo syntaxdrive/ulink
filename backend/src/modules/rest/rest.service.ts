@@ -52,6 +52,39 @@ export class RestService {
 
       const valStr = String(rawVal);
 
+      if (key === 'or') {
+        const orStr = valStr.startsWith('(') && valStr.endsWith(')') ? valStr.slice(1, -1) : valStr;
+        const orClauses: Record<string, any>[] = [];
+        const parts = orStr.split(',');
+        for (const part of parts) {
+          const dotIdx1 = part.indexOf('.');
+          if (dotIdx1 === -1) continue;
+          const col = part.slice(0, dotIdx1);
+          const rest = part.slice(dotIdx1 + 1);
+          const dotIdx2 = rest.indexOf('.');
+          const op = dotIdx2 === -1 ? 'eq' : rest.slice(0, dotIdx2);
+          const v = dotIdx2 === -1 ? rest : rest.slice(dotIdx2 + 1);
+
+          if (op === 'eq') {
+            orClauses.push({ [col]: this.parseFilterValue(v) });
+          } else if (op === 'neq') {
+            orClauses.push({ [col]: { not: this.parseFilterValue(v) } });
+          } else if (op === 'gt') {
+            orClauses.push({ [col]: { gt: this.parseFilterValue(v) } });
+          } else if (op === 'gte') {
+            orClauses.push({ [col]: { gte: this.parseFilterValue(v) } });
+          } else if (op === 'lt') {
+            orClauses.push({ [col]: { lt: this.parseFilterValue(v) } });
+          } else if (op === 'lte') {
+            orClauses.push({ [col]: { lte: this.parseFilterValue(v) } });
+          }
+        }
+        if (orClauses.length > 0) {
+          where.OR = orClauses;
+        }
+        continue;
+      }
+
       if (valStr.startsWith('eq.')) {
         where[key] = this.parseFilterValue(valStr.slice(3));
       } else if (valStr.startsWith('neq.')) {
@@ -189,6 +222,52 @@ export class RestService {
             },
           },
         };
+      case 'connections':
+        return {
+          requester: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+              headline: true,
+              university: true,
+              is_verified: true,
+              points: true,
+            },
+          },
+          recipient: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+              headline: true,
+              university: true,
+              is_verified: true,
+              points: true,
+            },
+          },
+        };
+      case 'messages':
+        return {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+            },
+          },
+          recipient: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              avatar_url: true,
+            },
+          },
+        };
       default:
         return undefined;
     }
@@ -197,6 +276,19 @@ export class RestService {
   private transformResponse(tableName: string, data: any[]): any[] {
     const tbl = tableName.toLowerCase();
     return data.map((item) => {
+      // Profile security: strip password_hash
+      if (tbl === 'profiles' || tbl === 'users') {
+        const { password_hash, ...safe } = item;
+        return safe;
+      }
+      // Connections compatibility shim
+      if (tbl === 'connections') {
+        return {
+          ...item,
+          requester: item.requester,
+          recipient: item.recipient,
+        };
+      }
       // Marketplace compatibility shim: map seller to profiles & profiles:seller_id
       if (tbl === 'marketplace_listings' && item.seller) {
         return {

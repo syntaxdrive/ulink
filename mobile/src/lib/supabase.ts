@@ -6,6 +6,7 @@ const PRIMARY_NEST_URL = process.env.EXPO_PUBLIC_API_URL || 'http://158.158.120.
 const FALLBACK_NEST_URL = process.env.EXPO_PUBLIC_FALLBACK_API_URL || 'https://unilink-api-s6b9.onrender.com/api/v1';
 
 const TOKEN_KEY = 'ulink_auth_token';
+const USER_ID_KEY = 'ulink_auth_user_id';
 
 /**
  * Custom storage adapter for session persistence.
@@ -86,11 +87,25 @@ export const supabase = createClient(
             // Ignore token read error
           }
 
-          const headers: Record<string, string> = {
+          const passHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
           };
+
+          // Forward client request headers (e.g. Accept: application/vnd.pgrst.object+json)
+          if (init?.headers) {
+            if (typeof (init.headers as any).forEach === 'function') {
+              (init.headers as any).forEach((value: string, key: string) => {
+                passHeaders[key.toLowerCase()] = value;
+              });
+            } else if (typeof init.headers === 'object') {
+              for (const [k, v] of Object.entries(init.headers)) {
+                if (typeof v === 'string') passHeaders[k.toLowerCase()] = v;
+              }
+            }
+          }
+
           if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+            passHeaders['authorization'] = `Bearer ${token}`;
           }
 
           // Try Primary (Azure VM), fallback to Render if needed
@@ -106,20 +121,19 @@ export const supabase = createClient(
 
               const res = await fetch(targetUrl, {
                 ...init,
-                headers: {
-                  ...(init?.headers as any),
-                  ...headers,
-                },
+                headers: passHeaders,
                 signal: controller.signal,
               });
               clearTimeout(timeoutId);
 
               if (res.ok) {
                 const bodyText = await res.text();
+                const accept = passHeaders['accept'] || '';
+                const isSingle = accept.includes('vnd.pgrst.object');
                 return new Response(bodyText, {
                   status: res.status,
                   headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': isSingle ? 'application/vnd.pgrst.object+json' : 'application/json',
                     'Content-Range': '0-50/50',
                   },
                 });
@@ -145,3 +159,80 @@ export const supabase = createClient(
     },
   }
 );
+
+// ── Transparent Auth Shim ───────────────────────────────────────────────────
+// Guarantees all screens (Profile, Network, Messages, Tabs) immediately receive
+// the authenticated user identity without needing Supabase Auth servers.
+const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
+const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
+
+supabase.auth.getSession = async (): Promise<any> => {
+  try {
+    let token: string | null = null;
+    let userId: string | null = null;
+
+    if (Platform.OS === 'web') {
+      token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+      userId = typeof localStorage !== 'undefined' ? localStorage.getItem(USER_ID_KEY) : null;
+    } else {
+      token = await SecureStore.getItemAsync(TOKEN_KEY);
+      userId = await SecureStore.getItemAsync(USER_ID_KEY);
+    }
+
+    if (userId) {
+      return {
+        data: {
+          session: {
+            access_token: token || 'bearer-token',
+            token_type: 'bearer',
+            expires_in: 604800,
+            refresh_token: token || '',
+            user: {
+              id: userId,
+              aud: 'authenticated',
+              role: 'authenticated',
+              email: '',
+              user_metadata: {},
+              app_metadata: {},
+              created_at: new Date().toISOString(),
+            },
+          },
+        },
+        error: null,
+      };
+    }
+  } catch (err) {
+    console.warn('[Supabase Bridge] getSession shim error:', err);
+  }
+  return await originalGetSession();
+};
+
+supabase.auth.getUser = async (jwt?: string): Promise<any> => {
+  try {
+    let userId: string | null = null;
+    if (Platform.OS === 'web') {
+      userId = typeof localStorage !== 'undefined' ? localStorage.getItem(USER_ID_KEY) : null;
+    } else {
+      userId = await SecureStore.getItemAsync(USER_ID_KEY);
+    }
+    if (userId) {
+      return {
+        data: {
+          user: {
+            id: userId,
+            aud: 'authenticated',
+            role: 'authenticated',
+            email: '',
+            user_metadata: {},
+            app_metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        },
+        error: null,
+      };
+    }
+  } catch (err) {
+    console.warn('[Supabase Bridge] getUser shim error:', err);
+  }
+  return await originalGetUser(jwt);
+};

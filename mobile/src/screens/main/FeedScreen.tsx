@@ -34,7 +34,6 @@ import {
   Search,
   Plus,
   Bell,
-  ChevronDown,
   Film,
   Volume2,
   VolumeX,
@@ -1360,7 +1359,6 @@ export default function FeedScreen() {
           <Text style={[styles.logoText, { color: isDark ? '#FFFFFF' : '#000000' }]}>
             UniLink
           </Text>
-          <ChevronDown size={18} color={isDark ? '#FFFFFF' : '#000000'} style={{ marginLeft: 4 }} />
         </TouchableOpacity>
 
         <View style={styles.topHeaderIcons}>
