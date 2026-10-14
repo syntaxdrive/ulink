@@ -380,96 +380,8 @@ const InlineFeedVideo: React.FC<InlineFeedVideoProps> = ({
   );
 };
 
-// Relatable student mock posts featuring genuine campus experiences
-const MOCK_FALLBACK_POSTS: FeedPost[] = [
-  {
-    id: 'mock_video_reel_1',
-    content: 'first day back in lecture halls and the heat already humbled everyone 😭 8am class is not for the weak',
-    video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    image_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
-    likes_count: 531,
-    comments_count: 47,
-    created_at: new Date().toISOString(),
-    author: {
-      id: 'a1000000-0000-0000-0000-000000000003',
-      name: 'Tobi Bakare',
-      username: 'tobi_baks',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      is_verified: true,
-      university: 'UNILAG',
-      headline: 'Computer Science · Year 3',
-    },
-  },
-  {
-    id: 'curated_short_1',
-    content: 'if you are currently taking calculus or engineering maths, do not cram formulas. understand the rate of change intuition first. saved my entire semester 🙏',
-    image_url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1200&q=80',
-    likes_count: 342,
-    comments_count: 38,
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    user_has_liked: true,
-    author: {
-      id: 'a1000000-0000-0000-0000-000000000001',
-      name: 'Amaka Johnson',
-      username: 'amaka_j',
-      avatar_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=200&q=80',
-      is_verified: true,
-      university: 'University of Ibadan',
-      headline: 'Economics · UI',
-    },
-  },
-  {
-    id: 'curated_short_2',
-    content: 'please stop deleting and re-cloning your git repo whenever there is a merge conflict 😂 accept incoming changes or keep both, that is literally all',
-    image_url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
-    likes_count: 218,
-    comments_count: 29,
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    author: {
-      id: 'a1000000-0000-0000-0000-000000000002',
-      name: 'Chidi Okeke',
-      username: 'chidi.codes',
-      avatar_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=200&q=80',
-      is_verified: true,
-      university: 'UNN',
-      headline: 'Software Engineering',
-    },
-  },
-  {
-    id: 'curated_short_3',
-    content: 'hostel cooking during exam season is just pure survival mode 😂 noodles plus egg holding down the entire semester fr',
-    image_url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=1200&q=80',
-    likes_count: 412,
-    comments_count: 53,
-    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
-    author: {
-      id: 'a1000000-0000-0000-0000-000000000003',
-      name: 'Favour Adeyemi',
-      username: 'favour_ade',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      is_verified: true,
-      university: 'OAU Ife',
-      headline: 'Law · 300L',
-    },
-  },
-  {
-    id: 'curated_short_4',
-    content: 'interview tip: when they ask "tell me about yourself", do not recite your entire CV line by line. focus on what you are doing now, why this role fits, and where you want to grow. keep it simple and confident.',
-    image_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80',
-    likes_count: 189,
-    comments_count: 24,
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    author: {
-      id: 'a1000000-0000-0000-0000-000000000004',
-      name: 'Kenechukwu',
-      username: 'kene_unilag',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-      is_verified: true,
-      university: 'UNILAG',
-      headline: 'Finance & Accounting',
-    },
-  },
-];
+// Real student posts only - mock fallback disabled
+const MOCK_FALLBACK_POSTS: FeedPost[] = [];
 
 // Top Campus Podcasts Stories (with vibrant rings & microphone badges)
 const TOP_PODCAST_STORIES: PodcastStoryBubble[] = [
@@ -669,18 +581,6 @@ export default function FeedScreen() {
       let loadedPosts: FeedPost[] = [];
       if (feedPosts.status === 'fulfilled' && feedPosts.value && feedPosts.value.length > 0) {
         loadedPosts = [...feedPosts.value];
-      } else {
-        loadedPosts = [...MOCK_FALLBACK_POSTS];
-      }
-
-      // Fetch fresh live open RSS / Hub articles in background if feed has few items
-      try {
-        const liveRss = await RssFeedService.fetchLiveHubPosts();
-        if (liveRss.length > 0) {
-          loadedPosts = [...loadedPosts, ...liveRss];
-        }
-      } catch (rssErr) {
-        console.warn('Live RSS blending skipped:', rssErr);
       }
 
       // Strict Deduplication by ID & Normalized Content/Caption
@@ -726,10 +626,8 @@ export default function FeedScreen() {
         setPodcastEpisodes((episodesRes.value.data as any[]) || []);
       }
     } catch (error) {
-      console.warn('Error fetching feed data, using fallback:', error);
-      setPosts(MOCK_FALLBACK_POSTS);
-      setPodcasts(TOP_PODCAST_STORIES);
-      setVisiblePostId(MOCK_FALLBACK_POSTS[0].id);
+      console.warn('Error fetching feed data:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
